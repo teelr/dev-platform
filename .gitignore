@@ -1,0 +1,42 @@
+# Dev-standards repo at /home/rich/dev/ — tracks ONLY top-level standards
+# files that govern every project under dev/. Each project under projects/
+# is its own repo; nothing here should reach into them.
+#
+# Strategy: ignore everything by default, then re-include only the files
+# that belong to dev-wide standards.
+
+# Ignore-everything default
+*
+
+# Re-include directories we want to recurse into
+!.gitignore
+!CLAUDE.md
+!BACKUP_INSTRUCTIONS.md
+!backup-to-cosmo.sh
+!dev.code-workspace
+!docs/
+!tasks/
+
+# Inside re-included directories, allow markdown / shell / text files but
+# exclude anything generated.
+docs/**
+tasks/**
+!docs/*.md
+!tasks/*.md
+!tasks/*.sh
+
+# Hard exclude — these are nested git repos / large binaries / state
+projects/
+keystone/
+ai_dev/
+neurX_platform/
+ProjectsDashboard/
+tools/
+archive/
+20251018_neurX_backup/
+dev-config/
+.claude/
+.mypy_cache/
+__pycache__/
+*.pyc
+.DS_Store

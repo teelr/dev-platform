@@ -1,0 +1,82 @@
+<!-- PROJECT CLAUDE.md TEMPLATE
+     Copy this to your project root as CLAUDE.md and fill in the sections.
+     Keep under 200 lines. Move API docs, UI design, troubleshooting to docs/.
+     Do NOT duplicate rules from /home/rich/dev/CLAUDE.md — they apply automatically. -->
+
+# {Project Name}
+
+{1-2 sentence description. What it does and why it exists.}
+
+**Production:** https://X.richteel.com | **Dev:** http://192.168.1.101:{port}
+
+## Architecture
+
+```text
+Browser → Frontend (:XXXX) → Backend (:YYYY) → Database/Storage
+```
+
+## Tech Stack
+
+| Component | Language | Framework |
+| --------- | -------- | --------- |
+| Backend | Go/Python/Rust | chi/FastAPI/actix |
+| Frontend | TypeScript | Next.js + React + TailwindCSS |
+| Database | SQL/NoSQL | PostgreSQL/MongoDB |
+
+## Build & Run
+
+```bash
+# Prerequisites
+{any setup needed}
+
+# Development
+{exact commands to start dev environment}
+
+# Production
+{exact commands for production deployment}
+```
+
+## Configuration
+
+Environment variables via `.env`:
+
+```text
+{LIST_ALL_ENV_VARS=with_descriptions}
+```
+
+## Ports
+
+| Port | Service | Protocol |
+| ---- | ------- | -------- |
+| XXXX | Backend | TCP |
+| YYYY | Frontend | TCP (dev only) |
+
+## API Endpoints
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| GET | /api/health | Health check |
+
+## File Structure
+
+```text
+project-name/
+├── backend/         # {language} backend
+├── frontend/        # Next.js frontend
+├── config/          # Configuration files
+├── docs/            # Documentation (API docs, architecture, guides)
+├── scripts/         # Dev/deploy scripts
+├── tasks/           # Spec files, lessons.md
+├── tests/           # Test files
+└── logs/            # Application logs
+```
+
+## Rules
+
+{Project-specific rules. Things that have gone wrong before. Things unique to this project.
+Do NOT repeat rules from /home/rich/dev/CLAUDE.md — those apply automatically.}
+
+## Patterns
+
+{Established patterns to follow in this project. Architectural decisions.
+Do NOT repeat patterns from /home/rich/dev/CLAUDE.md.}
