@@ -287,8 +287,17 @@ Each project gets its own port series. No overlap. Check this table before assig
 | 8200s | NVR Dashboard | 8200 (backend), 8210 (frontend), 8889 (WebRTC) |
 | 8300 | TIS Standalone App | 8300 |
 | 9000 | SQRL splash | 9000 |
+| 15400s | **Kermit Harness test infra** | 15401 (chromadb), 15418 (mongodb), 15424 (nats), 15432 (milvus gRPC), 15436 (postgres), 15480 (redis), 15493 (milvus health) |
 
 **Next available series:** 8400s
+
+**Why 15400s for Harness test infra:** the test stack used to live at the
+"prod-port + offset" scatter (5436, 6380, 27018, 19532, 4224, 8101) which
+collided with ATLAS dev (`atlas-dev-postgres:5436`) and any other dev
+environment using the standard offsets. Relocated to a dedicated
+contiguous range (Track 4 follow-up, 2026-04-27) so `make test-infra-up`
+can never conflict with sibling dev stacks again. See
+`/home/rich/dev/projects/kermit/docs/PORT_MAPPING.md`.
 
 ## Production Deployment Pattern
 
