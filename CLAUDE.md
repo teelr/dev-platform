@@ -43,25 +43,28 @@ step" and proceed. Stop after each step and wait for the user's command.
 
 | Level | Term | Definition | Workflow trigger |
 | ----- | ---- | ---------- | ---------------- |
-| 1 | **Phase** | Major product milestone with exit criteria (Phase 1.0, Phase 1.1, Phase 2) | Roadmap planning |
-| 2 | **Spec** | Demoable milestone within a Phase; the output of `/plan`. Artifact lives at `tasks/{descriptive-name}-spec.md` | `/plan` |
-| 3 | **Task** | Atomic implementation unit within a Spec; `/code` implements one Task per invocation. Numbered sequentially (Task 1, Task 2...) | `/code` |
-| 4 | **Commit** | Git record — feature code + doc updates bundled as one atomic commit | `git commit` |
+| 1 | **Roadmap Phase** | Major product milestone with exit criteria (Roadmap Phase 1.0, 1.1, 2). Tracked in `ROADMAP.md` / `tasks/{project}-roadmap.md`. | Roadmap planning |
+| 2 | **Spec** | Demoable milestone within a Roadmap Phase; the output of `/plan`. Artifact at `tasks/{descriptive-name}-spec.md`. | `/plan` |
+| 3 | **Spec Phase** | Group of related Changes inside one Spec. Section header `## Phase N: <title>`. | Spec structure |
+| 4 | **Change** | Atomic implementation step inside a Spec. Header `### Change N: <title>`. Numbered CONTINUOUSLY across the whole Spec — Change 1 is in Phase 1, Change 7 might be in Phase 3, etc. `/code` implements one or more Changes per invocation. | `/code` |
+| 5 | **Commit** | Git record — feature code + doc updates bundled as one atomic commit. | `git commit` |
 
 **Rules:**
 
-- Phase → Spec → Task → Commit. Always. Every project.
-- A Phase has exit criteria. A Spec has a demo. A Task has a commit.
-- `/plan` produces a Spec. `/code` implements a Task. No other granularities.
-- Specs reference Tasks by number: "Task 3" — not "Change 3", "Step 3", "Item 3".
-- Progress tables in specs track Tasks. Roadmaps track Phases.
+- Roadmap Phase → Spec → Spec Phase → Change → Commit. Always. Every project.
+- A Roadmap Phase has exit criteria. A Spec has a demo. A Change has a commit-shaped diff.
+- `/plan` produces a Spec. `/code` implements one or more Changes. No other granularities.
+- Specs reference atomic steps by number: "Change 7" — not "Task 7", "Step 7", "Item 7".
+- Section headers inside a spec use `## Phase N: <title>`; atomic steps use `### Change N: <title>` with N continuous across the entire spec.
+- Progress tables in specs track Changes. Roadmaps track Roadmap Phases.
 - Spec files are named descriptively: `tasks/foundation-spec.md`, `tasks/auth-layer-spec.md` — not `stage-a-spec.md` or `sprint-1-spec.md`.
-- Internal sections within a spec use "Section N:" headers — never "Phase N:" (which is reserved for product milestones).
-- Task numbering is 1-indexed within their Spec (Task 1, Task 2...).
+- Change numbering starts at 1 within each Spec and increments through every Phase in that Spec.
 
-**Killed terms (never use as workflow-level labels):** Stage, Change, Sprint, Iteration, Revision, Milestone, Group, Epic.
+**Killed terms (never use as workflow-level labels):** Stage, Sprint, Iteration, Revision, Milestone, Group, Epic, Step, Item, Task.
 
-**Disambiguation:** If a project has a business hierarchy that also uses "Phase" or "Task" (e.g., Keystone's Global → Project → Phase → Task → Sub-Task), always qualify with the project name: "Keystone Phase", "Keystone Task". Bare "Phase" and "Task" in development context always mean the workflow terms above.
+**Disambiguation:** "Phase" alone means *Spec Phase* (the section header inside a spec). "Roadmap Phase" is the qualified form for product-milestone scope. Project-specific business hierarchies that ALSO use "Phase" (e.g., Keystone's Global → Project → Phase → Task → Sub-Task domain model) qualify with the project name: "Keystone Phase". Bare "Phase" in development context always means the spec-internal section.
+
+**ATLAS specs (`/home/rich/dev/keystone/tasks/atlas-*.md`) are the reference implementation of this taxonomy.**
 
 ## Workflow Principles
 
