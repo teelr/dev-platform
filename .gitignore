@@ -16,14 +16,17 @@
 !dev.code-workspace
 !docs/
 !tasks/
+!scripts/
 
 # Inside re-included directories, allow markdown / shell / text files but
 # exclude anything generated.
 docs/**
 tasks/**
+scripts/**
 !docs/*.md
 !tasks/*.md
 !tasks/*.sh
+!scripts/*.sh
 
 # Hard exclude — these are nested git repos / large binaries / state
 projects/

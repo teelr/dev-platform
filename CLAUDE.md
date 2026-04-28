@@ -64,7 +64,14 @@ step" and proceed. Stop after each step and wait for the user's command.
 
 **Disambiguation:** "Phase" alone means *Spec Phase* (the section header inside a spec). "Roadmap Phase" is the qualified form for product-milestone scope. Project-specific business hierarchies that ALSO use "Phase" (e.g., Keystone's Global → Project → Phase → Task → Sub-Task domain model) qualify with the project name: "Keystone Phase". Bare "Phase" in development context always means the spec-internal section.
 
-**ATLAS specs (`/home/rich/dev/keystone/tasks/atlas-*.md`) are the reference implementation of this taxonomy.**
+**Reference specs:** `/home/rich/dev/keystone/tasks/atlas-*.md` and `/home/rich/dev/projects/atlas/tasks/*-spec.md` are the canonical examples of this taxonomy.
+
+**Enforcement:** `/home/rich/dev/scripts/check_spec_taxonomy.sh` scans `tasks/*-spec.md` in any project and exits 1 on killed-term headers. Wire it into your project's `gate fast` (or equivalent pre-commit gate) to block drift automatically. The check ignores killed-term headers under non-Phase parents (so workflow-runner descriptions like `## gate fast` → `### Step N: ...` are allowed).
+
+```bash
+# from any project root
+/home/rich/dev/scripts/check_spec_taxonomy.sh
+```
 
 ## Workflow Principles
 

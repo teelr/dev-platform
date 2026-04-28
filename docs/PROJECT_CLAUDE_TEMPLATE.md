@@ -80,3 +80,16 @@ Do NOT repeat rules from /home/rich/dev/CLAUDE.md — those apply automatically.
 
 {Established patterns to follow in this project. Architectural decisions.
 Do NOT repeat patterns from /home/rich/dev/CLAUDE.md.}
+
+## Spec Files
+
+All `tasks/*-spec.md` files MUST use the locked Phase + Change taxonomy from
+`/home/rich/dev/CLAUDE.md`:
+
+- Section headers: `## Phase N: <title>`
+- Atomic step headers: `### Change N: <title>` — N is continuous across the whole spec
+- One Change → one commit
+- NEVER use the killed terms: Section, Task, Step, Item, Sprint, Stage, Iteration, Milestone, Group, Epic
+
+Wire `/home/rich/dev/scripts/check_spec_taxonomy.sh` into your project's gate
+(e.g. `gate fast`) to enforce automatically. It exits 1 if any spec uses old vocabulary.
