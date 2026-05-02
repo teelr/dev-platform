@@ -2,6 +2,39 @@
 
 All development standards for projects in `/home/rich/dev/projects/`. This is the single source of truth.
 
+## Honesty About What Ships
+
+**CRITICAL — NEVER EVER overstate what a project actually has.**
+
+This applies to every artifact a human will read: marketing copy, exec
+one-pagers, feature lists, SVGs, README sections, slide decks, demo scripts,
+PR descriptions, status updates, anything that describes capability. Before
+claiming a feature is "shipping" or "consumer-ready":
+
+1. **Grep the codebase** for the named primitive — if it doesn't exist in code,
+   it doesn't exist.
+2. **Confirm a test enforces it** — a CT, smoke test, or compat test. No test
+   means no claim.
+3. **Label targets vs. proven** — "designed for X / proven at Y" is honest;
+   "supports X" implies you ran it at X.
+4. **Label optional/opt-in features** — if it requires a config flag or env
+   var, say so.
+5. **Roadmap items go on the roadmap** — never in a "Delivers" section.
+6. **Discovered gaps go on the project's follow-on queue immediately**
+   (`tasks/HARNESS_FOLLOW_ONS.md` for harness, equivalent file per project).
+
+Reason: consumers and stakeholders build expectations on what we say. The
+v2.20 Kermit Harness exec-SVG audit caught three overstated claims ("auto
+model downgrade", "tamper-evident audit", "crash recovery") that didn't match
+the code. Overstating once costs trust permanently — and once a customer or
+boss pins their plan to a feature that doesn't exist, you have to either ship
+it under pressure or admit you misled them. Both are bad. The audit habit is
+cheap; recovery isn't.
+
+If you catch yourself writing "supports", "delivers", "provides", "guarantees",
+or any flavor of certainty about a feature — STOP and verify against the code
+before the artifact ships.
+
 ## Development Workflow
 
 **CRITICAL — DO NOT ADVANCE STEPS WITHOUT EXPLICIT USER INVOCATION.**
@@ -100,6 +133,35 @@ step" and proceed. Stop after each step and wait for the user's command.
 - For any multi-step pipeline: don't mark step N complete until step N+1's target confirms receipt. Status fields lie when processes crash between writes.
 
 Do not skip verification. If a check fails, fix it before proceeding.
+
+## Workflow Discipline / Pre-commit Gate Coverage
+
+**Asymmetric gate coverage is mandatory. `/gate fast` MUST stay surgical for inner-loop velocity; load-tier coverage MUST run before any release.**
+
+Three load-tier-only catches in three months (v2.7.2 `d1d99ff`, v2.19.1 cluster fix, v2.19.2 OllamaAdapter EBADF) made this a mechanical rule rather than a per-incident lesson.
+
+The asymmetric split:
+
+| Gate | Scope | Cycle time | Trigger |
+| ---- | ----- | ---------- | ------- |
+| `/gate fast` | constitutional + unit + smoke-fast | ~5s–3 min | every commit |
+| `/gate full` | + load-tier smokes (L1/L3/L4 smoke) for any change touching threads, asyncio interop, ContextVar/Token state, shared-client adapter glue, or backend integration paths | ~10–35 min | after structural change |
+| Pre-merge gate | load-tier smokes MUST PASS before PR merges to main | ~10 min | every PR merge |
+| `/gate release` | full L1/L3/L4 (1K/1K/2.5K tenants) | ~3+ hours | every `__api_version__` minor or major bump |
+
+**Why fast-tier stays surgical:** adding load-tier to `/gate fast` inflates inner-loop cost from ~5s to ~10 min. Kills velocity. Catches no bugs that the asymmetric split doesn't catch elsewhere.
+
+**Why load-tier MUST run before release:** the recurring pattern is "a feature touching threads or shared clients passes every fast-tier and infra-smoke cycle, then crashes the first time it hits per-tenant teardown or 1K-agent fan-out." Examples:
+
+- v2.7.2 (load-test fix shipped without re-running L1)
+- v2.19.1 (2 v2.15.0-latent bugs masked behind each other under L3 100-tenant teardown)
+- v2.19.2 (httpx pool exhaustion under L1 1K-agent single-process)
+
+The bug class is "concurrency-shaped state that only opens its window at scale."
+
+**Mechanical guidance for `/code` agents:** whenever a `/code` session touches files in `kermit/adapters/`, `kermit/core/runtime_impl.py`, `kermit/core/governance/`, or any module that imports `asyncio.create_task`, `threading.Thread`, `loop.call_soon_threadsafe`, or `ContextVar.set/.reset`, the implementing agent MUST run `make load-l1-smoke && make load-l3-smoke && make load-l4-smoke` as the in-spec acceptance check before `/test`. Three sub-3-minute runs catch the bug class.
+
+**Project lesson lineage:** see `/home/rich/dev/projects/kermit/tasks/lessons.md` L15 (v2.19.1 — pattern noted, masking corollary) and L16 (v2.19.2 — httpx pool exhaustion + the 3rd-recurrence trigger).
 
 ## Language Architecture Decision Matrix
 
@@ -295,7 +357,7 @@ Each project gets its own port series. No overlap. Check this table before assig
 | 8090 | Keystone Dashboard | 8090 |
 | 8100s | Keystone Platform | 8100-8190 |
 | 8200s | NVR Dashboard | 8200 (backend), 8210 (frontend), 8889 (WebRTC) |
-| 8300 | TIS Standalone App | 8300 |
+| 8300 | TIS Standalone App (ATLAS Mode 2) | 8300 |
 | 9000 | SQRL splash | 9000 |
 | 15400s | **Kermit Harness test infra** | 15401 (chromadb), 15418 (mongodb), 15424 (nats), 15432 (milvus gRPC), 15436 (postgres), 15480 (redis), 15493 (milvus health) |
 
