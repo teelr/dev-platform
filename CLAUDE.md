@@ -35,6 +35,51 @@ If you catch yourself writing "supports", "delivers", "provides", "guarantees",
 or any flavor of certainty about a feature — STOP and verify against the code
 before the artifact ships.
 
+## Consumer-Side Schema / Infrastructure Dependencies
+
+**CRITICAL — When adding or modifying a public method, declare what the consumer's
+environment needs. Don't ship a fix and find out from a prod incident.**
+
+This applies to any project where a library / service / API is consumed by
+external code (Kermit Harness consumed by PA / Keystone / ATLAS; any internal
+SDK consumed by another service; any platform exposed to clients). Before
+shipping a public-method change, the spec MUST include:
+
+1. **Schema dependencies** — what does the new code READ or WRITE that the
+   consumer's environment must already have provisioned?
+   - DB columns / tables / indexes (point at the migration file).
+   - Config keys with required values.
+   - Env vars with required values.
+   - Container services + ports.
+   - OS packages, binaries, files.
+
+2. **Migration path** — if the consumer doesn't have the infra yet, how do
+   they get it? Auto-migration runner? Opt-in flag? Manual setup? If the
+   answer is "they have to read the changelog and run SQL by hand," that's
+   a process gap — fix it before shipping.
+
+3. **Cold-start integration test** — every public method change MUST have an
+   integration test that exercises the method against a from-scratch consumer
+   environment (fresh containers, fresh venv, import only from public
+   surface). If you can't write that test, you don't yet understand what the
+   consumer needs to make the method work.
+
+`/plan` refuses to produce a spec without (1) and (2). `/code` refuses to
+implement without them. `/review` flags any PR that touches public methods
+and lacks (3).
+
+**Reason:** Three Kermit Harness patches in 24 hours (v2.20.1 Milvus flush
+storm, v2.20.2 behavioral_model API gap, v2.20.3 migration runner) all
+shipped, all consumer-surfaced, all the same root cause — the harness team
+didn't ask "what does the consumer's environment need for this to work" before
+the patch went out. PA was the first consumer to actually exercise each path
+and hit each wall. Process discipline at intake (this rule) plus mechanical
+enforcement at gate time (the cold-start integration test) retire the bug
+class. One without the other is half a fix.
+
+This rule reads like overhead until you've shipped 3 patches in a day to
+close gaps a single integration test would have caught.
+
 ## Development Workflow
 
 **CRITICAL — DO NOT ADVANCE STEPS WITHOUT EXPLICIT USER INVOCATION.**
