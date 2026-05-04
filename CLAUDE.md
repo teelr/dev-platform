@@ -35,6 +35,101 @@ If you catch yourself writing "supports", "delivers", "provides", "guarantees",
 or any flavor of certainty about a feature — STOP and verify against the code
 before the artifact ships.
 
+## Public-Helper Kwarg Propagation
+
+**CRITICAL — Every kwarg declared on a public helper function MUST
+observably affect the wrapped call.**
+
+This rule applies to every public function in any project's
+public-API surface (anything a consumer can import — `kermit.api.*`,
+`kermit.agent.*`, `kermit.rag.*`, `kermit_pa.services.*`, ATLAS
+public modules, etc.). Helper functions wrap call sites; the kwargs
+on the wrapper exist to give consumers control over the wrapped
+call's behavior. A kwarg that doesn't reach the wrapped call is a
+silent trap — consumers trust the signature, the kwarg does
+nothing, and the bug surfaces only when someone inspects production
+behavior.
+
+Two instances of this bug class in 24 hours (v2.25.0
+`kermit.agent.classify(max_tokens=2000)` accepted but never
+threaded; v2.27.0 `runtime.documents.extract(mime=...)` used for
+audio routing only, silently dropped on the non-audio result side)
+made this rule mandatory rather than aspirational. Promoted from
+the harness's L29 lesson on 2026-05-04 after the second recurrence.
+
+**Three sub-rules:**
+
+1. **Every public-helper kwarg MUST observably affect the wrapped
+   call.** Either it's threaded as a kwarg to the underlying call,
+   used to construct the call's payload, used to gate behavior
+   before/after the call, or assigned to a captured field that
+   downstream code reads. If a kwarg has no observable downstream
+   effect, it is dead — REMOVE it before ship. Don't keep
+   "future-compatible" kwargs that do nothing today; that's the
+   exact pattern this rule prohibits.
+
+2. **Pytest contracts MUST assert kwarg propagation, not just
+   shape.** A test that `helper(..., kwarg=X)` returns the right
+   shape does NOT prove `kwarg=X` was honored. The test MUST
+   inspect the mock call's args/kwargs OR the constructed
+   intermediate object (AgentDefinition, request payload,
+   handler-side `result.mime`, etc.) to verify the value reaches
+   the wrapped call.
+
+3. **Mechanical enforcement: CT88 in the harness.** Static AST
+   check at `tools/check_dead_kwargs.py` scans every public
+   function in `src/kermit/api/`, `src/kermit/agent/`, and
+   `src/kermit/rag/`. For each declared kwarg, it counts
+   `ast.Name(id=kwarg)` references in the function body. Zero
+   references → CT88 FAIL. Other projects (PA, ATLAS, Keystone)
+   should add equivalent checks scanning their own public
+   surfaces.
+
+**Concrete examples:**
+
+```python
+# WRONG — max_tokens dead. The wrapped runtime.run_one_shot()
+# call doesn't accept max_tokens, and AgentDefinition has no
+# max_tokens field. The kwarg is a silent trap.
+async def classify(runtime, ctx, *, prompt, max_tokens=2000):
+    agent_def = AgentDefinition(temperature=0.0)  # max_tokens NOT here
+    return await runtime.run_one_shot(ctx, agent_def, message)
+    # max_tokens never referenced again — DEAD.
+
+# RIGHT — option A: thread through to the wrapped call.
+async def classify(runtime, ctx, *, prompt, max_tokens=2000):
+    agent_def = AgentDefinition(
+        temperature=0.0,
+        max_tokens=max_tokens,  # observable effect
+    )
+    return await runtime.run_one_shot(ctx, agent_def, message)
+
+# RIGHT — option B: drop the kwarg if no thread-through is
+# possible today. Document where the cap actually comes from.
+async def classify(runtime, ctx, *, prompt):
+    """...max_tokens is governed by KermitConfig, not per-call."""
+    ...
+```
+
+**/review explicitly checks this pattern.** For every new public
+helper, /review reads the function body and verifies each
+documented kwarg has at least one downstream reference. CT88
+makes the check mechanical at gate time — /review is the
+human-readable audit, CT88 is the gate.
+
+**Sister-pattern: documentation MUST match the impl signature.**
+The v2.25.0 `model_catalog={...}` migration-guide bug (doc said
+dict, impl took callable) and v2.27.0 `mime=` doc-vs-impl
+mismatch are the same shape applied to docstrings/migration-
+guide examples. /review reads docs against the impl signature,
+flags type mismatches as same-class violations.
+
+**Reference:** harness `tasks/lessons.md` L31 (lazy-construction
+accessors MUST be reset on lifecycle teardown) — the v2.27.0
+release surfaced this rule's recurrence + a fresh
+accessor-cleanup bug in the same /review pass; both fixed
+before commit.
+
 ## Consumer-Side Schema / Infrastructure Dependencies
 
 **CRITICAL — When adding or modifying a public method, declare what the consumer's
