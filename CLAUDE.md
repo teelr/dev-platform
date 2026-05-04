@@ -493,7 +493,8 @@ Each project gets its own port series. No overlap. Check this table before assig
 | 3000 | Kermit frontend | 3000 |
 | 4000s | SQRL | 4001 (backend), 4002 (frontend) |
 | 5000s | Portal | 5000 (frontend), 5100 (backend) |
-| 8000s | Kermit backend | 8001-8021 (backend, agents, MCPs) |
+| 8000s | Kermit backend | 8001-8020 (PA backend, agents, MCPs) |
+| 8021 | Kermit Harness trigger webhook | Default for `KermitConfig.trigger_webhook_port`; consumers SHOULD override per their own port series (e.g., Keystone Platform → 8188 in its 8100s allocation). The default exists for inner-loop test runs and single-deployment cases. |
 | 8090 | Keystone Dashboard | 8090 |
 | 8100s | Keystone Platform | 8100-8190 |
 | 8200s | NVR Dashboard | 8200 (backend), 8210 (frontend), 8889 (WebRTC) |
