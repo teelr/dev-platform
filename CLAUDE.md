@@ -2,6 +2,20 @@
 
 All development standards for projects in `/home/rich/dev/projects/`. This is the single source of truth.
 
+## Response Style — GET TO THE POINT
+
+**Verbosity is a bug. Dev-project responses must be tight.**
+
+- Lead with the answer in the first sentence. No preamble, no recap, no "let me think about this" framing.
+- **No multi-tier feature audits unless explicitly asked.** When the user asks "what's next" or "what should I test", give 3–5 items max with one line each. Do NOT volunteer Tier 2 / Tier 3 / "can wait" / "my suggestion" sections. The user can ask for more.
+- **Cut suggestion sections.** Drop "If you want my pick", "Bonus", "Nice-to-have", "Worth a test" trailing paragraphs. The user invokes follow-ups; don't pre-stage them.
+- **End-of-step summaries: 1–2 sentences.** What changed, what's next workflow-wise. Nothing else.
+- **NEVER include time estimates.** No "~3 days", "~2 hours", "ETA", "estimated effort". Not in plans, specs, FOLLOW_ONS rows, conversation, status updates, summaries, or PR descriptions. The work takes as long as it takes.
+- When referencing code, include `file_path:line_number`.
+- No emojis unless explicitly asked.
+
+**Failure mode this rule fights:** padding answers with extensive context, multiple option-trees, and self-prioritized tier lists when the user asked one question. If the user wanted three tiers they would have asked for tiers.
+
 ## Honesty About What Ships
 
 **CRITICAL — NEVER EVER overstate what a project actually has.**
@@ -273,6 +287,46 @@ step" and proceed. Stop after each step and wait for the user's command.
 - For any multi-step pipeline: don't mark step N complete until step N+1's target confirms receipt. Status fields lie when processes crash between writes.
 
 Do not skip verification. If a check fails, fix it before proceeding.
+
+## Verify Against Source of Truth, Not Derived State
+
+Before claiming a fix works, the verification command must directly
+touch the system being changed. Never trust an intermediate signal — a
+memo, a queue row, a chained-command exit code, "the read is gone so
+the function should compile." Run the live tool. Curl the running
+backend. Re-grep the actual file. Query the actual database row.
+
+Six instances of this bug class logged in PA's `tasks/lessons.md`
+(L23, L31, L36 + three May-2026 UI-fixes-session catches) before
+this rule consolidated:
+
+- Spec assumed column was `metadata`; actual schema has `metadata_json`.
+  Should have queried the schema, not the spec.
+- HANDOFF_QUEUE row said function lives at `:828-849`; current code is
+  at `:954-1043`. Should have re-greped before quoting.
+- `git stash push -- <files>` was assumed to bundle only the work being
+  set aside; actually swallowed Track 1's verified call-site change as
+  collateral. Should have read each modified file before stashing.
+- `npx tsc --noEmit; echo "tsc=$?"` reported `tsc=0` because the
+  chained `echo` masks tsc's exit. Should have run tsc as the terminal
+  command.
+- Settings dropdown was assumed to render the persisted model. Actual
+  HTML had `<option value={catalogId}>` against `<select value={apiName}>`,
+  silently picking option 0. Should have queried `agents.model`
+  directly.
+- Dead `project_agent_models` reads were removed; the surrounding
+  `if my_project_config.get(...)` blocks that USED the local var the
+  read populated were missed. py_compile passed; the very first curl
+  surfaced `name 'my_project_config' is not defined`. Should have run
+  the live request before claiming clean.
+
+**Forcing function:** the verification command must touch the actual
+system. No echo chains hiding the real exit code. No "it should work
+because X." If you cannot run the live test, mark the check
+**UNTESTED** in the QC report — never PASS.
+
+This rule supersedes L23, L31, and L36 from PA's `tasks/lessons.md`
+(deleted in the consolidation commit on 2026-05-06).
 
 ## Workflow Discipline / Pre-commit Gate Coverage
 
