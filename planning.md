@@ -10,10 +10,9 @@ Current state of the repo. Refreshed at every spec-completion by `/docs`.
 
 ## Recently shipped
 
-- *(pending)* — R1 Foundation Spec: repo restructure, 11 top-level dirs with READMEs, install/uninstall/verify scripts, Phase 2 artifact migration from `~/.claude/`, live cutover executed and verified
+- `957e030` — R1 Foundation Spec: repo restructure, 8 new top-level dirs with READMEs, install/uninstall/verify scripts, Phase 2 artifact migration from `~/.claude/`, live cutover executed and verified
 - `2de6114` — consolidate L23/L31/L36 family into 'Verify Against Source of Truth' rule
 - `5e18b7e` — register port 8021 for Kermit Harness trigger webhook
-- `8286874` — add 'Public-Helper Kwarg Propagation' rule
 
 ## In flight
 
