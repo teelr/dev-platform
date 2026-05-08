@@ -1,32 +1,81 @@
-# Dev-standards repo at /home/rich/dev/ — tracks ONLY top-level standards
-# files that govern every project under dev/. Each project under projects/
-# is its own repo; nothing here should reach into them.
+# dev-platform repo at /home/rich/dev/ — tracks the developer-environment
+# source of truth (rules, slash commands, skills, hooks, settings, install
+# scripts). Each project under projects/ is its own repo; this gitignore
+# uses an aggressive allow-list strategy so projects/ stays untouched.
 #
 # Strategy: ignore everything by default, then re-include only the files
-# that belong to dev-wide standards.
+# that belong to dev-platform itself.
 
 # Ignore-everything default
 *
 
-# Re-include directories we want to recurse into
+# Re-include top-level files
 !.gitignore
 !CLAUDE.md
+!README.md
+!ROADMAP.md
+!planning.md
 !BACKUP_INSTRUCTIONS.md
 !backup-to-cosmo.sh
 !dev.code-workspace
+
+# Re-include top-level directories
 !docs/
 !tasks/
 !scripts/
+!commands/
+!skills/
+!settings/
+!hooks/
+!extensions/
+!scaffolding/
+!monitoring/
+!shell/
 
-# Inside re-included directories, allow markdown / shell / text files but
-# exclude anything generated.
+# Inside re-included directories, allow only specific extensions to keep
+# generated content out of git.
 docs/**
 tasks/**
 scripts/**
+commands/**
+skills/**
+settings/**
+hooks/**
+extensions/**
+scaffolding/**
+monitoring/**
+shell/**
+
 !docs/*.md
 !tasks/*.md
 !tasks/*.sh
 !scripts/*.sh
+!commands/*.md
+!skills/*.md
+!skills/**/*.md
+!settings/*.json
+!settings/*.md
+!hooks/*.sh
+!hooks/*.md
+!extensions/*.md
+!extensions/**/*.md
+!extensions/**/*.json
+!extensions/**/*.sh
+# scaffolding/ holds new-project templates (populated by R4); the allow-list
+# below covers docs + JSON config + scripts. R4 may extend with additional
+# language extensions (.py, .go, .ts, .tsx, .toml, etc.) per the templates
+# it ships.
+!scaffolding/*.md
+!scaffolding/**/*.md
+!scaffolding/**/*.json
+!scaffolding/**/*.sh
+!monitoring/*.md
+!monitoring/**/*.md
+!shell/*.sh
+!shell/*.md
+
+# Machine-local overlays (gitignored — keep secrets / per-machine paths out)
+settings/*.local.json
 
 # Hard exclude — these are nested git repos / large binaries / state
 projects/

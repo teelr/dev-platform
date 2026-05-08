@@ -616,6 +616,32 @@ Rules:
 - Required sections: description, architecture, tech stack, build & run, configuration, ports, file structure, rules, patterns.
 - No duplicating rules from THIS file — project files ADD to these standards, not repeat them.
 
+## Repo Structure
+
+This repo (`teelr/dev-platform`, at `/home/rich/dev/`) owns the full dev-experience surface. Each directory has a `README.md` with its contract — read it before adding files.
+
+| Directory | Purpose |
+| --------- | ------- |
+| `commands/` | Slash command definitions (`/plan`, `/code`, etc.) |
+| `skills/` | User skills + `WORKFLOW_MANUAL.md` taxonomy reference |
+| `settings/` | Global Claude Code config (`settings.json`, optional `keybindings.json`) |
+| `hooks/` | Claude Code hook scripts |
+| `extensions/` | IDE config — populated by future extensions spec |
+| `scaffolding/` | New-project templates — populated by future extensions spec |
+| `monitoring/` | Workflow telemetry — populated by future monitoring spec |
+| `shell/` | Shell helpers, git-hook templates |
+| `scripts/` | Install / uninstall / verify; spec-taxonomy checker |
+| `tasks/` | Spec files (output of `/plan`) |
+| `docs/` | Architecture and how-to docs |
+
+## Install / Deploy
+
+The repo is the source of truth; `~/.claude/` is a *deployment* of it. `scripts/install.sh [category]` symlinks tracked files into the user environment (categories: `commands`, `skills`, `settings`, `hooks`, or `all`). `scripts/uninstall.sh` removes the symlinks (leaves `~/.claude/projects/` untouched). `scripts/verify.sh` reports drift between tracked and deployed. Edit the file in this repo and re-run install — never edit under `~/.claude/` directly.
+
+## Adding a New Workflow Artifact
+
+For a new slash command / skill / hook / setting: (1) write the file in the correct directory per its README contract, (2) extend `scripts/install.sh` only if you're adding a *new top-level category* (existing-category files are auto-globbed), (3) update `scripts/verify.sh` for the same case, (4) smoke-test manually until the testing spec (R3) lands.
+
 ## Patterns
 
 - **Single cleanup path** — One canonical cleanup function per data type, called by all endpoints that delete that type.
