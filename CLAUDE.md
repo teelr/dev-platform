@@ -2,6 +2,70 @@
 
 All development standards for projects in `/home/rich/dev/projects/`. This is the single source of truth.
 
+## Scope — dev-platform Is For The Environment, Not The Projects
+
+**CRITICAL — This repo (`teelr/dev-platform`, at `/home/rich/dev/`) exists to care for, maintain, and enhance the development *environments* that drive Rich's projects. It is NOT a workplace for the projects themselves.**
+
+**Primary gateway — VSCode + Claude Code:** This repo is the *single entry point* for setting up and modifying Rich's VSCode + Claude Code development environment. Every change to global Claude Code config (slash commands, skills, settings, hooks, keybindings) and every change to global VSCode/IDE config (user profile, statusline, keybindings) goes through this repo first — written here, then deployed via `scripts/install.sh`. **Direct edits to deployed locations (`~/.claude/`, `~/.vscode/`, etc.) are forbidden** — they get overwritten on the next install and split the source of truth in two.
+
+**Belongs here:**
+
+- Rules (`CLAUDE.md`), slash commands (`commands/`), skills (`skills/`), hooks (`hooks/`), settings (`settings/`)
+- Install / uninstall / verify scripts (`scripts/`), IDE config (`extensions/`), scaffolding templates (`scaffolding/`), workflow telemetry (`monitoring/`), shell helpers (`shell/`)
+- Specs and docs about any of the above (`tasks/`, `docs/`, `ROADMAP.md`, `planning.md`, `README.md`)
+
+**Does NOT belong here:**
+
+- Project source code, schemas, frontend, tests, deployment configs, or per-project roadmaps under `projects/<name>/` — those are tracked in their own repos and addressed in their own sessions
+- Bug fixes, feature work, or refactors against any project — even when the bug seems "small" or "right here"
+
+**Behavioral rule for the assistant:** when invoked in `/home/rich/dev/`, assume every request is environment work. If a request would require modifying a file under `projects/`, **STOP and ask the user to switch to that project's working directory** — never silently reach into `projects/` from this session. Read-only operations across projects (e.g., `/dev` orientation, end-of-day status surveys, cross-project assessments) ARE allowed — but no edits, commits, or fixes to project code from here.
+
+**Why this rule exists:** before R1 Foundation, the prior "dev-standards" repo had blurred the line — global rules and project-side fixes both landed in the same git history, making it hard to distinguish "what governs every project" from "what was happening in project X that day." R1 Foundation expanded this repo to own the full dev-experience surface; this rule pins the corollary — the surface, not the things on top of it. A clean dev-platform history is a precondition for the monitoring (R2), testing (R3), and migration (R5) specs that all assume "this repo describes the environment, period."
+
+## Consistency Across All Projects — Non-Negotiable
+
+**CRITICAL — dev-platform is the canonical source of truth for the dev workflow, language standards, and every shared element of the development environment. Every project under `/home/rich/dev/projects/` MUST conform to these standards without exception. Absolute consistency across all projects is a hard requirement, not an aspiration.**
+
+**What dev-platform owns (no project may diverge):**
+
+- **Dev workflow** — `/plan → /code → /test → /review → /gate fast → /docs → commit → push`. The sequence, each step's semantics, the discipline (no auto-advance, no commits before `/gate fast`, no commits before `/docs`, no skipping `/test`)
+- **Workflow taxonomy** — Roadmap Phase → Spec → Spec Phase → Change → Commit. Killed terms (Stage, Sprint, Iteration, Revision, Milestone, Group, Epic, Step, Item, Task) never used as workflow-level labels
+- **Language Architecture Decision Matrix** — network-intensive → Go, compute-intensive → Rust, AI-intensive → Python, frontend → TypeScript. Anti-patterns from the matrix are violations, not preferences
+- **Slash commands** — `/plan`, `/code`, `/test`, `/review`, `/gate`, `/docs`, `/dev`, `/loop`, `/smoke_test`. Tracked in `commands/`, deployed via `scripts/install.sh`
+- **Skills + settings baseline + hooks** — tracked in `skills/`, `settings/`, `hooks/`
+- **Standard project structure** — described in `Standard Project Structure`. New projects MUST start from `docs/PROJECT_CLAUDE_TEMPLATE.md`
+- **Quality-gate contract** — constitutional checks, taxonomy enforcement, gate-fast semantics. Projects extend; they do not replace
+- **Lessons promotion path** — recurring `tasks/lessons.md` entries (2-3 of the same shape) consolidate into rules in THIS file, then the per-project specifics get deleted
+
+**What projects MAY customize:**
+
+- Domain logic, data model, agents, frontend components, deployment topology
+- Project-specific permissions and hook scripts (additive — must not shadow canonical commands or settings)
+- Project-internal taxonomies that legitimately use the word "Phase" (e.g., Keystone's lifecycle Lead → Pursuit → ... → Close Out). These MUST qualify with the project name (`Keystone Phase`); bare `Phase` in any dev context always means Spec Phase
+- Project-specific lessons in their own `tasks/lessons.md` until they promote upward
+
+**What projects MUST NOT customize:**
+
+- Slash command names or core contracts. `/plan` always produces a Spec. `/code` always implements one or more Changes. `/test` always validates against the spec. `/gate fast` always blocks commit on failure. No project re-defines these
+- The workflow sequence. No project invents a new step or skips an existing one
+- The language matrix. A 1,000-connection handler is Go; a tight CPU loop is Rust; LLM logic is Python — "it was easier in X" is not a justification
+- The killed-term taxonomy. Don't use `Sprint`, `Stage`, `Step` as a workflow-level label even if it feels natural
+
+**Drift detection:**
+
+- `scripts/check_spec_taxonomy.sh` — wired into every project's `gate fast` (or equivalent pre-commit hook) to block taxonomy drift mechanically
+- `/review` — verifies slash command and workflow contracts on staged changes
+- Cross-project audits (manual today via `/dev` or status surveys; R2 Monitoring will automate drift counts, gate-pass rates, and lesson-promotion candidates)
+
+**Drift correction:**
+
+- The fix lands in dev-platform FIRST (the rule, the script, the command, the gate check)
+- Each project re-runs `scripts/install.sh` from this repo to pick up the change
+- Project-side conformance is each project's responsibility; dev-platform-side correctness is THIS repo's responsibility. Drift in either direction is a bug
+
+**Why this rule exists:** consistency compounds. Same workflow → a lesson learned in one project applies to all. Same taxonomy → specs are mutually readable. Same language matrix → no team-member surprise about what they find. Inconsistency creates per-project tribal knowledge — the slowest, most fragile mode of operation. The pre-R1 world tolerated drift because there was no enforcement layer; R1 Foundation built it; this rule commits to using it. The R2/R3/R4/R5 specs all assume this baseline.
+
 ## Response Style — GET TO THE POINT
 
 **Verbosity is a bug. Dev-project responses must be tight.**
