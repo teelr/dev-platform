@@ -15,9 +15,6 @@
 !README.md
 !ROADMAP.md
 !planning.md
-!BACKUP_INSTRUCTIONS.md
-!backup-to-cosmo.sh
-!dev.code-workspace
 
 # Re-include top-level directories
 !docs/
@@ -77,16 +74,8 @@ shell/**
 # Machine-local overlays (gitignored — keep secrets / per-machine paths out)
 settings/*.local.json
 
-# Hard exclude — these are nested git repos / large binaries / state
+# Hard exclude — nested project repos, local Claude config, generated caches
 projects/
-keystone/
-ai_dev/
-neurX_platform/
-ProjectsDashboard/
-tools/
-archive/
-20251018_neurX_backup/
-dev-config/
 .claude/
 .mypy_cache/
 __pycache__/
