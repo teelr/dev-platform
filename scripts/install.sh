@@ -93,6 +93,8 @@ install_settings() {
     mkdir -p "${HOME_CLAUDE}"
     local linked="settings.json"
     link_file "${REPO}/settings/settings.json" "${HOME_CLAUDE}/settings.json"
+    link_file "${REPO}/settings/claude-global.md" "${HOME_CLAUDE}/CLAUDE.md"
+    linked="${linked}, claude-global.md"
     if [[ -f "${REPO}/settings/keybindings.json" ]]; then
         link_file "${REPO}/settings/keybindings.json" "${HOME_CLAUDE}/keybindings.json"
         linked="${linked}, keybindings.json"

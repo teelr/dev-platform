@@ -127,6 +127,18 @@
       "/home/rich/dev/projects/SQRL"
     ]
   },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/rich/.claude/hooks/post-tool-heartbeat.sh"
+          }
+        ]
+      }
+    ]
+  },
   "enabledPlugins": {},
   "extraKnownMarketplaces": {}
 }

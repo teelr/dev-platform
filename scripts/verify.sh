@@ -56,6 +56,7 @@ done
 
 echo "Verifying settings..."
 check_symlink "${REPO}/settings/settings.json" "${HOME_CLAUDE}/settings.json"
+check_symlink "${REPO}/settings/claude-global.md" "${HOME_CLAUDE}/CLAUDE.md"
 if [[ -f "${REPO}/settings/keybindings.json" ]]; then
     check_symlink "${REPO}/settings/keybindings.json" "${HOME_CLAUDE}/keybindings.json"
 fi

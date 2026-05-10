@@ -5,12 +5,15 @@ Claude Code global configuration. Tracked here, deployed by `scripts/install.sh`
 ## Files
 
 - `settings.json` — global Claude Code settings (hooks, permissions, env vars)
+- `claude-global.md` — global Claude Code behavior layer, deployed to `~/.claude/CLAUDE.md`. Loads into every Claude Code session, INCLUDING sessions outside `/home/rich/dev/`. Distinct from `/home/rich/dev/CLAUDE.md` which is the workspace dev-standards file (loads only when working under `/home/rich/dev/`). Two-tier model: `claude-global.md` for tool behavior, `dev/CLAUDE.md` for development standards.
 - `keybindings.json` — global keybindings (NOT currently tracked: this machine has never customized keybindings, so the file does not exist in `~/.claude/`. Add it here and re-run install if you customize a key.)
 - `*.local.json` — gitignored, machine-specific overlays (auth tokens, machine paths)
 
 ## Editing
 
 Edit the file in this directory, then run `./scripts/install.sh` (or `./scripts/install.sh settings` to redeploy just this category). Edits to `~/.claude/settings.json` directly will be overwritten on next install — don't edit there.
+
+Editing `claude-global.md` affects Claude Code's behavior in EVERY session. The change takes effect on next session start (Claude Code reads CLAUDE.md once at startup, doesn't re-read mid-session).
 
 ## Secrets and machine-local paths
 

@@ -10,7 +10,7 @@ All development standards for projects in `/home/rich/dev/projects/`. This is th
 
 **Belongs here:**
 
-- Rules (`CLAUDE.md`), slash commands (`commands/`), skills (`skills/`), hooks (`hooks/`), settings (`settings/`)
+- Rules (`CLAUDE.md` for workspace dev standards, `settings/claude-global.md` for global Claude behavior), slash commands (`commands/`), skills (`skills/`), hooks (`hooks/`), settings (`settings/`)
 - Install / uninstall / verify scripts (`scripts/`), IDE config (`extensions/`), scaffolding templates (`scaffolding/`), workflow telemetry (`monitoring/`), shell helpers (`shell/`)
 - Specs and docs about any of the above (`tasks/`, `docs/`, `ROADMAP.md`, `planning.md`, `README.md`)
 
