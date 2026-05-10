@@ -42,13 +42,14 @@ For EACH doc in the checklist:
 ### planning.md
 
 - Update the **Ground Truth** date and bullet points to reflect current state
-- Mark the completed task as `✅ COMPLETE` with verification date and commit hash
+- Mark the completed task as `✅ COMPLETE` with verification date
 - Update entity counts, version numbers, and status bullets to current values
 - Add the phase to the **Execution Order** block at the bottom
+- **NEVER write commit hashes for the spec being shipped this session.** /docs runs BEFORE the bundled commit lands, so the current spec's hash doesn't exist yet — writing it produces a chicken-and-egg paradox (placeholder → backfill commit). Use descriptive entries; `git log` is the authoritative hash record. Existing entries with valid hashes from prior commits stay as-is.
 
 ### ROADMAP.md
 
-- Move the phase from "Remaining Work" to a "Completed" table (with commit hash and date)
+- Move the phase from "Remaining Work" to a "Completed" table (with date — no commit hash, same reason as planning.md)
 - Check off any **Success Criteria** that are now met
 - Update version numbers (harness version, counts, etc.)
 - Remove items from the remaining work table that are now done
@@ -77,35 +78,35 @@ For EACH doc in the checklist:
 Run a final check:
 
 ```bash
-# Confirm the commit hash in planning.md matches what's in git
-git log --oneline -3
-
-# Confirm version numbers in docs match what's installed
-grep "kermit-harness" pyproject.toml setup.cfg requirements*.txt 2>/dev/null | head -3
+git log --oneline -3                                                # context
+grep "kermit-harness" pyproject.toml setup.cfg requirements*.txt 2>/dev/null | head -3   # version pins
 ```
 
 Cross-check:
+
 - Every `✅ COMPLETE` phase in planning.md has a matching entry in ROADMAP.md
 - Version numbers are consistent across all docs
-- No doc still says "PENDING" for something that's live
+- No doc still says "PENDING" or "(pending)" for something that's live
+- No commit hashes for the current-spec entry (they don't exist yet — the bundled commit hasn't landed)
 
-## Step 5: Commit the Doc Updates
+## Step 5: Stage Doc Updates — DO NOT COMMIT
 
-Stage and commit all updated docs together:
+Per the project bundling rule (see `/home/rich/dev/CLAUDE.md` "Docs Before Commit"): feature code and doc updates go into ONE atomic commit, never separate. /docs stages the doc changes; the upcoming feature commit will bundle them.
 
 ```bash
 git add planning.md ROADMAP.md README.md tasks/lessons.md
 # Add any docs/ files if changed
-git commit -m "docs: update planning, roadmap, README, and lessons after {task/spec name}"
 ```
 
-Do NOT push — the user decides when to push.
+**Do NOT run `git commit`.** The user (or the next workflow step) creates the bundled commit covering both the feature implementation and these doc updates. Splitting into a `docs:` commit followed by a `feat:` commit pollutes history and violates the bundling rule.
+
+If the work is genuinely docs-only (no feature changes — rare, e.g., a doc typo fix), the user explicitly invokes a `docs:` commit themselves; /docs still doesn't auto-commit.
 
 ## Rules
 
 - **Be accurate** — only mark things complete that are actually complete. Don't claim PASS without checking.
-- **Be specific** — include commit hashes, dates, entity counts, version numbers. Vague entries rot faster.
+- **Be specific** — include dates, entity counts, version numbers (NOT commit hashes for the current-shipping spec — see Step 3 planning.md guidance).
 - **Don't over-document** — update what changed, don't rewrite sections that are still accurate.
-- **One commit for all docs** — doc updates travel together, not as separate commits per file.
+- **Stage; never commit** — the bundled feat commit takes both feature code and doc updates. /docs only stages.
 - **Do NOT modify CLAUDE.md** — that's for rules, not status. If a lesson consolidates into a rule, note it but ask the user before changing CLAUDE.md.
-- **Do NOT push** — commit the docs, then stop. The user pushes.
+- **Do NOT push** — that's a separate explicit step after the bundled commit lands.

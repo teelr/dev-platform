@@ -5,14 +5,16 @@ Current state of the repo. Refreshed at every spec-completion by `/docs`.
 ## Current state
 
 - **Name:** `dev-platform` (GitHub: `teelr/dev-platform`, mounted at `/home/rich/dev/`)
-- **Active spec:** none — R1.5 Global Claude + Hooks Coverage complete (2026-05-09), awaiting commit
+- **Active spec:** none — R1.5 Global Claude + Hooks Coverage shipped 2026-05-09
 - **Active Roadmap Phase:** R1 + R1.5 done; R2 (Monitoring) is next — the heartbeat hook shipped in R1.5 is its data foundation
 
 ## Recently shipped
 
-- `eb16098` — R1.5 Global Claude + Hooks Coverage: tracks `~/.claude/CLAUDE.md` as `dev/settings/claude-global.md`, ships first hook script (`hooks/post-tool-heartbeat.sh`) + settings.json hooks block, live cutover executed (13 symlinks healthy)
-- `8b52a41` — Scope + Consistency CRITICAL rules; name VSCode + Claude Code as primary gateway
-- `770e397` — post-R1 cleanup; ~3 GB reclaimed, dead .gitignore entries pruned
+Hashes intentionally omitted — `git log` is the authoritative record; this section is the human-readable summary. (Convention adopted 2026-05-09 after the R1 + R1.5 self-reference paradox surfaced — see commands/docs.md and tasks/lessons.md.)
+
+- R1.5 Global Claude + Hooks Coverage (2026-05-09): tracks `~/.claude/CLAUDE.md` as `dev/settings/claude-global.md`, ships first hook script (`hooks/post-tool-heartbeat.sh`) + settings.json hooks block, live cutover executed (13 symlinks healthy)
+- Scope + Consistency CRITICAL rules + Primary Gateway clarification (2026-05-09): dev-platform drives every layer below it
+- post-R1 cleanup (2026-05-08): ~3 GB reclaimed, dead .gitignore entries pruned
 
 ## In flight
 
