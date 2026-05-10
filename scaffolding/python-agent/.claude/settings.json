@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python *)",
+      "Bash(python3 *)",
+      "Bash(pip *)",
+      "Bash(pytest *)",
+      "Bash(ruff *)",
+      "Bash(mypy *)",
+      "Bash(black *)",
+      "Bash(./scripts/*)",
+      "Bash(docker *)",
+      "Bash(docker-compose *)",
+      "Bash(curl *)"
+    ]
+  }
+}

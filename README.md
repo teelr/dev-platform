@@ -55,7 +55,7 @@ Removes all repo-owned symlinks from `~/.claude/`. Non-destructive: leaves user-
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for the spec sequence. R1 (Foundation) shipped 2026-05-08, R1.5 (Global Claude + Hooks Coverage) shipped 2026-05-09; R2 (Monitoring) is the next planned spec.
+See [ROADMAP.md](ROADMAP.md) for the spec sequence. R1 (Foundation) shipped 2026-05-08, R1.5 (Global Claude + Hooks) shipped 2026-05-09, R4a (Project Scaffolding) shipped 2026-05-10. **R3 Testing is next** — promoted ahead of R2 because every future spec needs gate coverage to ship safely.
 
 ## Conventions
 

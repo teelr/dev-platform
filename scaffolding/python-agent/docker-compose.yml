@@ -1,0 +1,16 @@
+services:
+  {{PROJECT_NAME}}:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: {{PROJECT_NAME}}
+    restart: unless-stopped
+    environment:
+      KERMIT_API_KEY: "${KERMIT_API_KEY}"
+      LOG_LEVEL: "info"
+    networks:
+      - {{PROJECT_NAME}}-internal
+
+networks:
+  {{PROJECT_NAME}}-internal:
+    driver: bridge

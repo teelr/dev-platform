@@ -1,0 +1,14 @@
+# Multi-stage build for {{PROJECT_NAME}}
+FROM golang:1.22-alpine AS builder
+
+WORKDIR /src
+COPY go.mod go.sum* ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/{{PROJECT_NAME}} ./
+
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY --from=builder /out/{{PROJECT_NAME}} /app/{{PROJECT_NAME}}
+USER nonroot:nonroot
+EXPOSE {{PORT}}
+ENTRYPOINT ["/app/{{PROJECT_NAME}}"]

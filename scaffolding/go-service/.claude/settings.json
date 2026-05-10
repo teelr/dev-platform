@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go *)",
+      "Bash(gofmt *)",
+      "Bash(./scripts/*)",
+      "Bash(docker *)",
+      "Bash(docker-compose *)",
+      "Bash(curl *)"
+    ]
+  }
+}

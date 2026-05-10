@@ -58,14 +58,32 @@ shell/**
 !extensions/**/*.md
 !extensions/**/*.json
 !extensions/**/*.sh
-# scaffolding/ holds new-project templates (populated by R4); the allow-list
-# below covers docs + JSON config + scripts. R4 may extend with additional
-# language extensions (.py, .go, .ts, .tsx, .toml, etc.) per the templates
-# it ships.
+# scaffolding/ holds new-project templates (R4a). Re-include subdirectories
+# at any depth (otherwise file-pattern re-includes don't fire — files in
+# ignored dirs can't be unignored by file patterns alone), then allow the
+# file types the three templates ship: docs (md), config (json/toml/yaml),
+# scripts (sh), source (go/py/ts/tsx/mjs/css), build artifacts (Dockerfile*,
+# docker-compose*, go.mod, pyproject.toml, .gitignore, .env.example, .gitkeep).
+!scaffolding/**/
 !scaffolding/*.md
 !scaffolding/**/*.md
 !scaffolding/**/*.json
 !scaffolding/**/*.sh
+!scaffolding/**/*.go
+!scaffolding/**/*.py
+!scaffolding/**/*.ts
+!scaffolding/**/*.tsx
+!scaffolding/**/*.mjs
+!scaffolding/**/*.css
+!scaffolding/**/*.toml
+!scaffolding/**/*.mod
+!scaffolding/**/*.yml
+!scaffolding/**/*.yaml
+!scaffolding/**/Dockerfile*
+!scaffolding/**/.gitignore
+!scaffolding/**/.gitkeep
+!scaffolding/**/.env.example
+!scaffolding/**/.markdownlint.json
 !monitoring/*.md
 !monitoring/**/*.md
 !shell/*.sh
@@ -77,6 +95,10 @@ settings/*.local.json
 # Hard exclude — nested project repos, local Claude config, generated caches
 projects/
 .claude/
+# Override the .claude/ exclude for scaffolding template .claude/ dirs —
+# those ship as part of the scaffolding contract for new projects.
+!scaffolding/**/.claude/
+!scaffolding/**/.claude/*.json
 .mypy_cache/
 __pycache__/
 *.pyc

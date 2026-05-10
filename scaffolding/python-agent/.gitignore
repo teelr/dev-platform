@@ -1,0 +1,40 @@
+# Python bytecode + caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+
+# Virtual envs
+.venv/
+venv/
+env/
+ENV/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+htmlcov/
+coverage.xml
+
+# Build artifacts
+dist/
+build/
+
+# Env / secrets — never commit
+.env
+.env.local
+.env.*.local
+
+# OS / editor
+.DS_Store
+.idea/
+*.swp
+*~
+
+# Logs
+logs/
+*.log

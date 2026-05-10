@@ -1,0 +1,27 @@
+services:
+  {{PROJECT_NAME}}:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: {{PROJECT_NAME}}
+    restart: unless-stopped
+    environment:
+      PORT: "{{PORT}}"
+      LOG_LEVEL: "info"
+    ports:
+      - "{{PORT}}:{{PORT}}"
+    networks:
+      - traefik-global
+      - {{PROJECT_NAME}}-internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.{{PROJECT_NAME}}.rule=Host(`{{PROJECT_NAME}}.richteel.com`)"
+      - "traefik.http.routers.{{PROJECT_NAME}}.tls=true"
+      - "traefik.http.routers.{{PROJECT_NAME}}.tls.certresolver=letsencrypt"
+      - "traefik.http.services.{{PROJECT_NAME}}.loadbalancer.server.port={{PORT}}"
+
+networks:
+  traefik-global:
+    external: true
+  {{PROJECT_NAME}}-internal:
+    driver: bridge
