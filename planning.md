@@ -38,9 +38,11 @@ Hashes intentionally omitted — `git log` is the authoritative record; this sec
 
 ## In flight
 
-- **v0.9 Phase 1 (Internal Cleanup) — implemented** on branch `v0.9/phase-1-migration`:
-  - Change 1: Renamed 3 legacy R-prefix spec files (`dev-platform-r2-monitoring-spec.md` → `dev-platform-monitoring-spec.md`, `r3-testing` → `testing`, `r4a-scaffolding` → `scaffolding`). Updated ROADMAP.md lines 9–11 + planning.md to remove all old-filename references. Gate still 131 PASS.
-  - Next: v0.9 Phase 2 (Changes 2–4) — CLAUDE.md carve-out + `migrate-workflow-chain.sh` + `audit-project-drift.sh` + test suite.
+- **v0.9 Phase 2 (Migration Tools) — implemented** on branch `v0.9/phase-2-migration`:
+  - Change 2: CLAUDE.md v0.9 Scope carve-out added (bullet under Exceptions, mirroring v0.8 condensed format). Detects CLAUDE.md description text as false positive if grep pattern is `code → /test` — fixed to require trailing `→` to avoid matching carve-out documentation.
+  - Change 3: `scripts/migrate-workflow-chain.sh` — 6 sed patterns cover all known old-chain variants, dry-run default, `--apply` opt-in, idempotency guard.
+  - Change 4: `scripts/audit-project-drift.sh` (read-only, markdown table, --json flag) + `tests/migration/run.sh` (12 assertions, 5 mock projects). Gate now 143 PASS.
+  - Post-merge: run `./scripts/audit-project-drift.sh` and `./scripts/migrate-workflow-chain.sh --project <name> --apply` for kermit, kermit-pa, atlas — from each project's own session.
 - Next after v0.9: **v1.0 Feature-complete**. Optional **v0.6b: VSCode Client-Side Coverage** still on the backlog.
 
 ## Taxonomy migration note (2026-05-11)
