@@ -55,6 +55,7 @@ tests/**
 !settings/*.json
 !settings/*.md
 !hooks/*.sh
+!hooks/*.py
 !hooks/*.md
 !extensions/*.md
 !extensions/**/*.md

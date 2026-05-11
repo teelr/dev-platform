@@ -109,7 +109,15 @@ install_settings() {
 install_hooks() {
     mkdir -p "${HOME_CLAUDE}/hooks"
     local count=0
+    # Hook scripts: shell entry points Claude Code invokes per event.
     for f in "${REPO}/hooks"/*.sh; do
+        [[ -e "${f}" ]] || continue
+        link_file "${f}" "${HOME_CLAUDE}/hooks/$(basename "${f}")"
+        count=$((count + 1))
+    done
+    # Hook helper modules: Python emitter shared by the .sh wrappers.
+    # Added in v0.5 Phase 2 to centralize project_for() + per-event-type logic.
+    for f in "${REPO}/hooks"/*.py; do
         [[ -e "${f}" ]] || continue
         link_file "${f}" "${HOME_CLAUDE}/hooks/$(basename "${f}")"
         count=$((count + 1))
