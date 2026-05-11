@@ -28,6 +28,7 @@
 !scaffolding/
 !monitoring/
 !shell/
+!tests/
 
 # Inside re-included directories, allow only specific extensions to keep
 # generated content out of git.
@@ -42,6 +43,7 @@ extensions/**
 scaffolding/**
 monitoring/**
 shell/**
+tests/**
 
 !docs/*.md
 !tasks/*.md
@@ -88,6 +90,13 @@ shell/**
 !monitoring/**/*.md
 !shell/*.sh
 !shell/*.md
+# Tests allow-list — fixtures (json/md/txt) + runners (sh) at any depth
+!tests/**/
+!tests/*.md
+!tests/**/*.md
+!tests/**/*.sh
+!tests/**/*.json
+!tests/**/*.txt
 
 # Machine-local overlays (gitignored — keep secrets / per-machine paths out)
 settings/*.local.json

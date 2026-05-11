@@ -275,7 +275,7 @@ step" and proceed. Stop after each step and wait for the user's command.
 - **`/code`** — Implements spec task by task. Follows the spec literally — doesn't improvise.
 - **`/test`** — Validates with real data. "It compiles" is NOT "it works."
 - **`/review`** — Pre-commit code review on staged changes.
-- **`/gate fast`** — CRITICAL: runs constitutional checks + unit tests + smoke_fast. Must PASS before commit. A failing gate blocks the commit — fix it first.
+- **`/gate fast`** — CRITICAL: runs constitutional checks + unit tests + smoke_fast. Must PASS before commit. A failing gate blocks the commit — fix it first. (dev-platform: run `./scripts/gate_fast.sh` — consolidated since R3.)
 - **`/docs`** — CRITICAL: update ALL project docs BEFORE commit. Updates planning.md, ROADMAP.md, README.md, tasks/lessons.md, and any feature-specific docs. Must run after `/gate fast` and before commit.
 - **commit** — Conventional commits AFTER `/gate fast` PASS and AFTER `/docs` has updated all project docs. Feature code + doc updates go into ONE atomic commit — not separate "feat" and "docs" commits.
 - **push** — Push to GitHub. Create PR if on a branch.
@@ -696,7 +696,8 @@ This repo (`teelr/dev-platform`, at `/home/rich/dev/`) owns the full dev-experie
 | `scaffolding/` | New-project templates — populated by future extensions spec |
 | `monitoring/` | Workflow telemetry — populated by future monitoring spec |
 | `shell/` | Shell helpers, git-hook templates |
-| `scripts/` | Install / uninstall / verify; spec-taxonomy checker |
+| `scripts/` | Install / uninstall / verify; `gate_fast.sh` orchestrator; spec-taxonomy checker |
+| `tests/` | Constitutional gate-fast fixtures + per-suite runners (R3); orchestrated by `scripts/gate_fast.sh` |
 | `tasks/` | Spec files (output of `/plan`) |
 | `docs/` | Architecture and how-to docs |
 

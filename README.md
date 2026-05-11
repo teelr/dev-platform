@@ -55,7 +55,7 @@ Removes all repo-owned symlinks from `~/.claude/`. Non-destructive: leaves user-
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for the spec sequence. R1 (Foundation) shipped 2026-05-08, R1.5 (Global Claude + Hooks) shipped 2026-05-09, R4a (Project Scaffolding) shipped 2026-05-10. **R3 Testing is next** — promoted ahead of R2 because every future spec needs gate coverage to ship safely.
+See [ROADMAP.md](ROADMAP.md) for the spec sequence. R1 (Foundation) shipped 2026-05-08, R1.5 (Global Claude + Hooks) shipped 2026-05-09, R4a (Project Scaffolding) + R3 (Testing) shipped 2026-05-10. Every `/gate fast` against dev-platform now runs `./scripts/gate_fast.sh` mechanically (42 checks, < 1s). **R2 Monitoring is next** — telemetry aggregation on top of the R1.5 heartbeat data.
 
 ## Conventions
 
