@@ -14,7 +14,7 @@ These are Claude's operating rules — how to act regardless of project. Develop
 
 **The rule is "STOP and wait", NOT "say nothing about what's next".**
 
-After `/plan`, `/code`, `/test`, `/review`, `/gate`, or `/docs`: report results, state which step is next, then STOP and wait for the user to invoke it explicitly. Do NOT auto-advance to the next step.
+After `/plan`, `/code`, `/test`, `/review`, `/gate`, `/docs`, `commit`, `push`, `PR`, or `merge`: report results, state which step is next, then STOP and wait for the user to invoke it explicitly. Do NOT auto-advance to the next step. (The post-`push` steps — PR, CI wait, merge, post-merge — were added 2026-05-11 when v0.7 Phase 2 introduced CI; before that, "push" was the de facto last step.)
 
 Required end-of-step format:
 
@@ -30,15 +30,17 @@ The "Ready for X" line is REQUIRED — it tells the user where the workflow is. 
 
 Shorthand affirmatives like "fix all", "do it", "go", "yes" authorize the IMMEDIATE action only — never workflow advancement (lesson L28). "Yes" to a /review fix is permission to fix the code, not to run /gate or commit.
 
-The full chain: `/plan → /code → /test → /review → /gate fast → /docs → commit → push`.
+The full chain: `/plan → /code → /test → /review → /gate fast → /docs → commit → push → PR → CI → merge → post-merge`.
+
+**No merge before CI green.** Once `gate-fast` CI runs on a PR (every dev project under `/home/rich/dev/` has it from v0.7 Phase 2 onward), the workflow does not advance to `merge` until CI reports green. Red CI means fix-on-branch-and-re-push, never merge-around. **post-merge** captures any deferred work the spec called out (branch-protection updates, release-tag cuts, cross-project re-installs); if the spec named none, post-merge is a no-op but the workflow still passes through so the agent doesn't forget when deferred work DOES exist.
 
 ## Gate Before Commit — CRITICAL
 
 **`/gate fast` MUST pass before any commit. No exceptions.**
 
-Correct order: `/plan → /code → /test → /review → /gate fast → /docs → commit → push`
+Correct order: `/plan → /code → /test → /review → /gate fast → /docs → commit → push → PR → CI → merge → post-merge`
 
-The gate runs constitutional checks + unit tests + smoke_fast. Committing before the gate passes pollutes git history and can block other work. If the gate fails, fix it — do not commit around it.
+The gate runs constitutional checks + unit tests + smoke_fast. Committing before the gate passes pollutes git history and can block other work. If the gate fails, fix it — do not commit around it. The same gate then runs again on the PR ref via GitHub Actions (v0.7 Phase 2+) — if CI surfaces a failure local `/gate fast` missed, fix on the branch and re-push, never merge red.
 
 ## Docs Before Commit — CRITICAL
 
