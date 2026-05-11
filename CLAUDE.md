@@ -210,6 +210,55 @@ release surfaced this rule's recurrence + a fresh
 accessor-cleanup bug in the same /review pass; both fixed
 before commit.
 
+## Boundary Contract Changes Require Both-Sides Sweep
+
+**CRITICAL — Any change to a method's name, signature (including
+additive kwargs), return type, call path, or `async`/sync declaration
+at ANY boundary requires a sweep of ALL consuming sites in BOTH `src/`
+AND `tests/` in the same `/code` session. `src/`-only is NECESSARY
+but NOT SUFFICIENT.**
+
+Five recurrences in 4 days before this rule was promoted (kermit-harness
+L46–L50, 2026-05-11):
+
+| L | Change | What silently broke | Caught by |
+| - | ------ | ------------------- | --------- |
+| L46 | Method deprecated/renamed | test mocks called old name; AsyncMock never fired | `pytest` TypeError on un-awaited MagicMock |
+| L47 | Producer returned `tuple`; consumer expected `list` | vision images silently dropped | live PA adoption |
+| L48 | Private method extracted; call path re-routed | old-path mocks dead + new method unmocked (two-direction trap) | `ConfigError` at test + dead mock in /review |
+| L49 | `async def` body ran sync CPU-bound code | event loop blocked 254 s; concurrent request dropped | live PA adoption |
+| L50 | ABC gained additive kwarg | 25 test-mock subclasses raised `TypeError` | `/test` full suite |
+
+**Mechanical sweep after any boundary change:**
+
+```bash
+# After rename / deprecation:
+grep -rn "old_method_name" tests/
+
+# After kwarg added to ABC or public method:
+grep -rn "def method_name" tests/     # find every override
+
+# After private method extracted:
+grep -rn "old_path\|new_method" tests/  # dead mocks + missing mocks
+
+# After async/sync flip:
+grep -rn "def method_name" src/ tests/   # every override + call site
+```
+
+**`async def` / sync body (L49):** a function that declares `async def`
+promises callers that awaiting it yields the event loop. A body that
+calls synchronous CPU/GPU-bound code without `asyncio.to_thread` breaks
+that promise silently. The fix is always at the AWAITER level — wrapping
+the sync call in `asyncio.to_thread`. Making the called function
+`async def` just moves the violation one frame deeper.
+
+**Default-value backward-compatibility protects CALLERS, not OVERRIDERS
+(L50):** adding a kwarg with a default to an ABC method is
+backward-compatible for every CALL SITE. But every OVERRIDE in a subclass
+that spells out the old explicit signature now rejects the new kwarg.
+`grep -rn "def initialize" tests/` is mandatory after any ABC signature
+change.
+
 ## Consumer-Side Schema / Infrastructure Dependencies
 
 **CRITICAL — When adding or modifying a public method, declare what the consumer's
