@@ -38,6 +38,19 @@ The `project` field on every event derives from `cwd` at hook fire time:
 
 A session that `cd`s mid-flight tags later events at the new project — events reflect where they fired, not where the session started.
 
+## Fallback asymmetry — deliberate, not a bug
+
+Each of the four hook scripts (`hooks/*.sh`) delegates JSON shaping to `hooks/_emit_event.py`. When the emitter fails (Python interpreter missing, malformed payload that crashes inside the emitter, etc.), each bash wrapper decides whether to emit a degraded JSONL line as a fallback. The decision differs by event type:
+
+| Hook | On emitter failure | Why |
+| ---- | ------------------ | --- |
+| `session-start.sh` | Emits `{event:"session_start", session_id:"?", …}` | Marker for every session, even with an unreadable payload. Aggregator can still count sessions. |
+| `post-tool-heartbeat.sh` | Emits `{event:"tool_use_end", tool:"?", tool_call_id:"?", …}` | Maintains v0.2's "always emit, never miss a tool call" contract. The tool call happened; record its existence. |
+| `user-prompt.sh` | Silent (no fallback line) | We can't tell if an unparsed prompt was a slash command or free text. A degraded `user_prompt` would leak the existence of a free-text user message — violates the privacy-by-omission design. |
+| `pre-tool-use.sh` | Silent (no fallback line) | A fallback start with `tool_call_id="?"` would never pair with a real `tool_use_end`, producing two unrelated orphan rows. Silent failure leaves only the end orphaned — cleaner for the aggregator's pairing logic. |
+
+The two strategies are intentional. Don't align them without re-validating the rationale above.
+
 ## Backward compatibility
 
 The legacy format from v0.2 — lines shaped `<ISO-timestamp> tool=<name>` — predates this schema. The aggregator reads both formats; legacy lines are interpreted as `tool_use_end` events with `project="dev-platform"` (legacy was always dev-platform context). Historical lines from v0.2's text format remain queryable indefinitely.

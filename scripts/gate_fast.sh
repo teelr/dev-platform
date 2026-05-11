@@ -118,6 +118,42 @@ total_skip=$(grep -c "^SKIP$" "${_GATE_COUNTS_FILE}" 2>/dev/null); total_skip=${
 
 echo "  ${total_pass} PASS  ${total_fail} FAIL  ${total_skip} SKIP  ($((END - START))s)"
 
+# Emit gate_run telemetry event (v0.5 Phase 2, Change 7). Failure-tolerant:
+# Python failure is silent; the gate's exit code is determined ONLY by
+# total_fail above, never by the emission.
+_GATE_LOG="${HOME}/.claude/dev-platform-telemetry.log"
+mkdir -p "$(dirname "${_GATE_LOG}")" 2>/dev/null || true
+_GATE_OUTCOME="pass"
+[[ ${total_fail} -gt 0 ]] && _GATE_OUTCOME="fail"
+python3 - "${PWD}" "${_GATE_OUTCOME}" "${total_pass}" "${total_fail}" "$((END - START))" >> "${_GATE_LOG}" 2>/dev/null <<'PY' || true
+import sys, json
+from datetime import datetime, timezone
+
+cwd, outcome, p, f, d = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5])
+
+def project_for(cwd):
+    if cwd.startswith("/home/rich/dev/projects/"):
+        parts = cwd.split("/")
+        if len(parts) >= 6 and parts[5]:
+            return parts[5]
+    if cwd == "/home/rich/dev" or cwd.startswith("/home/rich/dev/"):
+        return "dev-platform"
+    return "other"
+
+event = {
+    "v": 1,
+    "ts": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
+    "event": "gate_run",
+    "session_id": "gate",
+    "project": project_for(cwd),
+    "outcome": outcome,
+    "pass_count": p,
+    "fail_count": f,
+    "duration_s": d,
+}
+print(json.dumps(event))
+PY
+
 if [[ ${total_fail} -gt 0 ]]; then
     echo ""
     echo "GATE FAST: FAIL"

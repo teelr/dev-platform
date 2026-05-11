@@ -69,6 +69,12 @@ for f in "${REPO}/hooks"/*.sh; do
     [[ -e "${f}" ]] || continue
     check_symlink "${f}" "${HOME_CLAUDE}/hooks/$(basename "${f}")"
 done
+# Hook helper modules (v0.5 Phase 2: _emit_event.py centralizes project_for()
+# and per-event-type emission logic shared by the .sh wrappers).
+for f in "${REPO}/hooks"/*.py; do
+    [[ -e "${f}" ]] || continue
+    check_symlink "${f}" "${HOME_CLAUDE}/hooks/$(basename "${f}")"
+done
 
 echo ""
 if [[ ${ERRORS} -gt 0 ]]; then

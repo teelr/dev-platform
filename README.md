@@ -55,7 +55,7 @@ Removes all repo-owned symlinks from `~/.claude/`. Non-destructive: leaves user-
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for the spec sequence. Roadmap Phase headers use semver (`v<MAJOR>.<MINOR>: <Title>`) and map 1:1 to GitHub Milestones. v0.1 (Foundation) shipped 2026-05-08, v0.2 (Global Claude + Hooks) shipped 2026-05-09, v0.3 (Project Scaffolding) + v0.4 (Testing) shipped 2026-05-10. Every `/gate fast` against dev-platform runs `./scripts/gate_fast.sh` mechanically (42 checks, < 1s). **v0.5 Monitoring is in flight** — telemetry aggregation on top of the v0.2 heartbeat data; Phase 1 of 4 implemented as of 2026-05-11.
+See [ROADMAP.md](ROADMAP.md) for the spec sequence. Roadmap Phase headers use semver (`v<MAJOR>.<MINOR>: <Title>`) and map 1:1 to GitHub Milestones. v0.1 (Foundation) shipped 2026-05-08, v0.2 (Global Claude + Hooks) shipped 2026-05-09, v0.3 (Project Scaffolding) + v0.4 (Testing) shipped 2026-05-10. Every `/gate fast` against dev-platform runs `./scripts/gate_fast.sh` mechanically (42 checks, < 1s). **v0.5 Monitoring is in flight** — telemetry aggregation on top of the v0.2 heartbeat data; Phase 2 of 4 implemented as of 2026-05-11.
 
 ## Conventions
 
