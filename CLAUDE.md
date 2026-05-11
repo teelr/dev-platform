@@ -255,6 +255,24 @@ class. One without the other is half a fix.
 This rule reads like overhead until you've shipped 3 patches in a day to
 close gaps a single integration test would have caught.
 
+## Consumer Audit — New File Types in Glob-Managed Directories
+
+**CRITICAL — Introducing a new file extension (or the first file of an existing extension) in a directory governed by glob-based loops triggers a five-point consumer audit BEFORE the change ships.**
+
+Glob-managed directories are paths where build / install / verify / test scripts iterate via patterns like `for f in <dir>/*.ext` or `find <dir> -name "*.ext"`. dev-platform examples: `hooks/`, `tests/`, `commands/`, `skills/`, `scaffolding/`, `monitoring/`, `settings/`. Most projects under `/home/rich/dev/projects/` have their own equivalents.
+
+When you add `<dir>/<newfile>.<newext>` (or the first instance of `<newext>` in `<dir>`), audit:
+
+1. **`.gitignore` allow-list** — does `!<dir>/**/*.<newext>` (or the equivalent re-include) exist? Without it, the file is silently gitignored and never reaches origin. A `git check-ignore -v <newfile>` is the surest check.
+2. **install / deploy scripts** — does `scripts/install.sh` (or equivalent) glob `<newext>` from `<dir>`? Without it, the file isn't symlinked to its deployed location. The `install_<category>()` function bodies are the place to look.
+3. **verify / check scripts** — does `scripts/verify.sh` (or equivalent) glob `<newext>`? Without it, drift in the new file goes undetected by constitutional checks.
+4. **Directory README** — does `<dir>/README.md` mention `<newext>` files in its contract? Without it, future contributors don't know the file type belongs there.
+5. **Test orchestrators** — does any `tests/<suite>/run.sh`, `scripts/gate_fast.sh`, or per-project equivalent walk `<dir>` looking for `<newext>`? Update if relevant.
+
+**Why this rule exists:** Two instances of the same omission within 24 hours of dev-platform work (v0.5 Phase 2 and v0.5 Phase 4). Both surfaced eventually — Phase 2 at /test gate-fail, Phase 4 at /review's `git check-ignore` probe — but both could have caused gate-fast to fail on a fresh clone if the omission persisted to commit. The audit is mechanical: five greps takes 30 seconds and eliminates the bug class.
+
+Consolidated from two `tasks/lessons.md` entries dated 2026-05-11.
+
 ## Development Workflow
 
 **CRITICAL — DO NOT ADVANCE STEPS WITHOUT EXPLICIT USER INVOCATION.**
