@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# Mock gh CLI for tests/milestone-sync/run.sh.
+#
+# Supports the gh-api invocations sync-milestones.sh uses:
+#   gh api repos/X/milestones?state=all&per_page=N   → emit state from $MOCK_MILESTONES_FILE
+#   gh api repos/X/milestones -X POST -f title=... -f state=... -f description=...
+#                                                    → append to $MOCK_API_CALLS_FILE
+#   gh api repos/X/milestones/<id> -X PATCH ...      → append to $MOCK_API_CALLS_FILE
+#
+# State:
+#   MOCK_MILESTONES_FILE — JSON array of existing milestones (read-side mock)
+#   MOCK_API_CALLS_FILE  — log of write calls (one line per call, "<METHOD> <path> <args>")
+
+set -uo pipefail
+
+: "${MOCK_MILESTONES_FILE:?MOCK_MILESTONES_FILE must be set in env}"
+: "${MOCK_API_CALLS_FILE:?MOCK_API_CALLS_FILE must be set in env}"
+touch "${MOCK_API_CALLS_FILE}"
+
+# First positional arg should be `api`. Everything else is the gh api spec.
+if [[ "${1:-}" != "api" ]]; then
+    echo "mock-gh: only 'api' subcommand supported, got '${1:-}'" >&2
+    exit 1
+fi
+shift
+
+# Parse: <path> [-X METHOD] [-f key=value]... [--jq <expr>]
+path=""
+method="GET"
+jq_expr=""
+form_args=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -X)        shift; method="$1" ;;
+        -f)        shift; form_args+=("$1") ;;
+        --jq)      shift; jq_expr="$1" ;;
+        *)
+            if [[ -z "${path}" ]]; then
+                path="$1"
+            fi
+            ;;
+    esac
+    shift
+done
+
+# Log every non-GET call (write-side mocks see this; reads just return canned data).
+if [[ "${method}" != "GET" ]]; then
+    echo "${method} ${path} ${form_args[*]:-}" >> "${MOCK_API_CALLS_FILE}"
+fi
+
+# Read: emit canned Milestone list. Apply --jq if requested (matches gh's CLI behavior).
+if [[ "${path}" == repos/*/milestones* ]] && [[ "${method}" == "GET" ]]; then
+    if [[ -n "${jq_expr}" ]]; then
+        jq "${jq_expr}" "${MOCK_MILESTONES_FILE}"
+    else
+        cat "${MOCK_MILESTONES_FILE}"
+    fi
+    exit 0
+fi
+
+# Write: echo nothing (sync-milestones.sh discards >/dev/null on POST/PATCH).
+exit 0
