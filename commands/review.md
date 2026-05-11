@@ -1,6 +1,6 @@
 ---
 description: Pre-commit code review on staged git changes. Use before committing to catch issues early.
-allowed-tools: Read, Grep, Glob, Bash, TodoWrite
+allowed-tools: Read, Grep, Glob, Bash, Edit, Write, TodoWrite
 ---
 
 # Pre-Commit Code Review Agent
@@ -90,53 +90,60 @@ Flag violations as **QUALITY** issues.
 
 Flag violations as **BUG** issues.
 
-## Step 4: Produce Review Report
+## Step 4: Fix All Non-Architecture Issues
+
+After identifying issues, fix them immediately — do NOT wait for user approval:
+
+- **SECURITY, BUG, COMPLIANCE, QUALITY** → fix in the affected files now, then re-read the file to verify the fix is correct
+- **ARCHITECTURE** → do NOT fix; surface for user decision (wrong-language choices require structural decisions the user must make)
+
+Fix each issue one at a time using Edit. After all fixes are applied, re-run any relevant build or lint check to confirm clean.
+
+## Step 5: Produce Review Report
 
 ```markdown
 # Code Review
 
 **Files reviewed:** {count}
-**Verdict:** {APPROVE | REQUEST CHANGES | APPROVE WITH COMMENTS}
+**Verdict:** {APPROVED — fixes applied | NEEDS DECISION — architecture issues remain}
 
-## Issues
+## Fixes Applied
 
-### SECURITY {count}
+### SECURITY {count fixed}
 
-{numbered list — these MUST be fixed before commit}
+{numbered list — what was wrong and what was changed}
 
-### BUG {count}
+### BUG {count fixed}
 
-{numbered list — these MUST be fixed before commit}
+{numbered list — what was wrong and what was changed}
+
+### COMPLIANCE {count fixed}
+
+{numbered list — what was wrong and what was changed}
+
+### QUALITY {count fixed}
+
+{numbered list — what was wrong and what was changed}
+
+## Needs Your Decision
 
 ### ARCHITECTURE {count}
 
-{numbered list — network/compute-intensive code in wrong language}
-
-### COMPLIANCE {count}
-
-{numbered list — CLAUDE.md rule violations}
-
-### QUALITY {count}
-
-{numbered list — style and maintainability concerns}
+{numbered list — wrong language choice, structural issue; describe the problem and the correct approach but do NOT make the change}
 
 ## Summary
 
-{1-3 sentences: overall quality assessment and what needs to change}
+{1-3 sentences: what was fixed automatically, and what (if anything) requires user input}
 ```
 
-## Severity Guide
-
-- **SECURITY + BUG** → Verdict must be REQUEST CHANGES
-- **ARCHITECTURE** → REQUEST CHANGES if new file in wrong language, COMMENT if existing file
-- **COMPLIANCE** → REQUEST CHANGES if critical rule violated, COMMENT otherwise
-- **QUALITY** → APPROVE WITH COMMENTS (suggestions, not blockers)
+If there are no ARCHITECTURE issues: verdict is `APPROVED — fixes applied` (or `APPROVED — no issues found` if nothing needed fixing).
 
 ## Rules
 
 - **Read full files**, not just diffs — context matters for understanding if a change is correct
-- **Be specific** — include file paths, line numbers, and what's wrong
-- **Propose fixes** — don't just say "this is bad", say what it should be
+- **Be specific** — include file paths, line numbers, and what was wrong
+- **Fix SECURITY, BUG, COMPLIANCE, QUALITY automatically** — don't report and wait, just fix
+- **Never fix ARCHITECTURE issues** — surface them and stop; the user decides
 - **Don't nitpick** — focus on bugs, security, architecture, and rule violations
-- **Do NOT make changes** — only report findings. The developer decides what to fix.
 - **Check the diff carefully** for things the developer might have missed: files that should have been changed but weren't, imports that are now unused, types that need updating
+- **After fixing, re-verify** — read the modified file back and confirm the fix is correct before reporting it as done

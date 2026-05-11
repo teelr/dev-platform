@@ -170,5 +170,6 @@
     ]
   },
   "enabledPlugins": {},
-  "extraKnownMarketplaces": {}
+  "extraKnownMarketplaces": {},
+  "model": "sonnet"
 }
