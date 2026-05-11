@@ -1,0 +1,7 @@
+{"v":1,"ts":"2026-05-10T09:00:00-05:00","event":"session_start","session_id":"sx1","project":"dev-platform","cwd":"/home/rich/dev"}
+{"v":1,"ts":"2026-05-10T09:00:01-05:00","event":"user_prompt","session_id":"sx1","project":"dev-platform","command":"/code","args":""}
+{"v":1,"ts":"2026-05-10T09:00:02-05:00","event":"tool_use_start","session_id":"sx1","project":"dev-platform","tool":"Bash","tool_call_id":"tcA"}
+{"v":1,"ts":"2026-05-10T09:00:03-05:00","event":"tool_use_end","session_id":"sx1","project":"dev-platform","tool":"Bash","tool_call_id":"tcA"}
+{"v":1,"ts":"2026-05-10T09:00:04-05:00","event":"user_prompt","session_id":"sx1","project":"dev-platform","command":"/review","args":""}
+{"v":1,"ts":"2026-05-10T09:00:05-05:00","event":"gate_run","session_id":"gate","project":"dev-platform","outcome":"pass","pass_count":42,"fail_count":0,"duration_s":1}
+{"v":1,"ts":"2026-05-10T09:00:06-05:00","event":"gate_run","session_id":"gate","project":"dev-platform","outcome":"fail","pass_count":40,"fail_count":2,"duration_s":1}

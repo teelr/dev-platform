@@ -95,12 +95,16 @@ tests/**
 !monitoring/**/*.jsonl
 !shell/*.sh
 !shell/*.md
-# Tests allow-list — fixtures (json/md/txt) + runners (sh) at any depth
+# Tests allow-list — fixtures (json/jsonl/md/txt) + runners (sh) + Python
+# assertion helpers (py) at any depth. py + jsonl added in v0.5 Phase 4 for
+# tests/monitoring/.
 !tests/**/
 !tests/*.md
 !tests/**/*.md
 !tests/**/*.sh
+!tests/**/*.py
 !tests/**/*.json
+!tests/**/*.jsonl
 !tests/**/*.txt
 
 # Machine-local overlays (gitignored — keep secrets / per-machine paths out)
