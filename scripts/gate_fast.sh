@@ -100,6 +100,11 @@ for suite_dir in "${REPO}/tests"/*/; do
 
     # Find every executable *.sh under this suite, any depth (run.sh inside
     # per-fixture subdirs like hooks/post-tool-heartbeat/ is supported).
+    # Exclude fixtures/ — runnable fixtures (mock binaries, mock project
+    # gates) live there and are NOT test runners. The contract: test runners
+    # live at tests/<suite>/*.sh or tests/<suite>/<test>/*.sh, NEVER under
+    # tests/<suite>/fixtures/. Added v0.8 Phase 1 when fleet-gate's mock-
+    # project tree introduced runnable gate.sh files under fixtures/.
     found_any=0
     while IFS= read -r runner; do
         found_any=1
@@ -109,7 +114,9 @@ for suite_dir in "${REPO}/tests"/*/; do
         else
             record_fail "${suite_name}: ${runner#${REPO}/} not executable"
         fi
-    done < <(find "${suite_dir}" -type f -name "*.sh" 2>/dev/null)
+    done < <(find "${suite_dir}" -type f -name "*.sh" \
+                ! -path "*/fixtures/*" \
+                2>/dev/null)
     [[ ${found_any} -eq 0 ]] && record_skip "${suite_name} (no *.sh runners found)"
 done
 

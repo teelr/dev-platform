@@ -1,0 +1,38 @@
+[
+  {
+    "name": "dev-platform",
+    "path": ".",
+    "gate_cmd": "./scripts/gate_fast.sh",
+    "primary_language": "bash",
+    "enabled": true,
+    "notes": "self — included so the fleet sweep is symmetric"
+  },
+  {
+    "name": "atlas",
+    "path": "projects/atlas",
+    "gate_cmd": "./scripts/gate_fast.sh",
+    "primary_language": "python",
+    "enabled": true
+  },
+  {
+    "name": "kermit",
+    "path": "projects/kermit",
+    "gate_cmd": "make check",
+    "primary_language": "python",
+    "enabled": true
+  },
+  {
+    "name": "kermit-pa",
+    "path": "projects/kermit-pa",
+    "gate_cmd": "./scripts/gate.sh fast",
+    "primary_language": "python",
+    "enabled": true
+  },
+  {
+    "name": "keystone",
+    "path": "projects/keystone",
+    "gate_cmd": "./scripts/gate_fast.sh",
+    "primary_language": "go",
+    "enabled": true
+  }
+]
