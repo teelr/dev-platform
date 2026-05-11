@@ -14,7 +14,12 @@ set -uo pipefail   # NOT -e
 LOG="${HOME}/.claude/dev-platform-telemetry.log"
 mkdir -p "$(dirname "${LOG}")"
 
-python3 /home/rich/.claude/hooks/_emit_event.py tool_use_end "${PWD}" >> "${LOG}" 2>/dev/null || \
+# Locate the emitter relative to this script so the hook works both from the
+# deploy symlink (`~/.claude/hooks/`) and from the repo (`/home/rich/dev/hooks/`
+# under test). BASH_SOURCE[0] is the path as invoked; its dirname is the
+# directory containing _emit_event.py (also symlinked alongside the hooks).
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+python3 "${HOOK_DIR}/_emit_event.py" tool_use_end "${PWD}" >> "${LOG}" 2>/dev/null || \
     echo "{\"v\":1,\"ts\":\"$(date -Iseconds)\",\"event\":\"tool_use_end\",\"session_id\":\"?\",\"project\":\"?\",\"tool\":\"?\",\"tool_call_id\":\"?\"}" >> "${LOG}"
 
 exit 0

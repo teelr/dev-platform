@@ -1,0 +1,26 @@
+# dev-platform-gate.yml — copy this file into your project's
+# .github/workflows/ to plug into dev-platform's taxonomy enforcement
+# at the PR boundary.
+#
+# What it does: runs check_spec_taxonomy.sh against your repo's
+# tasks/*-spec.md, ROADMAP.md, and planning.md on every PR targeting
+# main and every push to main. Fails the build if any header uses a
+# killed prefix (R<N>:, Sprint X:, Stage Y:, Q<N>-<YYYY>:, etc.) or
+# any Spec Phase header uses a killed Change-level synonym.
+#
+# Pin to a specific tag (e.g., @v0.7) for stability — floating tags
+# like @main break reproducibility. Bump the tag when dev-platform
+# cuts a new release. See docs/CI-INTEGRATION.md in dev-platform
+# for the full adoption guide.
+
+name: dev-platform-gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  taxonomy:
+    uses: teelr/dev-platform/.github/workflows/taxonomy-check.yml@v0.7

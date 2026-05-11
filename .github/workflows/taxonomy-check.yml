@@ -1,0 +1,53 @@
+# Reusable workflow consumer projects call via `uses:` to run
+# dev-platform's check_spec_taxonomy.sh against THEIR repo. This
+# enforces the v<MAJOR>.<MINOR>:<Title> Roadmap Phase format (and
+# the spec-structural killed-term rules) at the consumer's PR
+# boundary without each consumer vendoring the script.
+#
+# Invoke from a consumer workflow:
+#
+#   jobs:
+#     taxonomy:
+#       uses: teelr/dev-platform/.github/workflows/taxonomy-check.yml@v0.7
+#
+# See extensions/github-actions/dev-platform-gate.yml for the
+# copy-paste consumer template, and docs/CI-INTEGRATION.md for
+# the adoption guide.
+
+name: taxonomy-check
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Ref of the calling repo to check out for files to scan'
+        type: string
+        required: false
+        default: ''
+
+jobs:
+  taxonomy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout caller's repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          path: caller
+
+      - name: Checkout dev-platform (for the check script)
+        uses: actions/checkout@v4
+        with:
+          repository: teelr/dev-platform
+          # github.workflow_sha is the commit SHA of THIS reusable workflow
+          # being run — when a consumer pins `uses: ...@v0.7`, this SHA is
+          # the commit v0.7 points at. Checking out by SHA guarantees the
+          # script we run matches the workflow definition that called us.
+          # Do NOT use github.workflow_ref — it returns the full ref-path
+          # ("owner/repo/.github/...@refs/tags/v0.7"), which checkout's
+          # `ref:` cannot resolve as a git ref.
+          ref: ${{ github.workflow_sha }}
+          path: dev-platform
+
+      - name: Run taxonomy check against caller's repo
+        run: bash dev-platform/scripts/check_spec_taxonomy.sh "${GITHUB_WORKSPACE}/caller"

@@ -70,8 +70,16 @@ else
     record_pass "secrets scan (no literal pwds in tracked file)"
 fi
 
-# Live ~/.claude/ verify
-if bash "${REPO}/scripts/verify.sh" >/dev/null 2>&1; then
+# Live ~/.claude/ verify — checks that the deployed symlinks under ~/.claude/
+# match the tracked source. This is a developer-environment integrity check
+# meaningful only where the repo has been deployed (via scripts/install.sh).
+# On a fresh CI runner ~/.claude/ doesn't exist, so the check has nothing to
+# verify and we record SKIP rather than FAIL. The CI environment runs all
+# OTHER lift checks + every test suite — only the live-deploy check is
+# environment-dependent.
+if [[ ! -d "${HOME}/.claude" ]]; then
+    record_skip "live ~/.claude/ verify (no ~/.claude/ — likely CI runner)"
+elif bash "${REPO}/scripts/verify.sh" >/dev/null 2>&1; then
     record_pass "live ~/.claude/ verify"
 else
     record_fail "live ~/.claude/ verify (drift — run scripts/verify.sh for details)"

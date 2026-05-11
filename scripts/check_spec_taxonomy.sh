@@ -85,7 +85,7 @@ while IFS= read -r -d '' spec; do
     if [[ "$found_violations" -eq 0 ]]; then
       echo "check_spec_taxonomy: spec files using killed terminology"
       echo "  Locked taxonomy: ## Phase N + ### Change N (continuous numbering)"
-      echo "  Standard: /home/rich/dev/CLAUDE.md → 'Development Terminology'"
+      echo "  Standard: https://github.com/teelr/dev-platform/blob/main/CLAUDE.md (Development Terminology)"
       echo ""
     fi
     found_violations=1
@@ -128,7 +128,7 @@ scan_roadmap_file() {
       echo ""
       echo "check_spec_taxonomy: Roadmap Phase headers using killed terminology"
       echo "  Required format: v<MAJOR>.<MINOR>[<letter>]: <Title>"
-      echo "  Standard: /home/rich/dev/CLAUDE.md → 'Development Terminology'"
+      echo "  Standard: https://github.com/teelr/dev-platform/blob/main/CLAUDE.md (Development Terminology)"
       echo ""
     fi
     found_roadmap_violations=1

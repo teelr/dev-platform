@@ -17,6 +17,7 @@
 !planning.md
 
 # Re-include top-level directories
+!.github/
 !docs/
 !tasks/
 !scripts/
@@ -32,6 +33,7 @@
 
 # Inside re-included directories, allow only specific extensions to keep
 # generated content out of git.
+.github/**
 docs/**
 tasks/**
 scripts/**
@@ -45,6 +47,12 @@ monitoring/**
 shell/**
 tests/**
 
+# .github/ holds GitHub Actions workflows (v0.7 Phase 2 — CI, reusable
+# workflow, Pages deploy). Re-include the subdir (re-include must precede
+# file patterns) then allow .yml workflow files at any depth.
+!.github/**/
+!.github/**/*.yml
+!.github/**/*.yaml
 !docs/*.md
 !tasks/*.md
 !tasks/*.sh
@@ -62,6 +70,9 @@ tests/**
 !extensions/**/*.md
 !extensions/**/*.json
 !extensions/**/*.sh
+# v0.7 Phase 2: consumer template at extensions/github-actions/*.yml
+!extensions/**/*.yml
+!extensions/**/*.yaml
 # scaffolding/ holds new-project templates (R4a). Re-include subdirectories
 # at any depth (otherwise file-pattern re-includes don't fire — files in
 # ignored dirs can't be unignored by file patterns alone), then allow the

@@ -13,7 +13,8 @@ set -uo pipefail   # NOT -e
 LOG="${HOME}/.claude/dev-platform-telemetry.log"
 mkdir -p "$(dirname "${LOG}")"
 
-python3 /home/rich/.claude/hooks/_emit_event.py session_start "${PWD}" >> "${LOG}" 2>/dev/null || \
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+python3 "${HOOK_DIR}/_emit_event.py" session_start "${PWD}" >> "${LOG}" 2>/dev/null || \
     echo "{\"v\":1,\"ts\":\"$(date -Iseconds)\",\"event\":\"session_start\",\"session_id\":\"?\",\"project\":\"?\",\"cwd\":\"?\"}" >> "${LOG}"
 
 exit 0
