@@ -98,6 +98,6 @@ Permanently: delete the file. If the check was a required status check in branch
 
 ## See also
 
-- [Glossary](GLOSSARY.md) — definitions for "taxonomy", "Roadmap Phase", "Spec Phase", etc. (lands in v0.7 Phase 3).
+- [Glossary](GLOSSARY.md) — definitions for "taxonomy", "Roadmap Phase", "Spec Phase", and every other project-specific term.
 - [dev-platform CLAUDE.md > Development Terminology](../CLAUDE.md) — the canonical rule the check enforces.
 - [check_spec_taxonomy.sh](../scripts/check_spec_taxonomy.sh) — the script that does the work.
