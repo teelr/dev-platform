@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "dev-platform telemetry event v1",
+  "description": "One JSON object per line in ~/.claude/dev-platform-telemetry.log. Emitted by hook scripts in dev/hooks/ and by scripts/gate_fast.sh. Consumed by monitoring/aggregator.py.",
+  "type": "object",
+  "required": ["v", "ts", "event", "session_id", "project"],
+  "additionalProperties": false,
+  "properties": {
+    "v": {
+      "const": 1,
+      "description": "Schema version. Increment when fields change incompatibly; aggregator handles all known versions."
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp with timezone, seconds precision."
+    },
+    "event": {
+      "type": "string",
+      "enum": ["session_start", "user_prompt", "tool_use_start", "tool_use_end", "gate_run"],
+      "description": "Event type. session_start fires once per Claude Code session; user_prompt fires per slash-command invocation; tool_use_start/end pair via tool_call_id; gate_run fires per scripts/gate_fast.sh invocation."
+    },
+    "session_id": {
+      "type": "string",
+      "description": "Claude Code session ID. 'gate' for gate_run events (no session context). '?' if upstream payload lacks the field."
+    },
+    "project": {
+      "type": "string",
+      "description": "Derived from cwd at hook fire time: 'dev-platform' if cwd is /home/rich/dev or subdir; <name> if cwd is /home/rich/dev/projects/<name>/...; 'other' otherwise."
+    },
+    "cwd": {
+      "type": "string",
+      "description": "Working directory at hook fire time. Emitted by session_start only."
+    },
+    "tool": {
+      "type": "string",
+      "description": "Tool name (Bash, Read, Edit, ...). Emitted by tool_use_start and tool_use_end."
+    },
+    "tool_call_id": {
+      "type": "string",
+      "description": "Pairs tool_use_start with tool_use_end so the aggregator can compute duration_ms. Sourced from Claude Code's tool_use_id."
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Tool-call duration in milliseconds. Computed by the aggregator from start/end pair; never written by the hook directly."
+    },
+    "command": {
+      "type": "string",
+      "description": "Slash command name including leading slash (e.g. '/code'). Emitted by user_prompt only."
+    },
+    "args": {
+      "type": "string",
+      "description": "Slash command argument text. Emitted by user_prompt only."
+    },
+    "outcome": {
+      "type": "string",
+      "enum": ["pass", "fail"],
+      "description": "Gate run outcome. Emitted by gate_run only."
+    },
+    "pass_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of PASS results in the gate run. Emitted by gate_run only."
+    },
+    "fail_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of FAIL results in the gate run. Emitted by gate_run only."
+    },
+    "duration_s": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Gate run duration in whole seconds. Emitted by gate_run only."
+    }
+  }
+}

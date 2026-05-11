@@ -1,0 +1,5 @@
+{"v":1,"ts":"2026-05-12T09:00:01-05:00","event":"session_start","session_id":"abc123","project":"dev-platform","cwd":"/home/rich/dev"}
+{"v":1,"ts":"2026-05-12T09:00:05-05:00","event":"user_prompt","session_id":"abc123","project":"dev-platform","command":"/code","args":"v0.5"}
+{"v":1,"ts":"2026-05-12T09:00:10-05:00","event":"tool_use_start","session_id":"abc123","project":"dev-platform","tool":"Read","tool_call_id":"t1"}
+{"v":1,"ts":"2026-05-12T09:00:10-05:00","event":"tool_use_end","session_id":"abc123","project":"dev-platform","tool":"Read","tool_call_id":"t1"}
+{"v":1,"ts":"2026-05-12T09:05:00-05:00","event":"gate_run","session_id":"gate","project":"dev-platform","outcome":"pass","pass_count":42,"fail_count":0,"duration_s":3}

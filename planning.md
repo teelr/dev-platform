@@ -5,8 +5,8 @@ Current state of the repo. Refreshed at every spec-completion by `/docs`.
 ## Current state
 
 - **Name:** `dev-platform` (GitHub: `teelr/dev-platform`, mounted at `/home/rich/dev/`)
-- **Active spec:** `tasks/dev-platform-r2-monitoring-spec.md` (now ships as **v0.5: Monitoring**)
-- **Active Roadmap Phase:** v0.1 + v0.2 + v0.3 + v0.4 done; **v0.5 Monitoring is in flight** — the heartbeat hook from v0.2 has been collecting data, and v0.4's `scripts/gate_fast.sh` is now the gate every spec runs through
+- **Active spec:** `tasks/dev-platform-r2-monitoring-spec.md` (ships as **v0.5: Monitoring**)
+- **Active Roadmap Phase:** v0.1 + v0.2 + v0.3 + v0.4 done; **v0.5 Monitoring is in flight** — **Phase 1 of 4 (Schema + Storage Layer) implemented on branch `v0.5/phase-1-schema-storage`**, awaiting bundled commit + PR merge. Per-Spec-Phase branching strategy (4 PRs total for v0.5) adopted 2026-05-11.
 
 ## Recently shipped
 
@@ -18,7 +18,14 @@ Hashes intentionally omitted — `git log` is the authoritative record; this sec
 
 ## In flight
 
-- **v0.5 Monitoring** — spec drafted at `tasks/dev-platform-r2-monitoring-spec.md` (filename uses legacy `r2` prefix; cleanup deferred to v0.9 migration tooling). The v0.2 heartbeat hook is already writing to `~/.claude/dev-platform-telemetry.log`; v0.5 builds the aggregation + reporting layer on top. Ready for `/code`.
+- **v0.5 Monitoring — Phase 1/4 implemented** on branch `v0.5/phase-1-schema-storage`:
+  - Change 1: event-v1 schema + examples + monitoring/README rewrite
+  - Change 2: `hooks/post-tool-heartbeat.sh` migrated from text format to JSONL
+  - Change 3: `.gitignore` allow-list extended for `monitoring/**/*.{py,json,jsonl}`
+  - Plus the `tests/hooks/post-tool-heartbeat/` regression suite updated to validate the new JSONL contract (spec deviation surfaced + fixed during /code).
+  - Gate green (42 PASS / 0 FAIL). /test, /review, /gate fast all clean.
+- **Next Phase 2 of 4 (Collectors)** — Changes 4–8 in the spec: SessionStart, UserPromptSubmit, PreToolUse hooks; `gate_fast.sh` self-instrumentation; `settings.json` hooks-block expansion. Will land on branch `v0.5/phase-2-collectors`.
+- Spec filename keeps legacy `r2` prefix; cleanup deferred to v0.9 migration tooling.
 
 ## Taxonomy migration note (2026-05-11)
 
