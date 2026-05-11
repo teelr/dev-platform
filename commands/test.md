@@ -1,7 +1,7 @@
 ---
 description: Validate an implementation against its spec with systematic QC checks. Use after /code has implemented a spec.
 argument-hint: "<path-to-spec-file>"
-allowed-tools: Read, Grep, Glob, Bash, TodoWrite
+allowed-tools: Read, Grep, Glob, Bash, Edit, Write, TodoWrite
 ---
 
 # Testing & QC Agent
@@ -139,7 +139,16 @@ Read the project's CLAUDE.md and verify:
 - If the feature has an API, verify the frontend calls it
 - No orphaned code (backend without frontend, API without caller)
 
-## Step 6: Produce QC Report
+## Step 6: Fix All Issues Found
+
+After completing validation, fix all issues immediately — do NOT wait for user approval:
+
+- **FAILURES and WARNINGS** (spec mismatches, missing error handling, CLAUDE.md violations, code quality) → fix in the affected files using Edit, then re-run the relevant acceptance test to confirm fixed
+- **ARCHITECTURE violations** (wrong language for the component type) → do NOT fix; surface for user decision
+
+Fix each issue one at a time. After all fixes, re-run the build to confirm clean.
+
+## Step 7: Produce QC Report
 
 Output a structured report:
 
@@ -148,20 +157,20 @@ Output a structured report:
 
 **Spec:** {path to spec file}
 **Date:** {today's date}
-**Verdict:** {PASS | FAIL | PASS WITH WARNINGS}
+**Verdict:** {PASS | PASS — fixes applied | NEEDS DECISION — architecture issues remain}
 
 ## Summary
 
-{1-2 sentence overall assessment}
+{1-2 sentence overall assessment — what passed, what was fixed, what needs user input}
 
 ## Results by Change
 
-### Task N: {name}
+### Change N: {name}
 
 - **File:** `{path}` — {EXISTS | MISSING}
 - **Implementation:** {CORRECT | PARTIAL | INCORRECT | DEVIATES}
 - **Acceptance Test:** {PASS | FAIL | SKIPPED}
-- **Notes:** {any issues found}
+- **Notes:** {any issues found and fixed}
 
 ## Standard Checks
 
@@ -178,19 +187,15 @@ Output a structured report:
 | No console.log | PASS/FAIL | {details} |
 | Code quality | PASS/WARN | {details} |
 
-## Issues Found
+## Fixes Applied
 
-### FAILURES (must fix)
+{numbered list of issues found and fixed — what was wrong, what was changed}
 
-{numbered list of failures}
+## Needs Your Decision
 
-### WARNINGS (should fix)
+### ARCHITECTURE {count}
 
-{numbered list of warnings}
-
-## Recommended Next Steps
-
-{what needs to happen to reach PASS}
+{numbered list — wrong language choice or structural issue requiring user input}
 ```
 
 ## Rules
@@ -198,6 +203,8 @@ Output a structured report:
 - **Be honest.** If something doesn't work, say so. Never claim PASS without verification.
 - **Test the running system**, not just the code. Curl endpoints. Run builds. Check databases.
 - **Read files directly** — don't trust that implementation matches spec without verifying.
+- **Fix FAILURES and WARNINGS automatically** — don't report and wait, just fix them
+- **Never fix ARCHITECTURE issues** — surface them and stop; the user decides
 - **Flag missing pieces** — a backend endpoint with no frontend is not complete.
-- **Do NOT fix issues** — only report them. The coding agent handles fixes.
 - **NEVER skip checks** because they "probably work." Verify everything.
+- **After fixing, re-verify** — re-run the acceptance test or build to confirm the fix actually works

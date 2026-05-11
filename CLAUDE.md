@@ -33,7 +33,7 @@ All development standards for projects in `/home/rich/dev/projects/`. This is th
 
 **What dev-platform owns (no project may diverge):**
 
-- **Dev workflow** — `/plan → /code → /test → /review → /gate fast → /docs → commit → push → /pr → CI → /merge → post-merge`. The sequence, each step's semantics, the discipline (no auto-advance, no commits before `/gate fast`, no commits before `/docs`, no skipping `/test`, no merge before CI green)
+- **Dev workflow** — `/plan → /code → /gate fast → commit → push → /pr → CI → /merge → post-merge`. The sequence, each step's semantics, the discipline (no auto-advance, no commits before `/gate fast`, no merge before CI green). `/review` is optional for risky/large changes. `/code` handles verification, auto-fix, and doc updates internally.
 - **Workflow taxonomy** — Roadmap Phase → Spec → Spec Phase → Change → Commit. Killed terms (Stage, Sprint, Iteration, Revision, Milestone, Group, Epic, Step, Item, Task) never used as workflow-level labels
 - **Language Architecture Decision Matrix** — network-intensive → Go, compute-intensive → Rust, AI-intensive → Python, frontend → TypeScript. Anti-patterns from the matrix are violations, not preferences
 - **Slash commands** — `/plan`, `/code`, `/test`, `/review`, `/gate`, `/docs`, `/pr`, `/merge`, `/dev`, `/loop`, `/smoke_test`. Tracked in `commands/`, deployed via `scripts/install.sh`
@@ -334,32 +334,33 @@ step" and proceed. Stop after each step and wait for the user's command.
 
 **After completing any step: report results only. Do NOT mention, suggest, or hint at the next step. Not even "ready for X when you are." Silence is correct.**
 
-**For any feature touching multiple files or adding a new service:**
+**Standard chain:**
 
 ```text
-/plan → /code → /test → /review → /gate fast → /docs → commit → push → /pr → CI → /merge → post-merge
+/plan → /code → /gate fast → commit → push → /pr → CI → /merge → post-merge
 ```
 
-- **`/plan`** — Spec before code. Catches missing layers BEFORE implementation.
-- **`/code`** — Implements spec task by task. Follows the spec literally — doesn't improvise.
-- **`/test`** — Validates with real data. "It compiles" is NOT "it works."
-- **`/review`** — Pre-commit code review on staged changes.
-- **`/gate fast`** — CRITICAL: runs constitutional checks + unit tests + smoke_fast. Must PASS before commit. A failing gate blocks the commit — fix it first. (dev-platform: run `./scripts/gate_fast.sh` — consolidated since v0.4.)
-- **`/docs`** — CRITICAL: update ALL project docs BEFORE commit. Updates planning.md, ROADMAP.md, README.md, tasks/lessons.md, and any feature-specific docs. Must run after `/gate fast` and before commit.
-- **commit** — Conventional commits AFTER `/gate fast` PASS and AFTER `/docs` has updated all project docs. Feature code + doc updates go into ONE atomic commit — not separate "feat" and "docs" commits.
+- **`/plan`** — Spec before code. Catches missing layers BEFORE implementation. Auto-creates the feature branch.
+- **`/code`** — Implements spec Change by Change with auto-fix at each step. Runs verification, fixes SECURITY/BUG/COMPLIANCE/QUALITY issues automatically, surfaces ARCHITECTURE issues for user decision. Updates project docs (planning.md, ROADMAP.md, README.md, lessons.md) as its final step and stages them. Feature code + doc updates commit together.
+- **`/gate fast`** — CRITICAL: constitutional checks + unit tests + smoke_fast. Must PASS before commit. (dev-platform: `./scripts/gate_fast.sh`)
+- **commit** — One atomic commit: feature code + staged doc updates. Conventional format: `feat:`, `fix:`, etc.
 - **push** — Push the feature branch to GitHub.
-- **`/pr`** — Slash command (v0.8+; tracked at `commands/pr.md`). Opens the pull request against `main` for the current branch. Auto-derives the title from the branch name, the milestone from `v<X.Y>/...` prefix matching against open Milestones, and a body shape with Summary + Test plan sections. Refuses if the branch isn't pushed, isn't ahead of main, or already has a PR. One PR per Spec Phase per the per-Spec-Phase strategy (v0.5+ convention). Before v0.8, this was ad-hoc `gh pr create` heredocs.
-- **CI** — Wait for the `gate-fast` workflow on the PR ref to go GREEN. If red, fix on the branch and re-push — never merge around a red gate. (Locked in v0.7 Phase 2; before that, CI didn't exist so this step was implicit at "push".)
-- **`/merge`** — Slash command (v0.8+; tracked at `commands/merge.md`). Mechanically enforces the "NEVER merge before CI green" rule by querying `gh pr view <N> --json statusCheckRollup,mergeable,mergeStateStatus` and inspecting each check's `status` + `conclusion` BEFORE invoking `gh pr merge --squash --delete-branch`. Refuses on red CI, pending CI, merge conflicts, or branch-protection blockers — no override flag. Auto-syncs local `main` after merge so the next Spec Phase branches off the latest. Before v0.8, this was honor-system enforcement of the rule via manual `gh pr merge`.
-- **post-merge** — Run any deferred steps the spec explicitly defers (e.g. branch-protection updates that require the workflow to exist on `main` first, release-tag cuts when a Roadmap Phase closes, cross-project `install.sh` re-runs, `sync-milestones.sh --apply`). If the spec has no deferred steps, this step is a no-op — but the workflow still passes through it so the agent doesn't forget when it DOES exist. NOT a slash command — each spec's post-merge is bespoke; the spec is the runbook.
+- **`/pr`** — Opens the PR against `main`. Auto-derives title, milestone, and body. Refuses if branch isn't pushed or already has a PR.
+- **CI** — Wait for `gate-fast` to go GREEN. If red, fix on the branch and re-push — never merge red.
+- **`/merge`** — Squash-merges after verifying CI green. Refuses on red/pending CI, conflicts, or branch-protection blockers. Syncs local `main` after merge.
+- **post-merge** — Bespoke deferred steps from the spec (release tags, milestone closes, cross-project installs). No-op if the spec named none.
 
-**NEVER commit before `/gate fast` passes. The gate is the last line of defense before the commit lands in history.**
+**Optional steps:**
 
-**NEVER commit before `/docs` has run.** Splitting a feature across a "feat" commit and a follow-up "docs" commit pollutes history — a reader browsing `feat:` commits sees stale planning/roadmap state. Bundle docs with the feature they describe.
+- **`/review`** — For risky or large changes: reviews staged changes, auto-fixes SECURITY/BUG/COMPLIANCE/QUALITY, surfaces ARCHITECTURE issues. Insert between `/code` and `/gate fast` when warranted.
+- **`/test`** — Standalone spec validation. Useful for auditing an implementation independently. Not required when `/code` verifies as it goes.
+- **`/docs`** — Standalone doc update. Use to recover if `/code`'s doc step was interrupted. Not required in the normal chain.
 
-**NEVER merge a PR before its `gate-fast` CI run is green.** Merging around red CI defeats the entire point of the v0.7 Phase 2 enforcement layer. If CI is red, fix on the branch and re-push — even if you "know" the failure is unrelated, prove it green first. Merging red also pollutes `main`'s history of green-builds-only.
+**NEVER commit before `/gate fast` passes.**
 
-**Quick fixes (single-file, trivial):** Fix → `/review` → `/gate fast` → commit → push → /pr → CI → /merge. No `/docs` needed if no project docs changed; the PR/CI/merge tail still applies — the CI gate isn't optional for "quick" fixes.
+**NEVER merge a PR before CI is green.** Fix on the branch and re-push — never merge red.
+
+**Quick fixes:** fix → `/gate fast` → commit → push → `/pr` → CI → `/merge`.
 
 **Plan mode default:** Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions). If something goes sideways, STOP and re-plan — don't keep pushing. Write detailed specs upfront to reduce ambiguity.
 
@@ -791,4 +792,4 @@ For a new slash command / skill / hook / setting: (1) write the file in the corr
 - **Cascade verification** — Parent delete handles all children (deleted, orphaned intentionally, or blocked with error).
 - **Horizontal tracing** — Every endpoint traced through all layers before marking complete. Missing links = not done.
 - **Create and delete together** — Delete path implemented in the same work session as create.
-- **Dev workflow** — `/plan → /code → /test → /review → /gate fast → /docs → commit → push → /pr → CI → /merge → post-merge` for features. Fix → `/review` → `/gate fast` → commit → push → /pr → CI → /merge for quick fixes.
+- **Dev workflow** — `/plan → /code → /gate fast → commit → push → /pr → CI → /merge → post-merge` for features. Fix → `/gate fast` → commit → push → `/pr` → CI → `/merge` for quick fixes. `/review` optional for risky changes.

@@ -1,5 +1,5 @@
 ---
-description: Update all project docs after completing work. Run after /gate fast passes and before committing. Updates planning.md, ROADMAP.md, README.md, lessons.md, and any feature-specific docs.
+description: Standalone doc update. Normally handled by /code automatically. Use only to recover when /code's doc step was interrupted, or for docs-only fixes.
 allowed-tools: Read, Edit, Write, Bash, TodoWrite
 ---
 
@@ -20,6 +20,7 @@ git diff HEAD~2 HEAD --name-only        # Broader scope if needed
 ```
 
 Also read:
+
 1. `./CLAUDE.md` — project rules
 2. `./planning.md` — current status doc
 3. `./ROADMAP.md` — phase history and remaining work

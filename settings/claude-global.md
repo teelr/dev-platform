@@ -14,7 +14,7 @@ These are Claude's operating rules — how to act regardless of project. Develop
 
 **The rule is "STOP and wait", NOT "say nothing about what's next".**
 
-After `/plan`, `/code`, `/test`, `/review`, `/gate`, `/docs`, `commit`, `push`, `/pr`, `/merge`, or `post-merge`: report results, state which step is next, then STOP and wait for the user to invoke it explicitly. Do NOT auto-advance to the next step. (The post-`push` steps — `/pr`, CI wait, `/merge`, post-merge — were added 2026-05-11 when v0.7 Phase 2 introduced CI; `/pr` and `/merge` became slash commands in v0.8 Phase 1's follow-up chore so the workflow rules are mechanically enforced rather than honor-system.)
+After `/plan`, `/code`, `/gate`, `commit`, `push`, `/pr`, `/merge`, or `post-merge`: report results, state which step is next, then STOP and wait for the user to invoke it explicitly. Do NOT auto-advance to the next step. (The post-`push` steps — `/pr`, CI wait, `/merge`, post-merge — were added 2026-05-11 when v0.7 Phase 2 introduced CI; `/pr` and `/merge` became slash commands in v0.8 Phase 1's follow-up chore so the workflow rules are mechanically enforced rather than honor-system.)
 
 Required end-of-step format:
 
@@ -30,7 +30,7 @@ The "Ready for X" line is REQUIRED — it tells the user where the workflow is. 
 
 Shorthand affirmatives like "fix all", "do it", "go", "yes" authorize the IMMEDIATE action only — never workflow advancement (lesson L28). "Yes" to a /review fix is permission to fix the code, not to run /gate or commit.
 
-The full chain: `/plan → /code → /test → /review → /gate fast → /docs → commit → push → /pr → CI → /merge → post-merge`.
+The full chain: `/plan → /code → /gate fast → commit → push → /pr → CI → /merge → post-merge`. `/review` is optional for risky or large changes. `/test` and `/docs` are standalone commands available when needed but not required steps — `/code` handles verification, auto-fix, and doc updates internally.
 
 **No merge before CI green.** Once `gate-fast` CI runs on a PR (every dev project under `/home/rich/dev/` has it from v0.7 Phase 2 onward), the workflow does not advance to `/merge` until CI reports green. `/merge` enforces this mechanically — it queries the PR's CI status (via `gh pr view <N> --json statusCheckRollup`) before invoking the merge and refuses on red, pending, or zero-check states. No override flag. Red CI means fix-on-branch-and-re-push, never merge-around. **post-merge** captures any deferred work the spec called out (branch-protection updates, release-tag cuts, cross-project re-installs, `sync-milestones.sh --apply`); if the spec named none, post-merge is a no-op but the workflow still passes through so the agent doesn't forget when deferred work DOES exist. post-merge is NOT a slash command because each spec's post-merge is bespoke — the spec is the runbook.
 
@@ -38,15 +38,15 @@ The full chain: `/plan → /code → /test → /review → /gate fast → /docs 
 
 **`/gate fast` MUST pass before any commit. No exceptions.**
 
-Correct order: `/plan → /code → /test → /review → /gate fast → /docs → commit → push → /pr → CI → /merge → post-merge`
+Correct order: `/plan → /code → /gate fast → commit → push → /pr → CI → /merge → post-merge`
 
 The gate runs constitutional checks + unit tests + smoke_fast. Committing before the gate passes pollutes git history and can block other work. If the gate fails, fix it — do not commit around it. The same gate then runs again on the PR ref via GitHub Actions (v0.7 Phase 2+) — if CI surfaces a failure local `/gate fast` missed, fix on the branch and re-push, never merge red.
 
-## Docs Before Commit — CRITICAL
+## Docs Ship With the Code — CRITICAL
 
-**`/docs` MUST run after `/gate fast` passes and BEFORE the commit. No exceptions.**
+**Doc updates are part of `/code`, not a separate step. The commit bundles feature code + doc updates in one atomic commit.**
 
-`/docs` updates planning.md, ROADMAP.md, README.md, and tasks/lessons.md to reflect the completed work. The commit then bundles feature code + doc updates together into a single atomic commit — not separate "feat" and "docs" commits. Pushing without running `/docs` leaves all project docs stale. If you find yourself about to commit without having run `/docs`, stop and run it first.
+`/code` updates planning.md, ROADMAP.md, README.md, and tasks/lessons.md as its final step and stages them. If you reach commit time and docs are stale (e.g. `/code` was interrupted), run `/docs` to recover — but this should be the exception, not the norm.
 
 ## Boris Cherny Feedback Loop
 
