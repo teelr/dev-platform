@@ -23,7 +23,7 @@ All development standards for projects in `/home/rich/dev/projects/`. This is th
 
 **Exception — scaffolding:** `scripts/new-project.sh` IS allowed to create the initial tree under `projects/<new-name>/` from a dev-platform session. Scaffolding is a SETUP action via dev-platform tools (templates in `scaffolding/`, the orchestrator in `scripts/`), distinct from project work. Once the project exists, the normal Scope rule resumes — future edits to that project happen in its own session. Bootstrap-only; not a back door for general project work. The conversational Q&A pattern the assistant follows before invoking the script is documented in `docs/NEW-PROJECT.md`.
 
-**Why this rule exists:** before R1 Foundation, the prior "dev-standards" repo had blurred the line — global rules and project-side fixes both landed in the same git history, making it hard to distinguish "what governs every project" from "what was happening in project X that day." R1 Foundation expanded this repo to own the full dev-experience surface; this rule pins the corollary — the surface, not the things on top of it. A clean dev-platform history is a precondition for the monitoring (R2), testing (R3), and migration (R5) specs that all assume "this repo describes the environment, period."
+**Why this rule exists:** before v0.1 Foundation, the prior "dev-standards" repo had blurred the line — global rules and project-side fixes both landed in the same git history, making it hard to distinguish "what governs every project" from "what was happening in project X that day." v0.1 Foundation expanded this repo to own the full dev-experience surface; this rule pins the corollary — the surface, not the things on top of it. A clean dev-platform history is a precondition for the monitoring (v0.5), testing (v0.4), and migration (v0.9) specs that all assume "this repo describes the environment, period."
 
 ## Consistency Across All Projects — Non-Negotiable
 
@@ -58,7 +58,7 @@ All development standards for projects in `/home/rich/dev/projects/`. This is th
 
 - `scripts/check_spec_taxonomy.sh` — wired into every project's `gate fast` (or equivalent pre-commit hook) to block taxonomy drift mechanically
 - `/review` — verifies slash command and workflow contracts on staged changes
-- Cross-project audits (manual today via `/dev` or status surveys; R2 Monitoring will automate drift counts, gate-pass rates, and lesson-promotion candidates)
+- Cross-project audits (manual today via `/dev` or status surveys; v0.5 Monitoring will automate drift counts, gate-pass rates, and lesson-promotion candidates)
 
 **Drift correction:**
 
@@ -66,7 +66,7 @@ All development standards for projects in `/home/rich/dev/projects/`. This is th
 - Each project re-runs `scripts/install.sh` from this repo to pick up the change
 - Project-side conformance is each project's responsibility; dev-platform-side correctness is THIS repo's responsibility. Drift in either direction is a bug
 
-**Why this rule exists:** consistency compounds. Same workflow → a lesson learned in one project applies to all. Same taxonomy → specs are mutually readable. Same language matrix → no team-member surprise about what they find. Inconsistency creates per-project tribal knowledge — the slowest, most fragile mode of operation. The pre-R1 world tolerated drift because there was no enforcement layer; R1 Foundation built it; this rule commits to using it. The R2/R3/R4/R5 specs all assume this baseline.
+**Why this rule exists:** consistency compounds. Same workflow → a lesson learned in one project applies to all. Same taxonomy → specs are mutually readable. Same language matrix → no team-member surprise about what they find. Inconsistency creates per-project tribal knowledge — the slowest, most fragile mode of operation. The pre-v0.1 world tolerated drift because there was no enforcement layer; v0.1 Foundation built it; this rule commits to using it. The v0.4 (Testing), v0.5 (Monitoring), v0.6 (VSCode), and v0.9 (Migration) specs all assume this baseline.
 
 ## Response Style — GET TO THE POINT
 
@@ -275,7 +275,7 @@ step" and proceed. Stop after each step and wait for the user's command.
 - **`/code`** — Implements spec task by task. Follows the spec literally — doesn't improvise.
 - **`/test`** — Validates with real data. "It compiles" is NOT "it works."
 - **`/review`** — Pre-commit code review on staged changes.
-- **`/gate fast`** — CRITICAL: runs constitutional checks + unit tests + smoke_fast. Must PASS before commit. A failing gate blocks the commit — fix it first. (dev-platform: run `./scripts/gate_fast.sh` — consolidated since R3.)
+- **`/gate fast`** — CRITICAL: runs constitutional checks + unit tests + smoke_fast. Must PASS before commit. A failing gate blocks the commit — fix it first. (dev-platform: run `./scripts/gate_fast.sh` — consolidated since v0.4.)
 - **`/docs`** — CRITICAL: update ALL project docs BEFORE commit. Updates planning.md, ROADMAP.md, README.md, tasks/lessons.md, and any feature-specific docs. Must run after `/gate fast` and before commit.
 - **commit** — Conventional commits AFTER `/gate fast` PASS and AFTER `/docs` has updated all project docs. Feature code + doc updates go into ONE atomic commit — not separate "feat" and "docs" commits.
 - **push** — Push to GitHub. Create PR if on a branch.
@@ -296,7 +296,7 @@ step" and proceed. Stop after each step and wait for the user's command.
 
 | Level | Term | Definition | Workflow trigger |
 | ----- | ---- | ---------- | ---------------- |
-| 1 | **Roadmap Phase** | Major product milestone with exit criteria (Roadmap Phase 1.0, 1.1, 2). Tracked in `ROADMAP.md` / `tasks/{project}-roadmap.md`. | Roadmap planning |
+| 1 | **Roadmap Phase** | Major product milestone with exit criteria. Headers MUST use the format `v<MAJOR>.<MINOR>: <Title>` (e.g., `v0.5: Monitoring`, `v0.7: Team Enablement`). Each Roadmap Phase corresponds to a GitHub Milestone in the project's repo. Tracked in `ROADMAP.md` / `tasks/{project}-roadmap.md`. | Roadmap planning |
 | 2 | **Spec** | Demoable milestone within a Roadmap Phase; the output of `/plan`. Artifact at `tasks/{descriptive-name}-spec.md`. | `/plan` |
 | 3 | **Spec Phase** | Group of related Changes inside one Spec. Section header `## Phase N: <title>`. | Spec structure |
 | 4 | **Change** | Atomic implementation step inside a Spec. Header `### Change N: <title>`. Numbered CONTINUOUSLY across the whole Spec — Change 1 is in Phase 1, Change 7 might be in Phase 3, etc. `/code` implements one or more Changes per invocation. | `/code` |
@@ -308,6 +308,7 @@ step" and proceed. Stop after each step and wait for the user's command.
 - A Roadmap Phase has exit criteria. A Spec has a demo. A Change has a commit-shaped diff.
 - `/plan` produces a Spec. `/code` implements one or more Changes. No other granularities.
 - Specs reference atomic steps by number: "Change 7" — not "Task 7", "Step 7", "Item 7".
+- **Roadmap Phase headers MUST use the format `v<MAJOR>.<MINOR>: <Title>`** — e.g., `v0.1: Foundation`, `v0.5: Monitoring`, `v0.7: Team Enablement`. Minor bumps on each new Roadmap Phase; major bumps (`0.x` → `1.0`, `1.x` → `2.0`) on production-readiness or breaking-workflow milestones. Each Roadmap Phase MUST have a matching GitHub Milestone in the project's repo (title = same `v<MAJOR>.<MINOR>: <Title>` string). Semver is the canonical scheme so labels in code match labels in the GitHub Milestones UI. Bare `Phase N`, `Sprint X`, `Stage Y`, custom prefixes like `R<N>`, or quarter buckets like `Q2-2026` at the roadmap level are violations — the `v` prefix is what distinguishes a Roadmap Phase from a Spec Phase (which uses bare `## Phase N:` inside a spec file).
 - Section headers inside a spec use `## Phase N: <title>`; atomic steps use `### Change N: <title>` with N continuous across the entire spec.
 - Progress tables in specs track Changes. Roadmaps track Roadmap Phases.
 - Spec files are named descriptively: `tasks/foundation-spec.md`, `tasks/auth-layer-spec.md` — not `stage-a-spec.md` or `sprint-1-spec.md`.
@@ -697,7 +698,7 @@ This repo (`teelr/dev-platform`, at `/home/rich/dev/`) owns the full dev-experie
 | `monitoring/` | Workflow telemetry — populated by future monitoring spec |
 | `shell/` | Shell helpers, git-hook templates |
 | `scripts/` | Install / uninstall / verify; `gate_fast.sh` orchestrator; spec-taxonomy checker |
-| `tests/` | Constitutional gate-fast fixtures + per-suite runners (R3); orchestrated by `scripts/gate_fast.sh` |
+| `tests/` | Constitutional gate-fast fixtures + per-suite runners (v0.4); orchestrated by `scripts/gate_fast.sh` |
 | `tasks/` | Spec files (output of `/plan`) |
 | `docs/` | Architecture and how-to docs |
 
@@ -707,7 +708,7 @@ The repo is the source of truth; `~/.claude/` is a *deployment* of it. `scripts/
 
 ## Adding a New Workflow Artifact
 
-For a new slash command / skill / hook / setting: (1) write the file in the correct directory per its README contract, (2) extend `scripts/install.sh` only if you're adding a *new top-level category* (existing-category files are auto-globbed), (3) update `scripts/verify.sh` for the same case, (4) smoke-test manually until the testing spec (R3) lands.
+For a new slash command / skill / hook / setting: (1) write the file in the correct directory per its README contract, (2) extend `scripts/install.sh` only if you're adding a *new top-level category* (existing-category files are auto-globbed), (3) update `scripts/verify.sh` for the same case, (4) smoke-test manually until the testing spec (v0.4) lands.
 
 ## Patterns
 
