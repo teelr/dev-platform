@@ -1,0 +1,30 @@
+[
+  {
+    "name": "pass-1",
+    "path": "tests/fleet-gate/fixtures/mock-projects/pass-1",
+    "gate_cmd": "./gate.sh",
+    "primary_language": "bash",
+    "enabled": true
+  },
+  {
+    "name": "fail-1",
+    "path": "tests/fleet-gate/fixtures/mock-projects/fail-1",
+    "gate_cmd": "./gate.sh",
+    "primary_language": "bash",
+    "enabled": true
+  },
+  {
+    "name": "timeout-1",
+    "path": "tests/fleet-gate/fixtures/mock-projects/timeout-1",
+    "gate_cmd": "./gate.sh",
+    "primary_language": "bash",
+    "enabled": true
+  },
+  {
+    "name": "disabled-1",
+    "path": "tests/fleet-gate/fixtures/mock-projects/disabled-1",
+    "gate_cmd": "./gate.sh",
+    "primary_language": "bash",
+    "enabled": false
+  }
+]
