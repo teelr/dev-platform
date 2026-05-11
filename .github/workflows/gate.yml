@@ -1,0 +1,27 @@
+# dev-platform's own CI gate. Runs scripts/gate_fast.sh on every PR
+# targeting main and every push to main. Required status check via
+# branch protection (configured via Change 6 of v0.7 Phase 2 spec).
+#
+# The job name `gate-fast` is the context name the branch protection
+# rule pins — renaming requires a matching update to the protection
+# config.
+
+name: gate-fast
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  gate-fast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run gate_fast.sh
+        # jq + python3 are pre-installed on the ubuntu-latest runner image;
+        # no extra install step needed. If a future gate dependency surfaces
+        # that ISN'T pre-installed, add it then.
+        run: bash scripts/gate_fast.sh
