@@ -54,6 +54,8 @@ tests/**
 !.github/**/*.yml
 !.github/**/*.yaml
 !docs/*.md
+# v0.7 Phase 3: Jekyll config for GitHub Pages render of docs/
+!docs/*.yml
 !tasks/*.md
 !tasks/*.sh
 !scripts/*.sh
