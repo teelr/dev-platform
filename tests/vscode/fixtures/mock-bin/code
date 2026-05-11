@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Mock VSCode CLI for tests/vscode/run.sh.
+#
+# Supports the two `code` invocations the v0.6 scripts use:
+#   code --list-extensions      → emit lines from $MOCK_STATE_FILE
+#   code --install-extension X  → append X to $MOCK_STATE_FILE
+#
+# State lives in the file pointed to by $MOCK_STATE_FILE (set by the caller).
+# Allows tests to exercise sync-vscode.sh capture/deploy round-trips without
+# touching the live ~/.vscode-server/ state.
+#
+# Failure injection: if X == "FAIL_PLEASE", the install path returns exit 1
+# (used to test install_vscode's all-failed catastrophic path).
+
+set -uo pipefail
+
+: "${MOCK_STATE_FILE:?MOCK_STATE_FILE must be set in env}"
+touch "${MOCK_STATE_FILE}"
+
+case "${1:-}" in
+    --list-extensions)
+        # Strip duplicates and sort for stable output (matches real code CLI's
+        # observed behavior and sync-vscode.sh's current() function).
+        sort -u "${MOCK_STATE_FILE}"
+        ;;
+    --install-extension)
+        ext="${2:-}"
+        # The --force flag may come either before or after the ID. Skip it.
+        if [[ "${ext}" == "--force" ]]; then
+            ext="${3:-}"
+        fi
+        # Failure-injection sentinel for testing the all-failed path
+        if [[ "${ext}" == "FAIL_PLEASE" ]]; then
+            exit 1
+        fi
+        if [[ -n "${ext}" ]]; then
+            # Append only if not already present (idempotency, like --force on real code)
+            if ! grep -qxF "${ext}" "${MOCK_STATE_FILE}"; then
+                echo "${ext}" >> "${MOCK_STATE_FILE}"
+            fi
+        fi
+        ;;
+    *)
+        echo "mock-code: unknown command '${1:-}'" >&2
+        exit 1
+        ;;
+esac

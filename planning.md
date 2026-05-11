@@ -5,13 +5,15 @@ Current state of the repo. Refreshed at every spec-completion by `/docs`.
 ## Current state
 
 - **Name:** `dev-platform` (GitHub: `teelr/dev-platform`, mounted at `/home/rich/dev/`)
-- **Active spec:** none — v0.5: Monitoring is complete (Phase 4 implemented on branch `v0.5/phase-4-tests-acceptance`, awaiting PR merge to close out the Milestone)
-- **Active Roadmap Phase:** v0.1 + v0.2 + v0.3 + v0.4 done; **v0.5 Monitoring is shipping** — all 4 Phases implemented via 4 PRs (1, 2, 3 merged; Phase 4 awaiting merge). After Phase 4 merges, v0.5 closes and the next Roadmap Phase is **v0.6: VSCode Coverage**.
+- **Active spec:** `tasks/dev-platform-vscode-coverage-spec.md` (ships as **v0.6: VSCode Coverage — Server-Side**); Phase 4 of v0.5 also queued behind it
+- **Active Roadmap Phase:** v0.1 through v0.5 shipped (v0.5 closed via PR #4, Release v0.5 cut 2026-05-11). **v0.6 VSCode Coverage (Server-Side) implemented on branch `v0.6/server-side-extensions`**, awaiting PR merge. Server-side scope only (Option C — laptop-side coverage deferred to a future v0.6b spec). After v0.6 merges, the next Roadmap Phase is **v0.7: Team Enablement**.
 
 ## Recently shipped
 
 Hashes intentionally omitted — `git log` is the authoritative record; this section is the human-readable summary. (Convention adopted 2026-05-09 after the v0.1 + v0.2 self-reference paradox surfaced — see commands/docs.md and tasks/lessons.md.)
 
+- v0.5 Phase 4 — Tests + Acceptance (2026-05-11, PR #4 squash-merged as commit `b7c0196`, closes v0.5 Milestone, Release v0.5 cut at tag `v0.5`): 10-assertion `tests/monitoring/` fixture suite (auto-discovered by gate_fast.sh) + live cutover verified all 4 new event types firing from real Claude Code sessions across atlas/kermit/kermit-pa/dev-platform (62 distinct UUID sessions). Post-/review refactor extracted `tests/monitoring/asserts.py` named-function harness eliminating shell-expansion footgun. Bonus catch: `.gitignore` allow-list missing `!tests/**/*.py` + `!tests/**/*.jsonl` — same Consumer Audit pattern as Phase 2.
+- Consumer Audit rule promoted to `dev/CLAUDE.md` (2026-05-11, PR #5 squash-merged as commit `24e062f`): 5-point checklist for new file types in glob-managed directories. Promoted from 2 recurring 2026-05-11 lessons.md entries (Phase 2 hooks/*.py + Phase 4 tests/**/*.{py,jsonl}). Both original lessons marked `→ Rule in dev/CLAUDE.md`.
 - v0.5 Phase 3 — Aggregation + Reporting (2026-05-11, PR #3 squash-merged as commit `7ca89f1`): `monitoring/aggregator.py` (parses both legacy text + JSONL, 5 metric functions, CLI with `--period`/`--project`/`--json`/`--log`), `scripts/report.sh` CLI wrapper, `monitoring/metrics.md` catalog with Definition/Source/Limitations per metric. Post-/review polish: aligned `code.count` field naming with other metrics; extracted `metric_events_per_project()` as a helper; replaced brittle `sed` in `report.sh --help` with heredoc.
 - v0.5 Phase 2 — Collectors (2026-05-11, PR #2 squash-merged as commit `c0a2563`): 3 new hooks (SessionStart, UserPromptSubmit, PreToolUse) + gate_fast.sh self-instrumentation + settings.json wires all 4 events. Plus post-/review refactor: extracted `hooks/_emit_event.py` as centralized emitter eliminating `project_for()` duplication across 5 places; added defensive isinstance check for non-string prompt payloads; documented deliberate fallback-emission asymmetry in `monitoring/README.md`.
 - v0.5 Phase 1 — Schema + Storage Layer (2026-05-11, PR #1 squash-merged as commit `e4d9a39`): event-v1 JSON schema + examples.jsonl, JSONL migration of `hooks/post-tool-heartbeat.sh` (from `<ts> tool=X` text), gitignore allow-list for `monitoring/**/*.{py,json,jsonl}`.
@@ -22,15 +24,18 @@ Hashes intentionally omitted — `git log` is the authoritative record; this sec
 
 ## In flight
 
-- **v0.5 Monitoring — Phase 4/4 implemented** on branch `v0.5/phase-4-tests-acceptance`:
-  - Change 12: `tests/monitoring/` fixture suite — 6 fixtures (empty, legacy-only, mixed-window, two-projects, code-retry, plus malformed-mixed + degraded-events added during /review fixes) + named-function assertion harness (`asserts.py`) + runner. Auto-discovered by `gate_fast.sh`. 10 assertions covering: empty log, legacy parsing, gate pass rate, tool pairing, /code retry heuristic, project filter, malformed-line skipping, degraded-event exclusion.
-  - Change 13: Live cutover acceptance — all 4 new event types confirmed firing from real Claude Code sessions (68 session_start + 4 user_prompt + 143 tool_use_start + 991 tool_use_end across 62 distinct UUID sessions in 4 projects: atlas, dev-platform, kermit, kermit-pa). No Claude Code restart needed — sibling-project sessions picked up the new settings.json automatically after PR #2 merged.
-  - Change 14: Doc sweep marking v0.5 COMPLETE — this very update.
-  - **Post-/review refactor** (resolved /review's 3 quality items + 1 bonus catch): refactored runner from inline shell-embedded Python heredoc to `tests/monitoring/asserts.py` with named functions — eliminates shell-expansion footgun, surfaces Python's AssertionError messages on failure. Added 3 new fixtures + 3 new assertions for coverage gaps (project filter, malformed lines, degraded events). Bonus catch: `.gitignore` had no allow-list for `tests/**/*.py` or `tests/**/*.jsonl` — same consumer-audit pattern as Phase 2's `hooks/*.py`. Extended gitignore.
-  - Gate green (52 PASS / 0 FAIL). /test, /review, /gate fast all clean.
-- **Once Phase 4 PR merges, v0.5: Monitoring is complete**: workflow telemetry (4 hooks + gate_fast self-instrumentation) → JSONL event log → Python aggregator → 5 metrics → markdown/JSON report via `./scripts/report.sh`. Backward-compatible with v0.2's legacy text format. 4 PRs total (per-Spec-Phase strategy), GitHub Milestone closes on Phase 4 merge, Release `v0.5` cuts after.
-- **Next Roadmap Phase: v0.6 VSCode Coverage** (planned) — VSCode user-profile config, keybindings, snippets, statusline, tracked extensions list.
-- Spec filename keeps legacy `r2` prefix; cleanup deferred to v0.9 migration tooling.
+- **v0.6 VSCode Coverage (Server-Side) — implemented** on branch `v0.6/server-side-extensions`:
+  - Change 1: `extensions/vscode/{README.md,server-extensions.json}` (NEW) — directory contract + 43-extension tracked list (real captured state from this server)
+  - Change 2: `scripts/sync-vscode.sh` (NEW) — capture/deploy/diff modes + `--file <path>` override for testability + `--help` heredoc
+  - Change 3: Captured live state into `server-extensions.json` (43 entries, all match `publisher.name`, md5 matches `code --list-extensions` output)
+  - Change 4: `scripts/install.sh` — `install_vscode()` function + `vscode` case-statement entry. Permissive-by-design: partial install failures emit WARN; only catastrophic all-failed case returns 1. Documented inline.
+  - Change 5: `tests/vscode/` (NEW) — 10-assertion fixture suite + mock `code` binary at `fixtures/mock-bin/code` enables capture/deploy round-trip testing without touching live state. Auto-discovered by `gate_fast.sh`.
+  - Change 6: Doc sweep marking v0.6 COMPLETE — this very update.
+  - **Post-/review fixes** (resolved /review's 3 quality items): sorted `current()` output for stable diffs across CLI versions; added `--file <path>` flag to sync-vscode.sh for testability; refactored `install_vscode()` to use process substitution + failure counter (returns non-zero only on catastrophic all-failed). Plus closed the coverage gap with 4 new mock-based round-trip assertions.
+  - **Bonus catches (Consumer Audit rule fired twice in v0.6 alone)**: `.gitignore` needed `!extensions/**/` subdir re-include (same pattern as scaffolding/monitoring/tests) AND `!tests/**/mock-bin/*` for the extension-less mock binary. Both caught at /code time via `git check-ignore -v` per the Consumer Audit checklist.
+  - Gate green (62 PASS / 0 FAIL — was 52, added 10 vscode assertions). /test, /review, /gate fast all clean.
+- **Once v0.6 PR merges, the next Roadmap Phase is v0.7: Team Enablement** (CI workflow template, taxonomy enforcement on PRs, PR bot for taxonomy violations, GitHub Pages docs site + `docs/GLOSSARY.md`, GitHub Milestones automation). Also queued: a future **v0.6b: VSCode Client-Side Coverage** spec for laptop-side `settings.json`/keybindings/snippets/extensions when there's appetite — explicitly out of v0.6 scope per the Option C decision.
+- v0.5 spec filename keeps legacy `r2` prefix; cleanup deferred to v0.9 migration tooling.
 
 ## Taxonomy migration note (2026-05-11)
 

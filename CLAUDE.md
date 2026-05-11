@@ -711,7 +711,7 @@ This repo (`teelr/dev-platform`, at `/home/rich/dev/`) owns the full dev-experie
 | `skills/` | User skills + `WORKFLOW_MANUAL.md` taxonomy reference |
 | `settings/` | Global Claude Code config (`settings.json`, optional `keybindings.json`) |
 | `hooks/` | Claude Code hook scripts |
-| `extensions/` | IDE config — populated by future extensions spec |
+| `extensions/` | IDE config tracked + deployed. `vscode/server-extensions.json` is the v0.6-tracked extension list; `scripts/install.sh vscode` reinstalls them all; `scripts/sync-vscode.sh` is the capture/deploy/diff helper. Client-side (laptop) coverage deferred to v0.6b. |
 | `scaffolding/` | New-project templates — populated by future extensions spec |
 | `monitoring/` | Workflow telemetry — populated by future monitoring spec |
 | `shell/` | Shell helpers, git-hook templates |
@@ -722,7 +722,7 @@ This repo (`teelr/dev-platform`, at `/home/rich/dev/`) owns the full dev-experie
 
 ## Install / Deploy
 
-The repo is the source of truth; `~/.claude/` is a *deployment* of it. `scripts/install.sh [category]` symlinks tracked files into the user environment (categories: `commands`, `skills`, `settings`, `hooks`, or `all`). `scripts/uninstall.sh` removes the symlinks (leaves `~/.claude/projects/` untouched). `scripts/verify.sh` reports drift between tracked and deployed. Edit the file in this repo and re-run install — never edit under `~/.claude/` directly.
+The repo is the source of truth; `~/.claude/` is a *deployment* of it. `scripts/install.sh [category]` symlinks tracked files into the user environment (categories: `commands`, `skills`, `settings`, `hooks`, `vscode`, or `all`). The `vscode` category is special — it doesn't symlink (extensions are installed-package state, not files); it runs `code --install-extension` for every entry in `extensions/vscode/server-extensions.json`, gracefully skipping when the `code` CLI is absent. `scripts/uninstall.sh` removes the symlinks (leaves `~/.claude/projects/` untouched). `scripts/verify.sh` reports drift between tracked and deployed. Edit the file in this repo and re-run install — never edit under `~/.claude/` directly.
 
 ## Adding a New Workflow Artifact
 

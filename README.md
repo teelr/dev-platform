@@ -21,7 +21,7 @@ The install script symlinks tracked files from this repo into `~/.claude/`. Edit
 | `skills/` | User-defined skills + `WORKFLOW_MANUAL.md` taxonomy reference |
 | `settings/` | Global Claude Code config (`settings.json`) |
 | `hooks/` | Shell scripts invoked by Claude Code hook events |
-| `extensions/` | IDE config (VSCode, statusline) — populated by future spec |
+| `extensions/` | IDE config. `vscode/server-extensions.json` is the tracked extension list; `scripts/install.sh vscode` reinstalls them all; `scripts/sync-vscode.sh` captures/deploys/diffs. Client-side coverage deferred to v0.6b. |
 | `scaffolding/` | New-project starter templates — populated by future spec |
 | `monitoring/` | Workflow telemetry — JSON Schema for events (`schemas/event-v1.json`), aggregator (`aggregator.py`), metrics catalog (`metrics.md`). CLI entry: `scripts/report.sh`. |
 | `shell/` | Shell helpers, git-hook templates |
@@ -55,7 +55,7 @@ Removes all repo-owned symlinks from `~/.claude/`. Non-destructive: leaves user-
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for the spec sequence. Roadmap Phase headers use semver (`v<MAJOR>.<MINOR>: <Title>`) and map 1:1 to GitHub Milestones. v0.1 (Foundation) shipped 2026-05-08, v0.2 (Global Claude + Hooks) shipped 2026-05-09, v0.3 (Project Scaffolding) + v0.4 (Testing) shipped 2026-05-10, v0.5 (Monitoring) shipped 2026-05-11. Every `/gate fast` against dev-platform runs `./scripts/gate_fast.sh` mechanically (52 checks, < 2s). Run `./scripts/report.sh` for a daily/weekly/all metrics report (gate pass rate, /code retry counts, /review count, tool-execution-time average) across one or all projects. **v0.6 VSCode Coverage is next** — VSCode user-profile config, keybindings, snippets, statusline, tracked extensions list.
+See [ROADMAP.md](ROADMAP.md) for the spec sequence. Roadmap Phase headers use semver (`v<MAJOR>.<MINOR>: <Title>`) and map 1:1 to GitHub Milestones. v0.1 (Foundation) shipped 2026-05-08, v0.2 (Global Claude + Hooks) shipped 2026-05-09, v0.3 (Project Scaffolding) + v0.4 (Testing) shipped 2026-05-10, v0.5 (Monitoring) + v0.6 (VSCode Coverage Server-Side) shipped 2026-05-11. Every `/gate fast` against dev-platform runs `./scripts/gate_fast.sh` mechanically (62 checks, < 20s). Run `./scripts/report.sh` for a daily/weekly/all metrics report (gate pass rate, /code retry counts, /review count, tool-execution-time average); `./scripts/sync-vscode.sh` for VSCode extension capture/deploy/diff. **v0.7 Team Enablement is next** — CI workflow template, taxonomy enforcement on PRs, PR bot, GitHub Pages docs site, Milestones automation.
 
 ## Conventions
 

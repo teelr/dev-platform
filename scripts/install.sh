@@ -125,14 +125,74 @@ install_hooks() {
     echo "  hooks: ${count} files linked"
 }
 
+install_vscode() {
+    # VSCode server-side extensions (v0.6). Unlike commands/skills/settings/hooks,
+    # this category doesn't symlink files — extensions are installed-package state,
+    # not files. install_vscode reads the tracked JSON list and runs
+    # `code --install-extension --force` per entry. Idempotent.
+    #
+    # Error-handling philosophy: PERMISSIVE BY DESIGN. Individual install
+    # failures (marketplace network blip, extension renamed/removed, etc.) emit
+    # a WARN and the loop continues. Returns 0 even on partial failures so that
+    # `install.sh all` doesn't abort because one extension out of 40+ had a
+    # transient error. Returns 1 ONLY if EVERY install fails (catastrophic —
+    # signals the `code` CLI itself is broken).
+    #
+    # This differs from `link_file`'s safety-check posture (exit 1 on
+    # collision). Different category: link_file protects against data loss;
+    # install_vscode handles operational transients. Both philosophies are
+    # correct for their domain.
+    local file="${REPO}/extensions/vscode/server-extensions.json"
+    if [[ ! -f "${file}" ]]; then
+        echo "  vscode: no tracked list at ${file#${REPO}/} — skipping"
+        return 0
+    fi
+    if ! command -v code >/dev/null 2>&1; then
+        echo "  vscode: 'code' CLI not on PATH — skipping (not a VSCode server-side env)"
+        return 0
+    fi
+    if ! command -v jq >/dev/null 2>&1; then
+        echo "  vscode: 'jq' not on PATH — skipping (install jq to deploy extensions)"
+        return 0
+    fi
+    local count
+    count="$(jq length "${file}")"
+    echo "  vscode: installing/verifying ${count} extensions..."
+
+    # Use process substitution (not a pipe) so the failure counter persists
+    # outside the read loop — pipe-fed loops run in a subshell that drops vars.
+    local attempted=0
+    local failed=0
+    while read -r ext; do
+        [[ -z "${ext}" ]] && continue
+        attempted=$((attempted + 1))
+        if ! code --install-extension "${ext}" --force >/dev/null 2>&1; then
+            failed=$((failed + 1))
+            echo "    WARN failed to install ${ext}" >&2
+        fi
+    done < <(jq -r '.[]' "${file}")
+
+    if [[ ${attempted} -gt 0 && ${failed} -eq ${attempted} ]]; then
+        echo "  vscode: ALL ${attempted} extensions failed — likely 'code' CLI broken" >&2
+        return 1
+    fi
+    if [[ ${failed} -gt 0 ]]; then
+        echo "  vscode: ${count} extensions processed; ${failed} failed (see WARNs above)"
+    else
+        echo "  vscode: ${count} extensions installed/verified"
+    fi
+    return 0
+}
+
 case "${CATEGORY}" in
     commands)  install_commands ;;
     skills)    install_skills ;;
     settings)  install_settings ;;
     hooks)     install_hooks ;;
-    all)       install_commands; install_skills; install_settings; install_hooks ;;
+    vscode)    install_vscode ;;
+    all)       install_commands; install_skills; install_settings; install_hooks; install_vscode ;;
     *)         echo "Unknown category: ${CATEGORY}" >&2
-               echo "Usage: $0 [commands|skills|settings|hooks|all]" >&2
+               echo "Usage: $0 [commands|skills|settings|hooks|vscode|all]" >&2
                exit 1 ;;
 esac
 
