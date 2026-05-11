@@ -86,8 +86,12 @@ tests/**
 !scaffolding/**/.gitkeep
 !scaffolding/**/.env.example
 !scaffolding/**/.markdownlint.json
+!monitoring/**/
 !monitoring/*.md
 !monitoring/**/*.md
+!monitoring/**/*.py
+!monitoring/**/*.json
+!monitoring/**/*.jsonl
 !shell/*.sh
 !shell/*.md
 # Tests allow-list — fixtures (json/md/txt) + runners (sh) at any depth

@@ -1,1 +1,1 @@
-{"tool_name":"Bash","tool_input":{"command":"ls"}}
+{"session_id":"test-session-123","tool_name":"Bash","tool_use_id":"toolu_test_42","tool_input":{"command":"ls"}}

@@ -23,7 +23,7 @@ The install script symlinks tracked files from this repo into `~/.claude/`. Edit
 | `hooks/` | Shell scripts invoked by Claude Code hook events |
 | `extensions/` | IDE config (VSCode, statusline) — populated by future spec |
 | `scaffolding/` | New-project starter templates — populated by future spec |
-| `monitoring/` | Workflow telemetry schemas — populated by future spec |
+| `monitoring/` | Workflow telemetry — JSON Schema for events (`schemas/event-v1.json`) + aggregator + metrics catalog (aggregator/catalog land in v0.5 Phase 3) |
 | `shell/` | Shell helpers, git-hook templates |
 | `scripts/` | Install / uninstall / verify scripts; spec-taxonomy checker |
 | `tasks/` | Spec files (output of `/plan`) |
@@ -55,7 +55,7 @@ Removes all repo-owned symlinks from `~/.claude/`. Non-destructive: leaves user-
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for the spec sequence. R1 (Foundation) shipped 2026-05-08, R1.5 (Global Claude + Hooks) shipped 2026-05-09, R4a (Project Scaffolding) + R3 (Testing) shipped 2026-05-10. Every `/gate fast` against dev-platform now runs `./scripts/gate_fast.sh` mechanically (42 checks, < 1s). **R2 Monitoring is next** — telemetry aggregation on top of the R1.5 heartbeat data.
+See [ROADMAP.md](ROADMAP.md) for the spec sequence. Roadmap Phase headers use semver (`v<MAJOR>.<MINOR>: <Title>`) and map 1:1 to GitHub Milestones. v0.1 (Foundation) shipped 2026-05-08, v0.2 (Global Claude + Hooks) shipped 2026-05-09, v0.3 (Project Scaffolding) + v0.4 (Testing) shipped 2026-05-10. Every `/gate fast` against dev-platform runs `./scripts/gate_fast.sh` mechanically (42 checks, < 1s). **v0.5 Monitoring is in flight** — telemetry aggregation on top of the v0.2 heartbeat data; Phase 1 of 4 implemented as of 2026-05-11.
 
 ## Conventions
 
