@@ -5,13 +5,14 @@ Current state of the repo. Refreshed at every spec-completion by `/docs`.
 ## Current state
 
 - **Name:** `dev-platform` (GitHub: `teelr/dev-platform`, mounted at `/home/rich/dev/`)
-- **Active spec:** `tasks/dev-platform-vscode-coverage-spec.md` (ships as **v0.6: VSCode Coverage — Server-Side**); Phase 4 of v0.5 also queued behind it
-- **Active Roadmap Phase:** v0.1 through v0.5 shipped (v0.5 closed via PR #4, Release v0.5 cut 2026-05-11). **v0.6 VSCode Coverage (Server-Side) implemented on branch `v0.6/server-side-extensions`**, awaiting PR merge. Server-side scope only (Option C — laptop-side coverage deferred to a future v0.6b spec). After v0.6 merges, the next Roadmap Phase is **v0.7: Team Enablement**.
+- **Active spec:** `tasks/dev-platform-team-enablement-spec.md` (ships as **v0.7: Team Enablement** across 4 Spec Phases via per-Spec-Phase branching)
+- **Active Roadmap Phase:** v0.1 through v0.6 shipped (v0.6 closed via PR #6, Release v0.6 cut 2026-05-11). **v0.7 Phase 1 (taxonomy enforcement extended to roadmaps) implemented on branch `v0.7/phase-1-taxonomy-extension`**, awaiting PR merge. v0.7 Phases 2–4 still queued (GitHub Actions CI, GitHub Pages + GLOSSARY, Milestones automation).
 
 ## Recently shipped
 
 Hashes intentionally omitted — `git log` is the authoritative record; this section is the human-readable summary. (Convention adopted 2026-05-09 after the v0.1 + v0.2 self-reference paradox surfaced — see commands/docs.md and tasks/lessons.md.)
 
+- v0.6 VSCode Coverage (Server-Side) — (2026-05-11, PR #6 squash-merged as commit `3b8ff82`, closes v0.6 Milestone, Release v0.6 cut at tag `v0.6`): `extensions/vscode/{README.md,server-extensions.json}` tracking 43 captured extensions, `scripts/sync-vscode.sh` capture/deploy/diff with `--file <path>` override, `scripts/install.sh vscode` permissive-by-design (WARN on partial fail, exit 1 only on catastrophic all-failed; graceful skip when `code` CLI absent), `tests/vscode/` 10-assertion fixture suite using mock `code` binary at `fixtures/mock-bin/code`. Two Consumer Audit catches in one session: `!extensions/**/` subdir re-include and `!tests/**/mock-bin/*` (extension-less files). Single-PR strategy per the v0.6 spec's "small Roadmap Phase" carve-out.
 - v0.5 Phase 4 — Tests + Acceptance (2026-05-11, PR #4 squash-merged as commit `b7c0196`, closes v0.5 Milestone, Release v0.5 cut at tag `v0.5`): 10-assertion `tests/monitoring/` fixture suite (auto-discovered by gate_fast.sh) + live cutover verified all 4 new event types firing from real Claude Code sessions across atlas/kermit/kermit-pa/dev-platform (62 distinct UUID sessions). Post-/review refactor extracted `tests/monitoring/asserts.py` named-function harness eliminating shell-expansion footgun. Bonus catch: `.gitignore` allow-list missing `!tests/**/*.py` + `!tests/**/*.jsonl` — same Consumer Audit pattern as Phase 2.
 - Consumer Audit rule promoted to `dev/CLAUDE.md` (2026-05-11, PR #5 squash-merged as commit `24e062f`): 5-point checklist for new file types in glob-managed directories. Promoted from 2 recurring 2026-05-11 lessons.md entries (Phase 2 hooks/*.py + Phase 4 tests/**/*.{py,jsonl}). Both original lessons marked `→ Rule in dev/CLAUDE.md`.
 - v0.5 Phase 3 — Aggregation + Reporting (2026-05-11, PR #3 squash-merged as commit `7ca89f1`): `monitoring/aggregator.py` (parses both legacy text + JSONL, 5 metric functions, CLI with `--period`/`--project`/`--json`/`--log`), `scripts/report.sh` CLI wrapper, `monitoring/metrics.md` catalog with Definition/Source/Limitations per metric. Post-/review polish: aligned `code.count` field naming with other metrics; extracted `metric_events_per_project()` as a helper; replaced brittle `sed` in `report.sh --help` with heredoc.
@@ -24,18 +25,14 @@ Hashes intentionally omitted — `git log` is the authoritative record; this sec
 
 ## In flight
 
-- **v0.6 VSCode Coverage (Server-Side) — implemented** on branch `v0.6/server-side-extensions`:
-  - Change 1: `extensions/vscode/{README.md,server-extensions.json}` (NEW) — directory contract + 43-extension tracked list (real captured state from this server)
-  - Change 2: `scripts/sync-vscode.sh` (NEW) — capture/deploy/diff modes + `--file <path>` override for testability + `--help` heredoc
-  - Change 3: Captured live state into `server-extensions.json` (43 entries, all match `publisher.name`, md5 matches `code --list-extensions` output)
-  - Change 4: `scripts/install.sh` — `install_vscode()` function + `vscode` case-statement entry. Permissive-by-design: partial install failures emit WARN; only catastrophic all-failed case returns 1. Documented inline.
-  - Change 5: `tests/vscode/` (NEW) — 10-assertion fixture suite + mock `code` binary at `fixtures/mock-bin/code` enables capture/deploy round-trip testing without touching live state. Auto-discovered by `gate_fast.sh`.
-  - Change 6: Doc sweep marking v0.6 COMPLETE — this very update.
-  - **Post-/review fixes** (resolved /review's 3 quality items): sorted `current()` output for stable diffs across CLI versions; added `--file <path>` flag to sync-vscode.sh for testability; refactored `install_vscode()` to use process substitution + failure counter (returns non-zero only on catastrophic all-failed). Plus closed the coverage gap with 4 new mock-based round-trip assertions.
-  - **Bonus catches (Consumer Audit rule fired twice in v0.6 alone)**: `.gitignore` needed `!extensions/**/` subdir re-include (same pattern as scaffolding/monitoring/tests) AND `!tests/**/mock-bin/*` for the extension-less mock binary. Both caught at /code time via `git check-ignore -v` per the Consumer Audit checklist.
-  - Gate green (62 PASS / 0 FAIL — was 52, added 10 vscode assertions). /test, /review, /gate fast all clean.
-- **Once v0.6 PR merges, the next Roadmap Phase is v0.7: Team Enablement** (CI workflow template, taxonomy enforcement on PRs, PR bot for taxonomy violations, GitHub Pages docs site + `docs/GLOSSARY.md`, GitHub Milestones automation). Also queued: a future **v0.6b: VSCode Client-Side Coverage** spec for laptop-side `settings.json`/keybindings/snippets/extensions when there's appetite — explicitly out of v0.6 scope per the Option C decision.
-- v0.5 spec filename keeps legacy `r2` prefix; cleanup deferred to v0.9 migration tooling.
+- **v0.7 Phase 1 (Taxonomy enforcement extended) — implemented** on branch `v0.7/phase-1-taxonomy-extension`:
+  - Change 1: `scripts/check_spec_taxonomy.sh` — second scan pass for `ROADMAP.md` + `planning.md` flagging non-conforming Roadmap Phase headers (`R<N>:`, `Sprint X:`, `Stage Y:`, `Q<N>-<YYYY>:`, `<YYYY>Q<N>:`). Existing spec-structural scan pass unchanged. Error-message path hardcoded to `/home/rich/dev/CLAUDE.md` (was `$(dirname ...)` derived, which evaluated wrong from temp-dir test harness — caught at /review).
+  - Change 2: `tests/taxonomy/fixtures/{conformant-roadmap,bad-roadmap-sprint,bad-roadmap-rprefix,bad-roadmap-multi}.md` (4 new fixtures) + extended `tests/taxonomy/run.sh` with `run_roadmap_fixture` helper accepting an optional 4th `expected_match` arg that captures stderr and greps for the specific killed-prefix line. Multi-violation fixture exercises the accumulator loop.
+  - **Post-/review fixes** (resolved /review's 3 quality items): hardcoded error-message path; strengthened assertions to grep stderr for specific killed-prefix substring (was exit-code-only); added `bad-roadmap-multi.md` exercising accumulator with both Sprint AND R-prefix violations.
+  - Gate green (66 PASS / 0 FAIL — was 62, added 4 taxonomy assertions covering the new Roadmap scan pass).
+- **v0.7 Phases 2–4 still queued**: Phase 2 (GitHub Actions CI workflows + reusable taxonomy-check + consumer template + branch protection + `docs/CI-INTEGRATION.md`), Phase 3 (GitHub Pages render + `docs/GLOSSARY.md`), Phase 4 (`scripts/sync-milestones.sh` + `tests/milestone-sync/`). Each ships as a separate PR per the per-Spec-Phase strategy.
+- After v0.7 closes: **v0.8 Cross-project orchestration**, **v0.9 Migration tooling**, **v1.0 Feature-complete**. Optional **v0.6b: VSCode Client-Side Coverage** still on the backlog for laptop-side `settings.json`/keybindings/snippets/extensions.
+- v0.5 spec filename keeps legacy `r2` prefix; v0.4 keeps `r3`, v0.3 keeps `r4a` — cleanup deferred to v0.9 migration tooling.
 
 ## Taxonomy migration note (2026-05-11)
 
