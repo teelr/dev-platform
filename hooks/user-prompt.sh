@@ -14,6 +14,7 @@ set -uo pipefail   # NOT -e
 LOG="${HOME}/.claude/dev-platform-telemetry.log"
 mkdir -p "$(dirname "${LOG}")"
 
-python3 /home/rich/.claude/hooks/_emit_event.py user_prompt "${PWD}" >> "${LOG}" 2>/dev/null || true
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+python3 "${HOOK_DIR}/_emit_event.py" user_prompt "${PWD}" >> "${LOG}" 2>/dev/null || true
 
 exit 0
