@@ -1,0 +1,5 @@
+{"v":1,"ts":"2026-05-10T10:00:00-05:00","event":"session_start","session_id":"dp1","project":"dev-platform","cwd":"/home/rich/dev"}
+{"v":1,"ts":"2026-05-10T10:00:01-05:00","event":"tool_use_end","session_id":"dp1","project":"dev-platform","tool":"Read","tool_call_id":"tc-dp"}
+{"v":1,"ts":"2026-05-10T10:00:02-05:00","event":"session_start","session_id":"km1","project":"kermit","cwd":"/home/rich/dev/projects/kermit"}
+{"v":1,"ts":"2026-05-10T10:00:03-05:00","event":"tool_use_end","session_id":"km1","project":"kermit","tool":"Bash","tool_call_id":"tc-km1"}
+{"v":1,"ts":"2026-05-10T10:00:04-05:00","event":"tool_use_end","session_id":"km1","project":"kermit","tool":"Edit","tool_call_id":"tc-km2"}

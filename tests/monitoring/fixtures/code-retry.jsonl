@@ -1,0 +1,4 @@
+{"v":1,"ts":"2026-05-10T11:00:00-05:00","event":"user_prompt","session_id":"cr1","project":"dev-platform","command":"/code","args":""}
+{"v":1,"ts":"2026-05-10T11:00:01-05:00","event":"user_prompt","session_id":"cr1","project":"dev-platform","command":"/code","args":""}
+{"v":1,"ts":"2026-05-10T11:00:02-05:00","event":"user_prompt","session_id":"cr1","project":"dev-platform","command":"/docs","args":""}
+{"v":1,"ts":"2026-05-10T11:00:03-05:00","event":"user_prompt","session_id":"cr1","project":"dev-platform","command":"/code","args":""}

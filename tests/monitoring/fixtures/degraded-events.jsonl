@@ -1,0 +1,4 @@
+{"v":1,"ts":"2026-05-10T13:00:00-05:00","event":"tool_use_start","session_id":"dg1","project":"dev-platform","tool":"Bash","tool_call_id":"tc-real"}
+{"v":1,"ts":"2026-05-10T13:00:01-05:00","event":"tool_use_end","session_id":"dg1","project":"dev-platform","tool":"Bash","tool_call_id":"tc-real"}
+{"v":1,"ts":"2026-05-10T13:00:02-05:00","event":"tool_use_start","session_id":"dg1","project":"dev-platform","tool":"?","tool_call_id":"?"}
+{"v":1,"ts":"2026-05-10T13:00:03-05:00","event":"tool_use_end","session_id":"dg1","project":"dev-platform","tool":"?","tool_call_id":"?"}
