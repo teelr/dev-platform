@@ -14,7 +14,7 @@ These are Claude's operating rules — how to act regardless of project. Develop
 
 **The rule is "STOP and wait", NOT "say nothing about what's next".**
 
-After `/plan`, `/code`, `/test`, `/review`, `/gate`, `/docs`, `commit`, `push`, `PR`, or `merge`: report results, state which step is next, then STOP and wait for the user to invoke it explicitly. Do NOT auto-advance to the next step. (The post-`push` steps — PR, CI wait, merge, post-merge — were added 2026-05-11 when v0.7 Phase 2 introduced CI; before that, "push" was the de facto last step.)
+After `/plan`, `/code`, `/test`, `/review`, `/gate`, `/docs`, `commit`, `push`, `/pr`, `/merge`, or `post-merge`: report results, state which step is next, then STOP and wait for the user to invoke it explicitly. Do NOT auto-advance to the next step. (The post-`push` steps — `/pr`, CI wait, `/merge`, post-merge — were added 2026-05-11 when v0.7 Phase 2 introduced CI; `/pr` and `/merge` became slash commands in v0.8 Phase 1's follow-up chore so the workflow rules are mechanically enforced rather than honor-system.)
 
 Required end-of-step format:
 
@@ -30,15 +30,15 @@ The "Ready for X" line is REQUIRED — it tells the user where the workflow is. 
 
 Shorthand affirmatives like "fix all", "do it", "go", "yes" authorize the IMMEDIATE action only — never workflow advancement (lesson L28). "Yes" to a /review fix is permission to fix the code, not to run /gate or commit.
 
-The full chain: `/plan → /code → /test → /review → /gate fast → /docs → commit → push → PR → CI → merge → post-merge`.
+The full chain: `/plan → /code → /test → /review → /gate fast → /docs → commit → push → /pr → CI → /merge → post-merge`.
 
-**No merge before CI green.** Once `gate-fast` CI runs on a PR (every dev project under `/home/rich/dev/` has it from v0.7 Phase 2 onward), the workflow does not advance to `merge` until CI reports green. Red CI means fix-on-branch-and-re-push, never merge-around. **post-merge** captures any deferred work the spec called out (branch-protection updates, release-tag cuts, cross-project re-installs); if the spec named none, post-merge is a no-op but the workflow still passes through so the agent doesn't forget when deferred work DOES exist.
+**No merge before CI green.** Once `gate-fast` CI runs on a PR (every dev project under `/home/rich/dev/` has it from v0.7 Phase 2 onward), the workflow does not advance to `/merge` until CI reports green. `/merge` enforces this mechanically — it queries the PR's CI status (via `gh pr view <N> --json statusCheckRollup`) before invoking the merge and refuses on red, pending, or zero-check states. No override flag. Red CI means fix-on-branch-and-re-push, never merge-around. **post-merge** captures any deferred work the spec called out (branch-protection updates, release-tag cuts, cross-project re-installs, `sync-milestones.sh --apply`); if the spec named none, post-merge is a no-op but the workflow still passes through so the agent doesn't forget when deferred work DOES exist. post-merge is NOT a slash command because each spec's post-merge is bespoke — the spec is the runbook.
 
 ## Gate Before Commit — CRITICAL
 
 **`/gate fast` MUST pass before any commit. No exceptions.**
 
-Correct order: `/plan → /code → /test → /review → /gate fast → /docs → commit → push → PR → CI → merge → post-merge`
+Correct order: `/plan → /code → /test → /review → /gate fast → /docs → commit → push → /pr → CI → /merge → post-merge`
 
 The gate runs constitutional checks + unit tests + smoke_fast. Committing before the gate passes pollutes git history and can block other work. If the gate fails, fix it — do not commit around it. The same gate then runs again on the PR ref via GitHub Actions (v0.7 Phase 2+) — if CI surfaces a failure local `/gate fast` missed, fix on the branch and re-push, never merge red.
 
@@ -107,4 +107,4 @@ Set cross-project 2026-05-08 (harness v2.38.0 vision-adapter `/test` surfaced a 
 - Skills are defined in `~/.claude/commands/` (plan.md, code.md, test.md, review.md)
 - Workflow manual: `~/.claude/skills/WORKFLOW_MANUAL.md`
 - **Development standards (THE source of truth):** `/home/rich/dev/CLAUDE.md`
-- Available skills: /plan, /code, /test, /review, /gate, /docs, /smoke_test
+- Available skills: /plan, /code, /test, /review, /gate, /docs, /pr, /merge, /smoke_test
