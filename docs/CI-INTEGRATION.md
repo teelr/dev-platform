@@ -51,6 +51,21 @@ Now PRs with taxonomy violations can't merge until the violations are fixed.
 
 If you can't access settings (e.g., not a repo admin), Step 3 is optional — the check still runs and reports its result on PRs even without being required. Admins can flip the "required" toggle later.
 
+## Automated install (Rich's own projects)
+
+If your project is in dev-platform's [project registry](../monitoring/projects.json), use the v0.8 fleet helper instead of the manual `curl`:
+
+```bash
+# From the dev-platform repo root
+./scripts/fleet-install-template.sh --project <name>           # dry-run (default)
+./scripts/fleet-install-template.sh --project <name> --apply   # write
+./scripts/fleet-install-template.sh --project <name> --apply --pin v0.7
+```
+
+Functionally identical to the manual `curl` flow — same file, same target path. The helper just walks the registry so you don't repeat the project path each time. Per the v0.8 Scope-rule carve-out (see [CLAUDE.md](../CLAUDE.md) → "Exception — v0.8 fleet orchestration"), this is the ONLY write the fleet helper performs against your project; everything else in this guide stays manual.
+
+If your project is NOT in dev-platform's registry, use the manual `curl` flow above. Adding a project to the registry is a one-line edit to [`monitoring/projects.json`](../monitoring/projects.json).
+
 ## Rollout
 
 Commit the workflow file, push, and open a test PR (a typo fix is fine). Within ~30 seconds you should see:
