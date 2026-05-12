@@ -35,15 +35,16 @@ Hashes intentionally omitted — `git log` is the authoritative record; this sec
 - v0.8 Phase 4 + post-merge cascade — Consumer Version-Pin Tracking, **closes v0.8** (2026-05-11, PR #17 → `ba8565c`; chore #18 → `44c1ca6`): `monitoring/fleet_pins.py` + `scripts/fleet-pins.sh` + 17-assertion `tests/fleet-pins/run.sh`. Anchored `USES_RE` prevents comment-shadow bug; `--latest` semver-validated at argparse boundary. Release tag `v0.8` cut at `ba8565c`; v0.8 Milestone closed; consumer-template default pin bumped `@v0.7` → `@v0.8` (chore PR #18). Gate at 131 PASS.
 - Workflow redesign chore (2026-05-11, same session): slimmed chain to `/plan → /code → /gate fast → commit → push → /pr → CI → /merge`; `/code` absorbs branch creation + auto-fix + doc updates; `/review` optional; `/test` and `/docs` standalone-only. Commands updated in `commands/code.md`, `commands/review.md`, `commands/test.md`, `commands/docs.md`. Chain refs updated in `CLAUDE.md` + `settings/claude-global.md`.
 - v0.8 Phase 3 — Opt-in Drift Correction + Scope carve-out (2026-05-11, PR #16 squash-merged as commit `8ad429e`): `CLAUDE.md` Scope-rule carve-out ("Exception — v0.8 fleet orchestration (mutating subset)") naming the script + filename + directory — the FIRST mutating Phase of v0.8 and the only one allowed to write under `projects/`. `scripts/fleet-install-template.sh` (~210 lines) — opt-in per-project install, dry-run default, refuse-to-clobber, `--pin` rewrite via in-memory sed (`\b` word boundary + post-rewrite sanity check after /review). `tests/fleet-install/run.sh` (~220 lines, 14 assertions) including the load-bearing path-guard contract. `docs/CI-INTEGRATION.md` new "Automated install (Rich's own projects)" section. **/review caught 1 real BUG** (refuse-to-clobber firing in dry-run too — fixed by gating on `APPLY=1`) + 1 QUALITY fix (sed `\$` anchor → `\b`); rejected one wrong QUALITY claim ("relative-path branch is dead code" — but the production registry uses ONLY relative paths; smoke check caught the regression before push).
+- v0.9 Migration Tooling — **closed** (2026-05-11, PRs #19 + #22 + fix `44d002e`): `scripts/migrate-workflow-chain.sh` (6 sed patterns + perl multi-line variant, dry-run/apply/idempotent) + `scripts/audit-project-drift.sh` (read-only cross-project chain + taxonomy report) + 12-assertion `tests/migration/run.sh`. Gate at 143 PASS. Post-merge chain migrations ran clean (all 5 registry projects CLEAN per audit).
 
 ## In flight
 
-- **v0.9 Phase 2 (Migration Tools) — implemented** on branch `v0.9/phase-2-migration`:
-  - Change 2: CLAUDE.md v0.9 Scope carve-out added (bullet under Exceptions, mirroring v0.8 condensed format). Detects CLAUDE.md description text as false positive if grep pattern is `code → /test` — fixed to require trailing `→` to avoid matching carve-out documentation.
-  - Change 3: `scripts/migrate-workflow-chain.sh` — 6 sed patterns cover all known old-chain variants, dry-run default, `--apply` opt-in, idempotency guard.
-  - Change 4: `scripts/audit-project-drift.sh` (read-only, markdown table, --json flag) + `tests/migration/run.sh` (12 assertions, 5 mock projects). Gate now 143 PASS.
-  - Post-merge: run `./scripts/audit-project-drift.sh` and `./scripts/migrate-workflow-chain.sh --project <name> --apply` for kermit, kermit-pa, atlas — from each project's own session.
-- Next after v0.9: **v1.0 Feature-complete**. Optional **v0.6b: VSCode Client-Side Coverage** still on the backlog.
+- **v1.0 (Feature-Complete Release) — in progress** on branch `v1.0/phase-1-docs-accuracy`:
+  - Change 1: `docs/index.md` — stale "Latest release" + old workflow chain fixed.
+  - Change 2: `README.md` — scaffolding row, install.sh categories, v0.9 mention, gate count, v0.9 scripts.
+  - Change 3: `ROADMAP.md` v1.0 entry expanded from stub.
+  - Change 4: `planning.md` in-flight block updated (this entry).
+  - Post-merge: sync-milestones, cut `v1.0` tag, close v1.0 Milestone, chore PR pin bump @v0.8 → @v1.0.
 
 ## Taxonomy migration note (2026-05-11)
 
