@@ -116,6 +116,11 @@ fi
 # preserved because sed operates on the matching portion, not the whole line.
 apply_rewrite() {
     local file="$1"
+    # Handle line-wrapped variant (chain split across two lines after /gate).
+    # perl -0pe slurps the whole file so \n in the pattern matches real newlines.
+    perl -i -0pe \
+        "s|/plan → /code → /test → /review → /gate\n→ /docs → commit → push|${NEW_CHAIN}|g" \
+        "${file}" 2>/dev/null || true
     sed -i \
         -e "s|/plan → /code → /test → /review → /gate fast → /docs → commit → push → /pr → CI → /merge → post-merge|${NEW_CHAIN}|g" \
         -e "s|/plan → /code → /test → /review → /gate fast → /docs → commit → push|${NEW_CHAIN}|g" \
