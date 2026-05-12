@@ -34,5 +34,13 @@
     "gate_cmd": "./scripts/gate_fast.sh",
     "primary_language": "go",
     "enabled": true
+  },
+  {
+    "name": "OPIE",
+    "path": "projects/OPIE",
+    "gate_cmd": "./scripts/gate_fast.sh",
+    "primary_language": "typescript",
+    "enabled": false,
+    "notes": "gate_fast.sh does not exist yet — enable after OPIE session sets up gate"
   }
 ]
