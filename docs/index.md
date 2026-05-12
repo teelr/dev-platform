@@ -14,10 +14,10 @@ Source of truth for Rich's developer environment: rules, slash commands, skills,
 
 ## Latest release
 
-See [Releases](https://github.com/teelr/dev-platform/releases). v0.6 (VSCode Coverage Server-Side) is the most recent tag; v0.7 cuts at Phase 4 completion.
+See [Releases](https://github.com/teelr/dev-platform/releases). `v0.9` (Migration tooling) is the current tag. `v1.0` (Feature-complete) is in progress.
 
 ## Workflow
 
-`/plan → /code → /test → /review → /gate fast → /docs → commit → push → PR → CI → merge → post-merge`
+`/plan → /code → /gate fast → commit → push → /pr → CI → /merge → post-merge`
 
 Each step is mechanical and reproducible. See [CLAUDE.md](../CLAUDE.md) for the full discipline.
