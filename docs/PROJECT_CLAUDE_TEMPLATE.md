@@ -73,6 +73,8 @@ project-name/
 
 ## Rules
 
+**CRITICAL — Cross-project boundary:** NEVER write code in or modify files belonging to another project from this session. If a task requires a change in a different project, STOP — communicate the need via a handoff note, GitHub issue, or explicit user instruction to switch sessions. Let the other project's session make the change under its own gate and review discipline. Cross-project writes bypass that project's gate, leave no commit context, and are invisible to its team.
+
 {Project-specific rules. Things that have gone wrong before. Things unique to this project.
 Do NOT repeat rules from /home/rich/dev/CLAUDE.md — those apply automatically.}
 

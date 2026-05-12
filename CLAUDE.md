@@ -149,6 +149,7 @@ Each step requires the user to invoke it. Completing one step does NOT mean star
 - **Simplicity first** — minimal code, no over-engineering, no features beyond what was asked.
 - **No laziness** — find root causes, no temporary fixes. Senior developer standards.
 - **Use official SDKs — NEVER hand-roll protocol implementations.** `a2a-sdk`, `mcp`/`fastmcp`, `claude-agent-sdk`. Search PyPI/npm/Go modules before writing protocol code.
+- **NEVER write code in another project's directory from the current session.** If work in Project A requires a change in Project B, STOP — communicate the need (handoff note, GitHub issue, user instruction to switch sessions) and let Project B's own session make the change under its own gate and review discipline. Cross-project writes bypass the target project's gate, leave no commit context, and are invisible to that project's team. The only exceptions are the narrow opt-in carve-outs in this file (`fleet-install-template.sh`, `migrate-workflow-chain.sh`) — those are tools the user runs explicitly, not license for general cross-project editing.
 
 ## Verification Requirements
 
