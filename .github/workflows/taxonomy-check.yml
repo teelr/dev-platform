@@ -35,14 +35,15 @@ jobs:
           ref: ${{ inputs.ref }}
           path: caller
 
-      - name: Extract dev-platform ref from workflow_ref
+      - name: Extract dev-platform ref from job_workflow_ref
         id: wf-ref
         run: |
-          # github.workflow_ref format: owner/repo/.github/workflows/file.yml@refs/tags/vX.Y
-          # Extract the @ref portion — it IS a valid git ref for actions/checkout.
-          # Do NOT use github.workflow_sha: it caches the tag's SHA at dispatch time
-          # and fails if the tag was force-updated before the run (orphaned commit).
-          echo "ref=$(echo '${{ github.workflow_ref }}' | cut -d@ -f2)" >> "$GITHUB_OUTPUT"
+          # github.job_workflow_ref is the reusable-workflow-only context that returns
+          # THIS workflow's own ref: owner/repo/.github/workflows/file.yml@refs/tags/vX.Y
+          # (github.workflow_ref returns the CALLING workflow's ref — wrong for our use.)
+          # Do NOT use github.workflow_sha or github.job_workflow_sha: both cache the SHA
+          # at dispatch time and fail if the tag was force-updated (orphaned commit).
+          echo "ref=$(echo '${{ github.job_workflow_ref }}' | cut -d@ -f2)" >> "$GITHUB_OUTPUT"
 
       - name: Checkout dev-platform (for the check script)
         uses: actions/checkout@v4
