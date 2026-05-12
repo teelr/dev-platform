@@ -35,18 +35,20 @@ jobs:
           ref: ${{ inputs.ref }}
           path: caller
 
+      - name: Extract dev-platform ref from workflow_ref
+        id: wf-ref
+        run: |
+          # github.workflow_ref format: owner/repo/.github/workflows/file.yml@refs/tags/vX.Y
+          # Extract the @ref portion — it IS a valid git ref for actions/checkout.
+          # Do NOT use github.workflow_sha: it caches the tag's SHA at dispatch time
+          # and fails if the tag was force-updated before the run (orphaned commit).
+          echo "ref=$(echo '${{ github.workflow_ref }}' | cut -d@ -f2)" >> "$GITHUB_OUTPUT"
+
       - name: Checkout dev-platform (for the check script)
         uses: actions/checkout@v4
         with:
           repository: teelr/dev-platform
-          # github.workflow_sha is the commit SHA of THIS reusable workflow
-          # being run — when a consumer pins `uses: ...@v0.7`, this SHA is
-          # the commit v0.7 points at. Checking out by SHA guarantees the
-          # script we run matches the workflow definition that called us.
-          # Do NOT use github.workflow_ref — it returns the full ref-path
-          # ("owner/repo/.github/...@refs/tags/v0.7"), which checkout's
-          # `ref:` cannot resolve as a git ref.
-          ref: ${{ github.workflow_sha }}
+          ref: ${{ steps.wf-ref.outputs.ref }}
           path: dev-platform
 
       - name: Run taxonomy check against caller's repo
