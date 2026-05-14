@@ -107,6 +107,7 @@ Each step requires the user to invoke it. Completing one step does NOT mean star
 **Optional steps:**
 
 - **`/review`** — For risky/large changes: between `/code` and `/gate fast`.
+- **`/security-review`** — For changes touching auth, credentials, external input, or new endpoints: between `/code` and `/gate fast`.
 - **`/test`** — Standalone spec validation. Not required when `/code` verifies as it goes.
 - **`/docs`** — Standalone doc update. Recovery only — `/code` handles it normally.
 

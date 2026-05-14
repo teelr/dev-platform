@@ -115,7 +115,33 @@ Create the spec file at `tasks/{feature-name}-spec.md` with this structure.
 - [ ] No console.log in production code
 - [ ] Language architecture matrix followed for all new components
 - [ ] End-to-end data flow works: UI → API → Backend → Response → UI
+{If this spec touches auth, credentials, external input, or new endpoints:}
+- [ ] `/security-review` run before `/gate fast`
 ```
+
+## Step 5: Ensure GitHub Milestone Exists
+
+After writing the spec, derive the version prefix from the spec filename (e.g. `tasks/v2.45.0-foo-spec.md` → `v2.45`) and check whether a matching milestone exists:
+
+```bash
+PREFIX="v<X.Y>"   # substitute actual major.minor
+gh api repos/{owner}/{repo}/milestones?state=all \
+    --jq ".[] | select(.title | startswith(\"${PREFIX}:\")) | .title"
+```
+
+Derive `{owner}/{repo}` from `git remote get-url origin`.
+
+- **If the milestone exists:** note its title and move on.
+- **If no milestone exists:** create one automatically:
+
+```bash
+gh api repos/{owner}/{repo}/milestones --method POST \
+    -f title="v<X.Y>: <Title from spec or ROADMAP.md>"
+```
+
+Use the Roadmap Phase title from `ROADMAP.md` if the version appears there; otherwise use the spec's feature name Title-Cased. Report the created milestone title to the user.
+
+This prevents the "No vX.Y milestone exists" warning that surfaces later at `/pr` time.
 
 ## Rules
 

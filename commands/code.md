@@ -125,6 +125,20 @@ git add planning.md ROADMAP.md README.md tasks/lessons.md
 
 **Do NOT commit** — the user runs `git commit` explicitly after `/gate fast` passes.
 
+## Step 7: Security Reminder
+
+Before reporting ready, check whether any implemented changes touch:
+
+- Authentication or authorization logic
+- Credential handling, secrets, or tokens
+- User-supplied input (forms, query params, file uploads, API request bodies)
+- New public endpoints or routes
+- External API calls or webhook handlers
+
+If YES to any of the above, include this line in your end-of-step report:
+
+> **Consider `/security-review`** before `/gate fast` — this change touches [auth / credentials / external input / new endpoints].
+
 ## Rules
 
 ### Follow the Spec Literally

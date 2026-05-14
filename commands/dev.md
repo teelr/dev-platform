@@ -43,9 +43,11 @@ Detect the project's startup mechanism without launching anything yet:
 
 ## Step 5: Report — concise, structured
 
-Output a single report with these sections. Be terse — the user is reading this to get oriented in seconds, not minutes.
+Output the report as **plain markdown** — do NOT wrap it in a fenced code block. Be terse — the user is reading this to get oriented in seconds, not minutes.
 
-```text
+Use exactly these sections and this formatting (the template below is an illustration — output it as plain markdown, not inside a code block):
+
+````text
 ## Project: <name>
 
 **Branch:** <branch> (<N> commits ahead of main, <clean|dirty>)
@@ -73,7 +75,7 @@ Verify with: `<smoke command>`
 
 ## Suggested entry point
 <one sentence: continue current Task with /code, start new feature with /plan, or fix the dirty working tree first>
-```
+````
 
 ## Rules
 
