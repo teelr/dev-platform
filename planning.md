@@ -40,12 +40,7 @@ Hashes intentionally omitted — `git log` is the authoritative record; this sec
 
 ## In flight
 
-- **v1.1 (Remote Enforcement) — in progress** on branch `v1.1/phase-1-remote-enforcement`:
-  - Pre-flight: converted `keystone_prototype` + `neurx-dashboard` to SSH; removed redundant per-repo email from `aRKa`, `aws_controller`, `meeting_analyzer`.
-  - Change 1: `monitoring/remotes.json` — 14-entry registry of expected origin URLs + identity policies.
-  - Change 2: `scripts/verify-remotes.sh` — reads registry, diffs actual vs. expected, exits 1 on drift.
-  - Change 3: `scripts/verify.sh` wired — remote check surfaces in gate's live deploy lift.
-  - Change 4: `tests/remote-verify/run.sh` — 10-assertion fixture suite. Gate at 153 PASS.
+Nothing in flight. v1.1 shipped 2026-05-16 (PR #25, squash-merged to main at `1ba4e53`).
 
 ## Taxonomy migration note (2026-05-11)
 
