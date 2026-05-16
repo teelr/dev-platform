@@ -76,6 +76,18 @@ for f in "${REPO}/hooks"/*.py; do
     check_symlink "${f}" "${HOME_CLAUDE}/hooks/$(basename "${f}")"
 done
 
+echo "Verifying remotes..."
+if [[ "${CI:-}" == "true" ]]; then
+    echo "  SKIP  remote verify (CI runner)"
+else
+    _remote_out="$(bash "${REPO}/scripts/verify-remotes.sh" 2>&1)"
+    _remote_exit=$?
+    echo "${_remote_out}" | sed 's/^/  /'
+    if [[ ${_remote_exit} -ne 0 ]]; then
+        ERRORS=$((ERRORS + 1))
+    fi
+fi
+
 echo ""
 if [[ ${ERRORS} -gt 0 ]]; then
     echo "Verification FAILED: ${ERRORS} issue(s)."

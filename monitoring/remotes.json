@@ -1,0 +1,100 @@
+[
+  {
+    "name": "dev-platform",
+    "path": ".",
+    "remote_url": "git@github.com:teelr/dev-platform.git",
+    "github_account": "teelr",
+    "local_email": null
+  },
+  {
+    "name": "kermit",
+    "path": "projects/kermit",
+    "remote_url": "git@github.com:teelr/kermit-harness.git",
+    "github_account": "teelr",
+    "local_email": null
+  },
+  {
+    "name": "kermit-pa",
+    "path": "projects/kermit-pa",
+    "remote_url": "git@github.com:teelr/kermit-pa.git",
+    "github_account": "teelr",
+    "local_email": null
+  },
+  {
+    "name": "keystone",
+    "path": "projects/keystone",
+    "remote_url": "git@github.com:teelr/keystone.git",
+    "github_account": "teelr",
+    "local_email": null
+  },
+  {
+    "name": "OPIE",
+    "path": "projects/OPIE",
+    "remote_url": "git@github.com:teelr/OPIE.git",
+    "github_account": "teelr",
+    "local_email": null
+  },
+  {
+    "name": "RICH_NVR",
+    "path": "projects/RICH_NVR",
+    "remote_url": "git@github.com:teelr/nvr-dashboard.git",
+    "github_account": "teelr",
+    "local_email": null
+  },
+  {
+    "name": "richteel-portal",
+    "path": "projects/richteel-portal",
+    "remote_url": "git@github.com:teelr/richteel-portal.git",
+    "github_account": "teelr",
+    "local_email": null
+  },
+  {
+    "name": "SQRL",
+    "path": "projects/SQRL",
+    "remote_url": "git@github-teelr129:Osigin-LLC/SQRL.git",
+    "github_account": "teelr129",
+    "local_email": "teelr129@users.noreply.github.com"
+  },
+  {
+    "name": "gosqrlgo-dispatch",
+    "path": "projects/gosqrlgo-dispatch",
+    "remote_url": "git@github-teelr129:Osigin-LLC/gosqrlgo-dispatch.git",
+    "github_account": "teelr129",
+    "local_email": "teelr129@users.noreply.github.com"
+  },
+  {
+    "name": "aRKa",
+    "path": "projects/aRKa",
+    "remote_url": "git@github.com:teelr/aRKa.git",
+    "github_account": "teelr",
+    "local_email": null
+  },
+  {
+    "name": "aws_controller",
+    "path": "projects/aws_controller",
+    "remote_url": "git@github.com:teelr/aws_controller.git",
+    "github_account": "teelr",
+    "local_email": null
+  },
+  {
+    "name": "meeting_analyzer",
+    "path": "projects/meeting_analyzer",
+    "remote_url": "git@github.com:teelr/meeting_analyzer.git",
+    "github_account": "teelr",
+    "local_email": null
+  },
+  {
+    "name": "keystone_prototype",
+    "path": "projects/keystone_prototype",
+    "remote_url": "git@github.com:teelr/keystone_prototype.git",
+    "github_account": "teelr",
+    "local_email": null
+  },
+  {
+    "name": "neurx-dashboard",
+    "path": "projects/neurx-dashboard",
+    "remote_url": "git@github.com:teelr/neurx-dashboard.git",
+    "github_account": "teelr",
+    "local_email": null
+  }
+]
