@@ -12,7 +12,8 @@
     "path": "projects/atlas",
     "gate_cmd": "./scripts/gate_fast.sh",
     "primary_language": "python",
-    "enabled": true
+    "enabled": false,
+    "notes": "deprecated"
   },
   {
     "name": "kermit",
