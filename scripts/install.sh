@@ -12,6 +12,8 @@
 #   ./scripts/install.sh skills
 #   ./scripts/install.sh settings
 #   ./scripts/install.sh hooks
+#   ./scripts/install.sh vscode
+#   ./scripts/install.sh git-hooks  # v1.2 — opt-in pre-commit hook
 #
 # Idempotent — running twice produces the same state.
 
@@ -184,16 +186,37 @@ install_vscode() {
     return 0
 }
 
+install_git_hooks() {
+    # v1.2 — universal pre-commit hook (and future git hooks). Symlinks each
+    # tracked file under shell/git-hooks/ into ~/.claude/git-hooks/. Opt-in:
+    # users activate per-repo via `git config core.hooksPath ~/.claude/git-hooks`.
+    # README.md under shell/git-hooks/ is directory documentation, not a hook,
+    # so we skip it (same pattern as install_commands / install_skills).
+    mkdir -p "${HOME_CLAUDE}/git-hooks"
+    local count=0
+    for f in "${REPO}/shell/git-hooks"/*; do
+        [[ -f "${f}" ]] || continue
+        local name; name="$(basename "${f}")"
+        [[ "${name}" == "README.md" ]] && continue
+        link_file "${f}" "${HOME_CLAUDE}/git-hooks/${name}"
+        count=$((count + 1))
+    done
+    echo "  git-hooks: ${count} files linked to ${HOME_CLAUDE}/git-hooks/"
+    echo "             Activate per-repo with:"
+    echo "             git config core.hooksPath ${HOME_CLAUDE}/git-hooks"
+}
+
 case "${CATEGORY}" in
-    commands)  install_commands ;;
-    skills)    install_skills ;;
-    settings)  install_settings ;;
-    hooks)     install_hooks ;;
-    vscode)    install_vscode ;;
-    all)       install_commands; install_skills; install_settings; install_hooks; install_vscode ;;
-    *)         echo "Unknown category: ${CATEGORY}" >&2
-               echo "Usage: $0 [commands|skills|settings|hooks|vscode|all]" >&2
-               exit 1 ;;
+    commands)   install_commands ;;
+    skills)     install_skills ;;
+    settings)   install_settings ;;
+    hooks)      install_hooks ;;
+    vscode)     install_vscode ;;
+    git-hooks)  install_git_hooks ;;
+    all)        install_commands; install_skills; install_settings; install_hooks; install_vscode; install_git_hooks ;;
+    *)          echo "Unknown category: ${CATEGORY}" >&2
+                echo "Usage: $0 [commands|skills|settings|hooks|vscode|git-hooks|all]" >&2
+                exit 1 ;;
 esac
 
 echo "Install complete. Restart Claude Code for changes to take effect."

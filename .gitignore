@@ -109,6 +109,11 @@ tests/**
 !monitoring/**/*.jsonl
 !shell/*.sh
 !shell/*.md
+# v1.2: pre-commit git hook lives under shell/git-hooks/. Hook scripts are
+# extension-less by git's convention (pre-commit, commit-msg, pre-push, ...),
+# so allow every file inside shell/git-hooks/ rather than per-extension.
+!shell/**/
+!shell/git-hooks/*
 # Tests allow-list — fixtures (json/jsonl/md/txt) + runners (sh) + Python
 # assertion helpers (py) at any depth. py + jsonl added in v0.5 Phase 4 for
 # tests/monitoring/.

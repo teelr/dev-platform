@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# shell/git-hooks/pre-commit — refuses commits when scripts/gate_fast.sh
+# fails. Universal across all teelr/dev-* repos: looks for gate_fast.sh
+# at the repo root; if absent, exits 0 (no-op). Bypass with SKIP_GATE_FAST=1
+# for WIP commits on private branches.
+#
+# Install: scripts/install.sh git-hooks
+# Activate per-repo: git config core.hooksPath ~/.claude/git-hooks
+
+set -uo pipefail
+
+if [[ "${SKIP_GATE_FAST:-0}" == "1" ]]; then
+    echo "[pre-commit] SKIP_GATE_FAST=1 — bypassing gate" >&2
+    exit 0
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+[[ -z "${REPO_ROOT}" ]] && exit 0
+
+GATE="${REPO_ROOT}/scripts/gate_fast.sh"
+[[ ! -x "${GATE}" ]] && exit 0
+
+echo "[pre-commit] Running ${GATE#${REPO_ROOT}/}..." >&2
+if bash "${GATE}" >/dev/null 2>&1; then
+    exit 0
+fi
+
+echo "[pre-commit] GATE FAST: FAIL — commit refused." >&2
+echo "[pre-commit] Re-run ./scripts/gate_fast.sh for details, or set SKIP_GATE_FAST=1 to override." >&2
+exit 1
