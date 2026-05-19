@@ -76,6 +76,14 @@ for f in "${REPO}/hooks"/*.py; do
     check_symlink "${f}" "${HOME_CLAUDE}/hooks/$(basename "${f}")"
 done
 
+echo "Verifying git-hooks..."
+for f in "${REPO}/shell/git-hooks"/*; do
+    [[ -f "${f}" ]] || continue
+    name="$(basename "${f}")"
+    [[ "${name}" == "README.md" ]] && continue
+    check_symlink "${f}" "${HOME_CLAUDE}/git-hooks/${name}"
+done
+
 echo "Verifying remotes..."
 if [[ "${CI:-}" == "true" ]]; then
     echo "  SKIP  remote verify (CI runner)"

@@ -5,8 +5,8 @@ Current state of the repo. Refreshed at every spec-completion by `/docs`.
 ## Current state
 
 - **Name:** `dev-platform` (GitHub: `teelr/dev-platform`, mounted at `/home/rich/dev/`)
-- **Active spec:** `tasks/dev-platform-migration-spec.md` (v0.9 — Migration Tooling)
-- **Active Roadmap Phase:** **v0.8 SHIPPED** in full (PRs #12–#17 + chore #18, release tag `v0.8` at `ba8565c`, Milestone closed). **v0.9 Phase 1 in flight** on branch `v0.9/phase-1-migration`: renamed 3 legacy R-prefix spec files (`r2-monitoring`, `r3-testing`, `r4a-scaffolding` → clean descriptive names), updated ROADMAP.md + planning.md references. Workflow redesign also shipped this session (workflow chain slimmed to `/plan → /code → /gate fast → commit → push → /pr → CI → /merge`; `/code` now absorbs branch creation, auto-fix, and doc updates).
+- **Active spec:** `tasks/dev-platform-pre-commit-hook-spec.md` (v1.2 — Pre-commit Git Hook)
+- **Active Roadmap Phase:** **v1.1 SHIPPED** (2026-05-16, PR #25). **v1.2 in flight** on branch `v1.2/pre-commit-hook`: ships `shell/git-hooks/pre-commit` + `install.sh git-hooks` category + 5-assertion `tests/git-hooks/` suite. Single-Phase Roadmap Phase per the small-Phase precedent (v0.6). Gate at 158 PASS (+5 from new suite). v0.4 testing-spec's other deferred items (`gate_full.sh` per-template builds, perf benchmarks) stay deferred — no lessons.md entry has surfaced for either gap.
 
 ## Recently shipped
 
@@ -37,10 +37,11 @@ Hashes intentionally omitted — `git log` is the authoritative record; this sec
 - v0.8 Phase 3 — Opt-in Drift Correction + Scope carve-out (2026-05-11, PR #16 squash-merged as commit `8ad429e`): `CLAUDE.md` Scope-rule carve-out ("Exception — v0.8 fleet orchestration (mutating subset)") naming the script + filename + directory — the FIRST mutating Phase of v0.8 and the only one allowed to write under `projects/`. `scripts/fleet-install-template.sh` (~210 lines) — opt-in per-project install, dry-run default, refuse-to-clobber, `--pin` rewrite via in-memory sed (`\b` word boundary + post-rewrite sanity check after /review). `tests/fleet-install/run.sh` (~220 lines, 14 assertions) including the load-bearing path-guard contract. `docs/CI-INTEGRATION.md` new "Automated install (Rich's own projects)" section. **/review caught 1 real BUG** (refuse-to-clobber firing in dry-run too — fixed by gating on `APPLY=1`) + 1 QUALITY fix (sed `\$` anchor → `\b`); rejected one wrong QUALITY claim ("relative-path branch is dead code" — but the production registry uses ONLY relative paths; smoke check caught the regression before push).
 - v0.9 Migration Tooling — **closed** (2026-05-11, PRs #19 + #22 + fix `44d002e`): `scripts/migrate-workflow-chain.sh` (6 sed patterns + perl multi-line variant, dry-run/apply/idempotent) + `scripts/audit-project-drift.sh` (read-only cross-project chain + taxonomy report) + 12-assertion `tests/migration/run.sh`. Gate at 143 PASS. Post-merge chain migrations ran clean (all 5 registry projects CLEAN per audit).
 - v1.0 Feature-Complete Release — **closed** (2026-05-12, PR #23 + chore #24): documentation accuracy pass across `docs/index.md`, `README.md`, `ROADMAP.md`, `planning.md`. Release tag `v1.0` cut; v1.0 Milestone closed; consumer-template pin bumped `@v0.8` → `@v1.0`. Gate at 143 PASS.
+- v1.2 Pre-commit Git Hook — **in flight** (2026-05-19, branch `v1.2/pre-commit-hook`): universal opt-in pre-commit hook converting the /gate-fast-before-commit rule from documentation to mechanical enforcement. `shell/git-hooks/pre-commit` (extension-less, executable) + new `git-hooks` category in `install.sh`/`uninstall.sh`/`verify.sh` + 5-assertion fixture suite at `tests/git-hooks/` covering the cross product of (no-gate / passing / failing) × (default env / `SKIP_GATE_FAST=1`) + install integration. Scope-narrowed from initial 3-Phase proposal (gate_full per-template builds, perf guard) to Phase 1 only after honest re-read — the other two v0.4 deferred items still have no evidence justifying ship. Gate at 158 PASS (+5 from new suite).
 
 ## In flight
 
-Nothing in flight. v1.1 shipped 2026-05-16 (PR #25, squash-merged to main at `1ba4e53`).
+- v1.2 Pre-commit Git Hook on `v1.2/pre-commit-hook` (this session, pre-PR). One bundled commit covering 4 Changes: hook template + install/uninstall/verify extensions + fixture suite + doc closeout. Gate at 158 PASS.
 
 ## Taxonomy migration note (2026-05-11)
 
