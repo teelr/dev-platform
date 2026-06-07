@@ -111,7 +111,7 @@ audit_project() {
     local chain_status
     if [[ "${has_claude_md}" == "NO" ]]; then
         chain_status="NO_CLAUDE_MD"
-    elif grep -qE "/code → /test →|/test → /review" "${claude_md}" 2>/dev/null; then
+    elif grep -qE "/code → /test →|/test → /review|/code → /gate fast" "${claude_md}" 2>/dev/null; then
         chain_status="DRIFT"
     else
         chain_status="CLEAN"

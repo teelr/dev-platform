@@ -31,4 +31,4 @@ npm run lint       # ESLint
 bash scripts/gate_fast.sh   # constitutional + lint + typecheck + taxonomy
 ```
 
-Workflow: `/plan → /code → /test → /review → /gate fast → /docs → commit → push` (see `/home/rich/dev/CLAUDE.md`).
+Workflow: `/plan → /code → /review → /gate fast → commit → push → /pr → CI → /merge → post-merge` (see `/home/rich/dev/CLAUDE.md`).
