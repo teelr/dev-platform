@@ -5,8 +5,8 @@ Current state of the repo. Refreshed at every spec-completion by `/docs`.
 ## Current state
 
 - **Name:** `dev-platform` (GitHub: `teelr/dev-platform`, mounted at `/home/rich/dev/`)
-- **Active spec:** `tasks/dev-platform-pre-commit-hook-spec.md` (v1.2 — Pre-commit Git Hook)
-- **Active Roadmap Phase:** **v1.1 SHIPPED** (2026-05-16, PR #25). **v1.2 in flight** on branch `v1.2/pre-commit-hook`: ships `shell/git-hooks/pre-commit` + `install.sh git-hooks` category + 5-assertion `tests/git-hooks/` suite. Single-Phase Roadmap Phase per the small-Phase precedent (v0.6). Gate at 158 PASS (+5 from new suite). v0.4 testing-spec's other deferred items (`gate_full.sh` per-template builds, perf benchmarks) stay deferred — no lessons.md entry has surfaced for either gap.
+- **Active spec:** `tasks/dev-platform-mandatory-review-spec.md` (v1.3 — Mandatory Review Gate)
+- **Active Roadmap Phase:** **v1.2 SHIPPED** (2026-05-19, PRs #26 + #27). **v1.3 in flight** on branch `v1.3/phase-1-mandatory-review`: promotes `/review` to a mandatory chain step (`/plan → /code → /review → /gate fast → …`) and adds an Adversarial Self-Review step to `/code`. Lockstep doc/command/migration-tooling updates; 5 new `tests/migration/` assertions. Single-Phase Roadmap Phase. Gate at 163 PASS (+5). v0.4 testing-spec's other deferred items (`gate_full.sh` per-template builds, perf benchmarks) stay deferred — no lessons.md entry has surfaced for either gap.
 
 ## Recently shipped
 
@@ -41,7 +41,7 @@ Hashes intentionally omitted — `git log` is the authoritative record; this sec
 
 ## In flight
 
-- v1.2 Pre-commit Git Hook on `v1.2/pre-commit-hook` (this session, pre-PR). One bundled commit covering 4 Changes: hook template + install/uninstall/verify extensions + fixture suite + doc closeout. Gate at 158 PASS.
+- v1.3 Mandatory Review Gate on `v1.3/phase-1-mandatory-review` (this session, pre-PR). One bundled commit covering 9 Changes: `/review` promoted to a mandatory chain step + `/code` Adversarial Self-Review step, propagated in lockstep across `CLAUDE.md`, `settings/claude-global.md`, `commands/{code,review}.md`, `docs/index.md`, `skills/WORKFLOW_MANUAL.md`, three scaffolding READMEs, and the migration tooling (`migrate-workflow-chain.sh` + `audit-project-drift.sh` detect the review-less chain via `/code → /gate` and insert `/review`) + 5 new `tests/migration/` assertions. Gate at 163 PASS. Post-merge: re-run `migrate-workflow-chain.sh --apply` per consumer project to upgrade their chain line. NOTE: `settings/settings.json` carries unrelated pre-existing permission-list drift — must NOT be staged into this commit.
 
 ## Taxonomy migration note (2026-05-11)
 

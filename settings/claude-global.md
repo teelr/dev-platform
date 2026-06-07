@@ -14,7 +14,7 @@ Claude's operating rules — how to act regardless of project. Development stand
 
 **The rule is "STOP and wait", NOT "say nothing about what's next".**
 
-After `/plan`, `/code`, `/gate`, `commit`, `push`, `/pr`, `/merge`, or `post-merge`: report results, state which step is next, then STOP and wait for the user to invoke it explicitly. Do NOT auto-advance.
+After `/plan`, `/code`, `/review`, `/gate`, `commit`, `push`, `/pr`, `/merge`, or `post-merge`: report results, state which step is next, then STOP and wait for the user to invoke it explicitly. Do NOT auto-advance.
 
 Required end-of-step format:
 
@@ -30,7 +30,7 @@ The "Ready for X" line is REQUIRED. What's forbidden is **invoking the next step
 
 Shorthand affirmatives like "fix all", "do it", "go", "yes" authorize the IMMEDIATE action only — never workflow advancement. "Yes" to a /review fix is permission to fix the code, not to run /gate or commit.
 
-The full chain: `/plan → /code → /gate fast → commit → push → /pr → CI → /merge → post-merge`. `/review` is optional for risky/large changes. `/security-review` is optional for changes touching auth, credentials, external input, or new endpoints. `/test` and `/docs` are standalone — `/code` handles verification, auto-fix, and doc updates internally.
+The full chain: `/plan → /code → /review → /gate fast → commit → push → /pr → CI → /merge → post-merge`. `/review` is a mandatory independent review gate on every change. `/security-review` is optional for changes touching auth, credentials, external input, or new endpoints. `/test` and `/docs` are standalone — `/code` handles verification, auto-fix, and doc updates internally.
 
 **No merge before CI green.** `/merge` queries the PR's CI status and refuses on red, pending, or zero-check. No override. Red CI means fix-on-branch-and-re-push, never merge-around. **post-merge** captures any deferred work the spec called out (branch-protection updates, release-tag cuts, cross-project re-installs); no-op if none. post-merge is NOT a slash command — each spec's post-merge is bespoke, the spec is the runbook.
 

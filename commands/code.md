@@ -82,7 +82,27 @@ After all changes are implemented:
 3. Test the end-to-end flow described in the spec
 4. Fix any remaining issues before proceeding to Step 6
 
-## Step 6: Update Project Docs
+## Step 6: Adversarial Self-Review
+
+Before reporting done, re-read your own staged diff as a hostile reviewer who assumes it is broken. This is distinct from Step 5's build/spec verification — it is a fresh-eyes pass over the *diff*, not the spec.
+
+```bash
+git diff --stat
+git diff                     # read the full diff, hunk by hunk
+```
+
+For every hunk, ask:
+
+- **Logic that still compiles but is wrong** — off-by-one, inverted boolean, wrong variable, missing `await`, swapped args.
+- **Edge cases** — empty input, null/undefined, zero-length, first/last element, concurrent access.
+- **Boundary sweep** — if a signature, return type, or call path changed, did EVERY caller in `src/` AND `tests/` get updated? (`grep -rn` the symbol.)
+- **Did I change something the spec didn't ask for?** Revert it.
+- **Did I leave something the spec asked for unimplemented?** Finish it.
+- **Secrets / debug output** — no credentials, no `console.log`, no leftover `print`/`dbg!`.
+
+Fix everything you find here before proceeding — do NOT defer it to `/review`. The self-review is your obligation; `/review` is the independent backstop, not a substitute for reading your own work.
+
+## Step 7: Update Project Docs
 
 Update all project docs to reflect the completed work. This is mandatory — docs ship in the same commit as the code.
 
@@ -125,7 +145,7 @@ git add planning.md ROADMAP.md README.md tasks/lessons.md
 
 **Do NOT commit** — the user runs `git commit` explicitly after `/gate fast` passes.
 
-## Step 7: Security Reminder
+## Step 8: Security Reminder
 
 Before reporting ready, check whether any implemented changes touch:
 
@@ -138,6 +158,14 @@ Before reporting ready, check whether any implemented changes touch:
 If YES to any of the above, include this line in your end-of-step report:
 
 > **Consider `/security-review`** before `/gate fast` — this change touches [auth / credentials / external input / new endpoints].
+
+## Step 9: Report — Next Step Is Mandatory `/review`
+
+`/review` is a mandatory gate in the canonical chain (`/plan → /code → /review → /gate fast → …`), not an optional extra. Your Step 6 adversarial self-review does NOT satisfy it — `/review` is the independent fresh-eyes pass you structurally cannot be.
+
+End your report with:
+
+> Ready for `/review` (mandatory) → then `/gate fast`.
 
 ## Rules
 

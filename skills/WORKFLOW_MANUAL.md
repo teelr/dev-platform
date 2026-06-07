@@ -131,7 +131,13 @@ No arguments needed — it reads your staged git diff automatically.
 
 ## Workflow: Full Feature Development
 
-The standard workflow for any feature across any project:
+The canonical chain for any feature across any project:
+
+```text
+/plan → /code → /review → /gate fast → commit → push → /pr → CI → /merge → post-merge
+```
+
+`/review` is **mandatory** on every change — it runs after `/code` and before `/gate fast`. `/test` and `/docs` are standalone helpers, not gates in the chain.
 
 ### Step 1: Plan
 
@@ -149,21 +155,21 @@ Review the spec at `tasks/{feature}-spec.md`. Edit it if needed.
 
 Watch it implement task by task. It will flag any spec issues.
 
-### Step 3: Test
+### Step 3: Test (standalone — optional)
 
 ```
 /test tasks/{feature}-spec.md
 ```
 
-Review the QC report. If there are failures, go back to Step 2.
+Review the QC report. If there are failures, go back to Step 2. `/test` is a standalone validator, not a gate in the chain — `/code` verifies as it goes, so run `/test` only when you want a separate spec-conformance pass.
 
-### Step 4: Review
+### Step 4: Review (mandatory)
 
 ```
 /review
 ```
 
-Stage your changes (`git add`), then run review. Fix any SECURITY or BUG issues.
+Stage your changes (`git add`), then run review. **Mandatory on every change** — it runs after `/code` and before `/gate fast`. Auto-fixes SECURITY / BUG / COMPLIANCE / QUALITY; surfaces ARCHITECTURE for your decision.
 
 ### Step 5: Commit
 
@@ -175,10 +181,10 @@ Push to GitHub. Create a PR if on a feature branch.
 
 ## Workflow: Quick Fix (No Spec Needed)
 
-For small bug fixes or trivial changes, skip the spec:
+For small bug fixes or trivial changes, skip the spec — but `/review` is still mandatory:
 
 1. Make the fix directly
-2. Run `/review` before committing
+2. `/review` → `/gate fast`
 3. Commit
 
 ## Workflow: Existing Codebase Audit

@@ -20,7 +20,7 @@ All development standards for projects in `/home/rich/dev/projects/`. This is th
 
 - `scripts/new-project.sh` may scaffold a new project tree under `projects/<new-name>/`. Conversational Q&A pattern in `docs/NEW-PROJECT.md`.
 - `scripts/fleet-install-template.sh` (v0.8+) may write the dev-platform CI integration files (`.github/workflows/dev-platform-gate.yml`) into a project. All other writes to `projects/` remain forbidden.
-- `scripts/migrate-workflow-chain.sh` (v0.9 migration tooling) may rewrite the workflow chain line(s) inside a project's `CLAUDE.md`. Detects lines matching the old chain pattern (`/plan → /code → /test`) and rewrites them to the canonical chain (`/plan → /code → /gate fast → commit → push → /pr → CI → /merge → post-merge`). All other content in the project's `CLAUDE.md` is left untouched. Opt-in (`--apply` flag required), dry-run by default, idempotent. Future chain updates require updating this entry — not a general "migration scripts may edit CLAUDE.md" loophole.
+- `scripts/migrate-workflow-chain.sh` (v0.9 migration tooling) may rewrite the workflow chain line(s) inside a project's `CLAUDE.md`. Detects lines matching a superseded chain pattern — either the legacy `/test`-bearing chain (`/plan → /code → /test`) or any chain that omits the mandatory `/review` gate — and rewrites them to the canonical chain (`/plan → /code → /review → /gate fast → commit → push → /pr → CI → /merge → post-merge`). All other content in the project's `CLAUDE.md` is left untouched. Opt-in (`--apply` flag required), dry-run by default, idempotent. Future chain updates require updating this entry — not a general "migration scripts may edit CLAUDE.md" loophole.
 
 ## Consistency Across All Projects — Non-Negotiable
 
@@ -28,7 +28,7 @@ All development standards for projects in `/home/rich/dev/projects/`. This is th
 
 **What dev-platform owns (no project may diverge):**
 
-- **Dev workflow** — `/plan → /code → /gate fast → commit → push → /pr → CI → /merge → post-merge`. `/review` optional for risky changes. `/code` handles verification, auto-fix, and doc updates internally.
+- **Dev workflow** — `/plan → /code → /review → /gate fast → commit → push → /pr → CI → /merge → post-merge`. `/review` is a mandatory independent review gate on every change. `/code` handles verification, auto-fix, and doc updates internally; `/review` is the independent fresh-eyes pass `/code` cannot be.
 - **Workflow taxonomy** — Roadmap Phase → Spec → Spec Phase → Change → Commit. Killed terms (Stage, Sprint, Iteration, Revision, Milestone, Group, Epic, Step, Item, Task) never used as workflow-level labels.
 - **Language Architecture Decision Matrix** — network → Go, compute → Rust, AI → Python, frontend → TypeScript.
 - **Slash commands** — `/plan`, `/code`, `/test`, `/review`, `/gate`, `/docs`, `/pr`, `/merge`, `/dev`, `/loop`, `/smoke_test`.
@@ -91,11 +91,12 @@ Each step requires the user to invoke it. Completing one step does NOT mean star
 **Standard chain:**
 
 ```text
-/plan → /code → /gate fast → commit → push → /pr → CI → /merge → post-merge
+/plan → /code → /review → /gate fast → commit → push → /pr → CI → /merge → post-merge
 ```
 
 - **`/plan`** — Spec before code. Auto-creates the feature branch.
 - **`/code`** — Implements Change by Change with auto-fix. Updates project docs (planning.md, ROADMAP.md, README.md, lessons.md) as its final step. Feature code + doc updates commit together.
+- **`/review`** — Independent fresh-eyes pass on the staged diff. Catches logic errors that still compile, edge cases, and security issues a green build won't surface. Auto-fixes SECURITY / BUG / COMPLIANCE / QUALITY; surfaces ARCHITECTURE for user decision. **Mandatory on every change.**
 - **`/gate fast`** — Constitutional checks + unit tests + smoke_fast. Must PASS before commit. (dev-platform: `./scripts/gate_fast.sh`)
 - **commit** — One atomic commit. Conventional format: `feat:`, `fix:`, etc.
 - **push** — Push the feature branch.
@@ -106,14 +107,13 @@ Each step requires the user to invoke it. Completing one step does NOT mean star
 
 **Optional steps:**
 
-- **`/review`** — For risky/large changes: between `/code` and `/gate fast`.
-- **`/security-review`** — For changes touching auth, credentials, external input, or new endpoints: between `/code` and `/gate fast`.
+- **`/security-review`** — For changes touching auth, credentials, external input, or new endpoints: between `/review` and `/gate fast`.
 - **`/test`** — Standalone spec validation. Not required when `/code` verifies as it goes.
 - **`/docs`** — Standalone doc update. Recovery only — `/code` handles it normally.
 
 **NEVER commit before `/gate fast` passes. NEVER merge before CI green.**
 
-**Quick fixes:** fix → `/gate fast` → commit → push → `/pr` → CI → `/merge`.
+**Quick fixes:** fix → `/review` → `/gate fast` → commit → push → `/pr` → CI → `/merge`.
 
 **Plan mode default:** Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions). If something goes sideways, STOP and re-plan.
 
@@ -339,4 +339,4 @@ For a new slash command / skill / hook / setting: (1) write the file in the corr
 - **Cascade verification** — Parent delete handles all children explicitly.
 - **Horizontal tracing** — Every endpoint traced through all layers before marking complete.
 - **Create and delete together** — Same work session.
-- **Dev workflow** — `/plan → /code → /gate fast → commit → push → /pr → CI → /merge → post-merge` for features. Quick fixes: `/gate fast` → commit → push → `/pr` → CI → `/merge`. `/review` optional for risky changes.
+- **Dev workflow** — `/plan → /code → /review → /gate fast → commit → push → /pr → CI → /merge → post-merge` for features. Quick fixes: `/review → /gate fast` → commit → push → `/pr` → CI → `/merge`. `/review` is mandatory on every change.

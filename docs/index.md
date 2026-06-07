@@ -18,6 +18,6 @@ See [Releases](https://github.com/teelr/dev-platform/releases). `v0.9` (Migratio
 
 ## Workflow
 
-`/plan → /code → /gate fast → commit → push → /pr → CI → /merge → post-merge`
+`/plan → /code → /review → /gate fast → commit → push → /pr → CI → /merge → post-merge`
 
 Each step is mechanical and reproducible. See [CLAUDE.md](../CLAUDE.md) for the full discipline.

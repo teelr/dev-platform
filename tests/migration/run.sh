@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tests/migration/run.sh — fixture suite for v0.9 Phase 2 migration tooling.
 # Validates migrate-workflow-chain.sh and audit-project-drift.sh against
-# mock project trees under mktemp. 12 assertions.
+# mock project trees under mktemp. 17 assertions.
 #
 # Auto-discovered by scripts/gate_fast.sh per the v0.4 contract.
 
@@ -23,7 +23,7 @@ trap "rm -rf '${TMP}'" EXIT
 MOCK_ROOT="${TMP}/mock-projects"
 mkdir -p "${MOCK_ROOT}"
 
-NEW_CHAIN="/plan → /code → /gate fast → commit → push → /pr → CI → /merge → post-merge"
+NEW_CHAIN="/plan → /code → /review → /gate fast → commit → push → /pr → CI → /merge → post-merge"
 
 # ─── Mock project: clean-1 ────────────────────────────────────────────────
 # CLAUDE.md with new canonical chain. No drift.
@@ -80,6 +80,18 @@ cat > "${MOCK_ROOT}/taxonomy-drift-1/ROADMAP.md" <<'EOF'
 Some content here.
 EOF
 
+# ─── Mock project: review-less-1 ─────────────────────────────────────────
+# CLAUDE.md on the prior review-less canonical chain (post-v0.9, pre-v1.3).
+# This is the upgrade path v1.3 consumers undergo: insert /review.
+mkdir -p "${MOCK_ROOT}/review-less-1/tasks"
+cat > "${MOCK_ROOT}/review-less-1/CLAUDE.md" <<'EOF'
+# Review-less Project
+
+## Dev Workflow
+
+Follow: /plan → /code → /gate fast → commit → push → /pr → CI → /merge → post-merge
+EOF
+
 # ─── Mock registry ───────────────────────────────────────────────────────
 MOCK_REGISTRY="${TMP}/registry.json"
 cat > "${MOCK_REGISTRY}" <<EOF
@@ -88,7 +100,8 @@ cat > "${MOCK_REGISTRY}" <<EOF
   {"name": "old-chain-1",     "path": "${MOCK_ROOT}/old-chain-1",     "gate_cmd": "true", "primary_language": "bash", "enabled": true},
   {"name": "old-chain-2",     "path": "${MOCK_ROOT}/old-chain-2",     "gate_cmd": "true", "primary_language": "bash", "enabled": true},
   {"name": "no-claude-1",     "path": "${MOCK_ROOT}/no-claude-1",     "gate_cmd": "true", "primary_language": "bash", "enabled": true},
-  {"name": "taxonomy-drift-1","path": "${MOCK_ROOT}/taxonomy-drift-1","gate_cmd": "true", "primary_language": "bash", "enabled": true}
+  {"name": "taxonomy-drift-1","path": "${MOCK_ROOT}/taxonomy-drift-1","gate_cmd": "true", "primary_language": "bash", "enabled": true},
+  {"name": "review-less-1",   "path": "${MOCK_ROOT}/review-less-1",   "gate_cmd": "true", "primary_language": "bash", "enabled": true}
 ]
 EOF
 
@@ -200,4 +213,48 @@ if [[ "${old2_present}" -eq 0 ]] && [[ "${new2_present}" -gt 0 ]]; then
     record_pass "migration: --apply on old-chain-2 rewrites the /test → /review → commit variant"
 else
     record_fail "migration: --apply on old-chain-2 failed — old_remaining=${old2_present}, new_present=${new2_present}"
+fi
+
+# ─── Check 13: audit flags review-less-1 as CHAIN=DRIFT (v1.3 upgrade path) ─
+audit_out="$("${AUDIT}" --project review-less-1 --registry "${MOCK_REGISTRY}" 2>&1)"
+if echo "${audit_out}" | grep -q "review-less-1" && echo "${audit_out}" | grep -q "DRIFT"; then
+    record_pass "migration: audit reports review-less-1 (no /review) as CHAIN=DRIFT"
+else
+    record_fail "migration: audit did not flag review-less chain — output: ${audit_out}"
+fi
+
+# ─── Check 14: dry-run on review-less-1 shows /review insert, writes nothing ─
+hash_before="$(sha256sum "${MOCK_ROOT}/review-less-1/CLAUDE.md" | awk '{print $1}')"
+dry_out="$("${MIGRATE}" --project review-less-1 --registry "${MOCK_REGISTRY}" 2>&1)"
+hash_after="$(sha256sum "${MOCK_ROOT}/review-less-1/CLAUDE.md" | awk '{print $1}')"
+if echo "${dry_out}" | grep -q "^+.*/code → /review → /gate fast" && [[ "${hash_before}" == "${hash_after}" ]]; then
+    record_pass "migration: dry-run on review-less-1 shows /review insert and writes nothing"
+else
+    record_fail "migration: review-less dry-run broken — diff_shows_insert=$(echo "${dry_out}" | grep -q "^+.*/code → /review → /gate fast" && echo yes || echo no), file_changed=$([[ "${hash_before}" != "${hash_after}" ]] && echo yes || echo no)"
+fi
+
+# ─── Check 15: --apply on review-less-1 inserts /review ──────────────────
+"${MIGRATE}" --project review-less-1 --registry "${MOCK_REGISTRY}" --apply >/dev/null 2>&1
+reviewful_present="$(grep -c "/code → /review → /gate fast" "${MOCK_ROOT}/review-less-1/CLAUDE.md" 2>/dev/null)" || reviewful_present=0
+reviewless_remaining="$(grep -cE "/code → /gate" "${MOCK_ROOT}/review-less-1/CLAUDE.md" 2>/dev/null)" || reviewless_remaining=0
+if [[ "${reviewful_present}" -gt 0 ]] && [[ "${reviewless_remaining}" -eq 0 ]]; then
+    record_pass "migration: --apply on review-less-1 inserts /review into the chain"
+else
+    record_fail "migration: review-less --apply failed — reviewful=${reviewful_present}, reviewless_remaining=${reviewless_remaining}"
+fi
+
+# ─── Check 16: second --apply on review-less-1 is idempotent ─────────────
+second_out="$("${MIGRATE}" --project review-less-1 --registry "${MOCK_REGISTRY}" --apply 2>&1)"
+if echo "${second_out}" | grep -q "already up-to-date"; then
+    record_pass "migration: second --apply on review-less-1 is idempotent (already up-to-date)"
+else
+    record_fail "migration: review-less idempotency check failed — output: ${second_out}"
+fi
+
+# ─── Check 17: review-ful clean-1 is NOT falsely flagged as drift ────────
+audit_out="$("${AUDIT}" --project clean-1 --registry "${MOCK_REGISTRY}" 2>&1)"
+if echo "${audit_out}" | grep -q "clean-1" && echo "${audit_out}" | grep -q "CLEAN"; then
+    record_pass "migration: audit reports review-ful clean-1 as CHAIN=CLEAN (no false flag)"
+else
+    record_fail "migration: review-ful chain falsely flagged — output: ${audit_out}"
 fi

@@ -22,7 +22,7 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REGISTRY="${REPO_ROOT}/monitoring/projects.json"
 
-NEW_CHAIN="/plan → /code → /gate fast → commit → push → /pr → CI → /merge → post-merge"
+NEW_CHAIN="/plan → /code → /review → /gate fast → commit → push → /pr → CI → /merge → post-merge"
 
 PROJECT=""
 APPLY=0
@@ -56,8 +56,9 @@ Options:
   --registry <path>   Override registry path (for tests).
   --help, -h          Show this help.
 
-Detection: any line containing "/code → /test" or "/test → /review"
-is treated as an old-chain reference and rewritten.
+Detection: any line containing "/code → /test", "/test → /review", or a
+review-less chain ("/code → /gate fast" with no "/review" between) is treated
+as a superseded chain reference and rewritten.
 
 The script rewrites EXACTLY the workflow chain line(s) in:
   <project_path>/CLAUDE.md
@@ -104,7 +105,12 @@ fi
 
 # Check if any old-chain patterns are present.
 # Pattern requires trailing " →" after /test to avoid matching carve-out documentation.
-if ! grep -qE "/code → /test →|/test → /review" "${claude_md}"; then
+# The "/code → /gate fast" alternative catches the review-less canonical chain
+# (the review-ful chain reads "/code → /review → /gate fast", which does NOT
+# contain it). It is matched exactly — never the bare "/code → /gate" — so
+# detection stays symmetric with the insert rewrite below (which only rewrites
+# "/code → /gate fast"); a broader pattern would flag chains it cannot fix.
+if ! grep -qE "/code → /test →|/test → /review|/code → /gate fast" "${claude_md}"; then
     echo "migrate-workflow-chain — project=${PROJECT}"
     echo "  CLAUDE.md: ${claude_md}"
     echo "  Status:    already up-to-date"
@@ -128,6 +134,7 @@ apply_rewrite() {
         -e "s|/plan → /code → /test → /review → /gate → /docs → commit → push|${NEW_CHAIN}|g" \
         -e "s|/plan → /code → /test → /review → commit|${NEW_CHAIN}|g" \
         -e "s|/plan → /code → /test → /gate → /docs → release|${NEW_CHAIN}|g" \
+        -e "s|/code → /gate fast|/code → /review → /gate fast|g" \
         "${file}"
 }
 
@@ -150,7 +157,7 @@ else
     apply_rewrite "${claude_md}"
 
     # Idempotency guard: old patterns must be gone after rewrite.
-    if grep -qE "/code → /test →|/test → /review" "${claude_md}"; then
+    if grep -qE "/code → /test →|/test → /review|/code → /gate fast" "${claude_md}"; then
         echo "ERROR: sed rewrite incomplete — old chain pattern still present in ${claude_md}" >&2
         echo "       A new chain variant may exist that this script does not cover." >&2
         exit 1
