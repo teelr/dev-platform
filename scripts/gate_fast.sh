@@ -20,6 +20,15 @@ trap "rm -f '${_GATE_COUNTS_FILE}'" EXIT
 # shellcheck disable=SC1091
 source "${REPO}/tests/helpers/assert.sh"
 
+# Take-turns lock (v1.4): serialize the live ~/.claude/ verify across concurrent
+# gates so two worktree sessions don't race on the shared deploy. Prefer the
+# deployed copy; fall back to the tracked source (e.g. on a CI runner with no
+# ~/.claude/).
+_LOCK_HELPER="${HOME}/.claude/worktree/gate-lock.sh"
+[[ -f "${_LOCK_HELPER}" ]] || _LOCK_HELPER="${REPO}/shell/worktree/gate-lock.sh"
+# shellcheck disable=SC1090
+source "${_LOCK_HELPER}"
+
 START=$(date +%s)
 echo "=== gate fast ==="
 echo ""
@@ -79,7 +88,7 @@ fi
 # environment-dependent.
 if [[ ! -d "${HOME}/.claude" ]]; then
     record_skip "live ~/.claude/ verify (no ~/.claude/ — likely CI runner)"
-elif bash "${REPO}/scripts/verify.sh" >/dev/null 2>&1; then
+elif with_gate_lock bash "${REPO}/scripts/verify.sh" >/dev/null 2>&1; then
     record_pass "live ~/.claude/ verify"
 else
     record_fail "live ~/.claude/ verify (drift — run scripts/verify.sh for details)"

@@ -14,6 +14,7 @@
 #   ./scripts/install.sh hooks
 #   ./scripts/install.sh vscode
 #   ./scripts/install.sh git-hooks  # v1.2 — opt-in pre-commit hook
+#   ./scripts/install.sh worktree   # v1.4 — worktree isolation tooling
 #
 # Idempotent — running twice produces the same state.
 
@@ -206,6 +207,24 @@ install_git_hooks() {
     echo "             git config core.hooksPath ${HOME_CLAUDE}/git-hooks"
 }
 
+install_worktree() {
+    # v1.4 — worktree isolation tooling. Symlinks each tracked file under
+    # shell/worktree/ into ~/.claude/worktree/ so /code and project gate
+    # scripts can reference them by absolute path. README.md is directory
+    # documentation, not a deployable, so we skip it (same pattern as
+    # install_commands / install_git_hooks).
+    mkdir -p "${HOME_CLAUDE}/worktree"
+    local count=0
+    for f in "${REPO}/shell/worktree"/*; do
+        [[ -f "${f}" ]] || continue
+        local name; name="$(basename "${f}")"
+        [[ "${name}" == "README.md" ]] && continue
+        link_file "${f}" "${HOME_CLAUDE}/worktree/${name}"
+        count=$((count + 1))
+    done
+    echo "  worktree: ${count} files linked to ${HOME_CLAUDE}/worktree/"
+}
+
 case "${CATEGORY}" in
     commands)   install_commands ;;
     skills)     install_skills ;;
@@ -213,9 +232,10 @@ case "${CATEGORY}" in
     hooks)      install_hooks ;;
     vscode)     install_vscode ;;
     git-hooks)  install_git_hooks ;;
-    all)        install_commands; install_skills; install_settings; install_hooks; install_vscode; install_git_hooks ;;
+    worktree)   install_worktree ;;
+    all)        install_commands; install_skills; install_settings; install_hooks; install_vscode; install_git_hooks; install_worktree ;;
     *)          echo "Unknown category: ${CATEGORY}" >&2
-                echo "Usage: $0 [commands|skills|settings|hooks|vscode|git-hooks|all]" >&2
+                echo "Usage: $0 [commands|skills|settings|hooks|vscode|git-hooks|worktree|all]" >&2
                 exit 1 ;;
 esac
 

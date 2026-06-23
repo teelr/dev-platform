@@ -24,7 +24,7 @@ The install script symlinks tracked files from this repo into `~/.claude/`. Edit
 | `extensions/` | IDE config. `vscode/server-extensions.json` is the tracked extension list; `scripts/install.sh vscode` reinstalls them all; `scripts/sync-vscode.sh` captures/deploys/diffs. Client-side coverage deferred to v0.6b. |
 | `scaffolding/` | New-project starter templates (`go-service`, `python-agent`, `next-frontend`). `scripts/new-project.sh` scaffolds from a template via conversational Q&A; see `docs/NEW-PROJECT.md`. |
 | `monitoring/` | Workflow telemetry — JSON Schema for events (`schemas/event-v1.json`), aggregator (`aggregator.py`), metrics catalog (`metrics.md`). CLI entry: `scripts/report.sh`. |
-| `shell/` | Shell helpers, git-hook templates |
+| `shell/` | Shell helpers, git-hook templates, worktree-isolation tooling (`shell/worktree/`, v1.4) |
 | `scripts/` | Install / uninstall / verify scripts; spec-taxonomy checker |
 | `tasks/` | Spec files (output of `/plan`) |
 | `docs/` | Long-form architecture and how-to docs |
@@ -35,7 +35,7 @@ Each directory has a `README.md` documenting its contract — read that before a
 
 The tracked file is the source of truth. Edit it in this repo, run `./scripts/install.sh` (or `./scripts/install.sh <category>` for a single category), restart Claude Code. Editing under `~/.claude/` directly is overwritten on next install — don't edit there.
 
-`./scripts/install.sh` accepts: `commands`, `skills`, `settings`, `hooks`, `vscode`, `git-hooks` (v1.2 — opt-in pre-commit hook), or `all` (default).
+`./scripts/install.sh` accepts: `commands`, `skills`, `settings`, `hooks`, `vscode`, `git-hooks` (v1.2 — opt-in pre-commit hook), `worktree` (v1.4 — concurrent-dev isolation tooling), or `all` (default).
 
 ## Verifying deployment
 

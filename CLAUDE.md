@@ -331,7 +331,7 @@ Every project CLAUDE.md follows `docs/PROJECT_CLAUDE_TEMPLATE.md`.
 | `extensions/` | IDE config (`vscode/server-extensions.json` is the tracked extension list; `scripts/install.sh vscode` reinstalls them all; `scripts/sync-vscode.sh` is the capture/deploy/diff helper) |
 | `scaffolding/` | New-project templates |
 | `monitoring/` | Workflow telemetry |
-| `shell/` | Shell helpers, git-hook templates |
+| `shell/` | Shell helpers, git-hook templates, worktree-isolation tooling (`shell/worktree/`) |
 | `scripts/` | Install / uninstall / verify; `gate_fast.sh` orchestrator; spec-taxonomy checker |
 | `tests/` | Constitutional gate-fast fixtures + per-suite runners |
 | `tasks/` | Spec files |
