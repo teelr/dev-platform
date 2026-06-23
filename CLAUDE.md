@@ -57,6 +57,18 @@ All development standards for projects in `/home/rich/dev/projects/`. This is th
 - When referencing code, include `file_path:line_number`.
 - No emojis unless explicitly asked.
 
+### Plain Language — No Jargon, No Cute BS
+
+Write the way an experienced engineer talks in a PR review or a standup: plain, concrete, unadorned. This applies to chat replies AND to anything a human reads (PR bodies, reports, status updates).
+
+- **Use real words and standard terms.** "a branch", "its own copy of the repo", "a lock so two don't run at once", "the test database". Not coined or capitalized labels for ordinary things.
+- **Name the actual thing.** "the backend on 8402", "the Postgres on 5436", "two chats editing the same folder" — not "the shared persistence layer" or "concurrent session contention".
+- **No invented vocabulary and no cute framing.** Drop "Goldilocks", "the honest truth is", playful section headers, and marketing adjectives ("powerful", "elegant", "seamless", "robust", "first-class").
+- **Define a term only if the reader might not know it** — one short clause the first time, then use it plainly. Don't explain terms a working dev already knows.
+- **Read it back before sending.** If a sentence sounds like a product page or a whitepaper, rewrite it the way you'd say it out loud to a teammate.
+
+(Note: this targets prose and chat. The locked workflow taxonomy — Roadmap Phase, Spec, Change, etc. — stays; those are defined terms enforced by tooling, not cute coinings.)
+
 ## Honesty About What Ships
 
 **CRITICAL — NEVER overstate what a project actually has.**

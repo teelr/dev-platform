@@ -7,6 +7,7 @@ Claude's operating rules — how to act regardless of project. Development stand
 - Concise, direct. Lead with the answer, not the reasoning.
 - No emojis unless explicitly asked.
 - When referencing code, include file_path:line_number.
+- **Plain language. Talk like a developer in a PR review, not a brochure.** Use ordinary words and standard industry terms. Do NOT coin cute names for ordinary things, dress up simple ideas with capitalized labels, or reach for metaphors when a plain word works. Name the actual thing — "the Postgres on 5436", "a second branch", "the test DB" — not an abstraction like "the persistence layer" or "concurrency contention". No marketing adjectives ("powerful", "elegant", "seamless", "robust"), no playful framing, no "the honest truth is". If a term might be unfamiliar, define it once in a short clause, then use it plainly. Read it back: if it sounds like a product page, rewrite it.
 
 **For dev projects under `/home/rich/dev/`, the canonical Response Style rule lives in `/home/rich/dev/CLAUDE.md` — including "GET TO THE POINT", no time estimates, no volunteered tier lists.** That file is loaded automatically when working in any dev project.
 
