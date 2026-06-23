@@ -1,7 +1,7 @@
 ---
 description: Implement a coding spec file task by task with verification after each step. Use after /plan has produced a spec.
 argument-hint: "<path-to-spec-file>"
-allowed-tools: Read, Grep, Glob, Write, Edit, Bash, TodoWrite
+allowed-tools: Read, Grep, Glob, Write, Edit, Bash, TodoWrite, EnterWorktree
 ---
 
 # Coding Agent
@@ -19,21 +19,46 @@ Implement the spec at: **$ARGUMENTS**
 3. Read `~/.claude/CLAUDE.md` (global rules — MANDATORY, contains the Language Architecture Decision Matrix)
 4. Read any files referenced in the spec to understand current state
 
-**Branch auto-creation:** If the current branch is `main`, create a feature branch before writing any code:
+**Branch auto-creation:** If the current branch is `main`, start a fresh place to work before writing any code:
 
 ```bash
 git branch --show-current   # confirm we're on main
 ```
 
-If on `main`:
+If on `main`, first derive the branch name (same as always):
 
 - Read `./planning.md` to find the active roadmap phase (e.g. `v0.9`)
 - Derive the slug from the spec filename: `tasks/foo-bar-spec.md` → `foo-bar`; strip any `{project}-` prefix if present
 - Determine the Phase number: 1 for a fresh spec; for subsequent Phases, check `git log --oneline` for prior phase branches and increment
-- Create and check out: `git checkout -b v<X.Y>/phase-<N>-<slug>`
-- Report the branch name before proceeding
+- The branch name is `v<X.Y>/phase-<N>-<slug>`
 
-If already on a feature branch, skip branch creation and proceed.
+Then pick the mode by checking for the project's worktree opt-in marker:
+
+```bash
+test -f .claude/worktree-deps && echo "worktree mode" || echo "branch mode"
+```
+
+**Branch mode** (no `.claude/worktree-deps` — the default for most projects, including dev-platform itself): create and check out the branch exactly as before, then report it.
+
+```bash
+git checkout -b v<X.Y>/phase-<N>-<slug>
+```
+
+**Worktree mode** (`.claude/worktree-deps` exists — opted-in projects that run more than one chat at once, e.g. Kermit, Kermit PA, Keystone, SQRL): each chat works in its own copy of the repo so two chats never share a working tree. Do this:
+
+1. Record the main checkout path first: `MAIN=$(git rev-parse --show-toplevel)`.
+2. Call the **`EnterWorktree` tool** with `name` set to the branch name (e.g. `v1.4/phase-1-foo`). It creates `.claude/worktrees/v1.4/phase-1-foo` on a fresh branch off `origin/<default>` and switches this session into it. Do NOT run `git worktree add` by hand — the tool also re-roots the session, so your later edits land in the worktree automatically.
+3. Link the project's heavy git-ignored files (`.env`, `node_modules`, ...) into the worktree so the app can run:
+
+   ```bash
+   bash "${HOME}/.claude/worktree/link-deps.sh" "${MAIN}" "$(pwd)"
+   ```
+
+4. Report the worktree path, the branch name, and what got linked.
+
+Worktree mode is opt-in via the project's committed `.claude/worktree-deps` file (see `shell/worktree/README.md`). `/merge` tears the worktree down after the PR lands.
+
+If already in a worktree or already on a feature branch, skip creation and proceed.
 
 ## Step 2: Create Todo List
 

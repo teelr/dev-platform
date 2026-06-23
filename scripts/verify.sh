@@ -84,6 +84,14 @@ for f in "${REPO}/shell/git-hooks"/*; do
     check_symlink "${f}" "${HOME_CLAUDE}/git-hooks/${name}"
 done
 
+echo "Verifying worktree..."
+for f in "${REPO}/shell/worktree"/*; do
+    [[ -f "${f}" ]] || continue
+    name="$(basename "${f}")"
+    [[ "${name}" == "README.md" ]] && continue
+    check_symlink "${f}" "${HOME_CLAUDE}/worktree/${name}"
+done
+
 echo "Verifying remotes..."
 if [[ "${CI:-}" == "true" ]]; then
     echo "  SKIP  remote verify (CI runner)"

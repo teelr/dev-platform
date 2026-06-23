@@ -1,6 +1,6 @@
 ---
 description: Squash-merge the current branch's PR into main, but ONLY after verifying CI is green. Mechanically enforces the no-merge-before-CI-green rule. Pulls main + deletes branch on both sides.
-allowed-tools: Bash
+allowed-tools: Bash, ExitWorktree
 ---
 
 # Merge Agent
@@ -66,21 +66,48 @@ gh pr view "${PR_NUM}" --json mergeable,mergeStateStatus
 
 ## Step 4: Squash-merge
 
+Before merging, detect whether this session is inside a worktree (the v1.4 worktree workflow — only opted-in projects). Record what you'll need for teardown in Step 5:
+
+```bash
+IN_WORKTREE=0
+if [[ "$(git rev-parse --is-inside-work-tree 2>/dev/null)" == "true" && "$(git rev-parse --show-toplevel)" == *"/.claude/worktrees/"* ]]; then
+    IN_WORKTREE=1
+    WT="$(git rev-parse --show-toplevel)"   # worktree dir to remove later
+    BR="$(git branch --show-current)"        # branch the worktree holds
+fi
+```
+
+Then squash-merge:
+
 ```bash
 gh pr merge "${PR_NUM}" --squash --delete-branch
 ```
 
-The `--delete-branch` flag deletes both the remote AND local branch (gh does both by default).
+The `--delete-branch` flag deletes the remote branch (and the local branch in branch mode). In worktree mode gh may warn it can't delete the local branch while the worktree holds it — that's expected and handled in Step 5.
 
 If `gh pr merge` errors, report verbatim and STOP. Don't retry.
 
 ## Step 5: Sync local main
 
+**Branch mode** (`IN_WORKTREE=0` — the default): fast-forward local main in place.
+
 ```bash
 git checkout main && git pull --ff-only
 ```
 
-This fetches the squash-merge commit + any other recent commits, fast-forwards local main. The branch deletion from Step 4 already happened.
+**Worktree mode** (`IN_WORKTREE=1`): the session is inside `.claude/worktrees/<branch>`, and git won't let you `checkout main` there (main is checked out in the main working tree). Return the session to the main checkout first, then sync and remove the now-merged worktree:
+
+1. Call the **`ExitWorktree` tool** with `action: "keep"`. Use `keep`, not `remove` — after a squash-merge the branch's commits aren't present as commits, so `remove` would hit the unmerged-changes refusal. `keep` returns the session to the main checkout cleanly.
+2. In the main checkout:
+
+   ```bash
+   git checkout main && git pull --ff-only
+   git worktree remove --force "${WT}"        # drop the now-merged worktree
+   git branch -D "${BR}" 2>/dev/null || true  # drop the local branch gh couldn't
+   git worktree prune
+   ```
+
+Either way, this fetches the squash-merge commit and fast-forwards local main. The remote branch deletion from Step 4 already happened.
 
 ## Step 6: Report + prompt next step
 
@@ -88,6 +115,7 @@ Print:
 
 - The merge commit SHA (`git rev-parse HEAD`)
 - The PR URL (for reference)
+- In worktree mode: that the worktree was removed and the session is back in the main checkout.
 - A REMINDER about the post-merge step:
   - Read the spec for the just-merged PR (look at `tasks/*-spec.md` files added/modified in `git diff HEAD~1 --name-only`).
   - If the spec has a "Post-merge step" section, list its actions briefly so the user knows what to invoke.

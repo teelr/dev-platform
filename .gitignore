@@ -114,6 +114,11 @@ tests/**
 # so allow every file inside shell/git-hooks/ rather than per-extension.
 !shell/**/
 !shell/git-hooks/*
+# v1.4: worktree isolation tooling lives under shell/worktree/ (link-deps.sh,
+# gate-lock.sh, README.md). Top-level !shell/*.sh / !shell/*.md don't reach
+# subdirectories, so allow every file inside shell/worktree/ (same shape as
+# the shell/git-hooks/ rule above).
+!shell/worktree/*
 # Tests allow-list — fixtures (json/jsonl/md/txt) + runners (sh) + Python
 # assertion helpers (py) at any depth. py + jsonl added in v0.5 Phase 4 for
 # tests/monitoring/.
