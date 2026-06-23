@@ -23,4 +23,4 @@ on:
 
 jobs:
   taxonomy:
-    uses: teelr/dev-platform/.github/workflows/taxonomy-check.yml@v1.3
+    uses: teelr/dev-platform/.github/workflows/taxonomy-check.yml@v1.4
