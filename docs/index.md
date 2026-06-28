@@ -11,6 +11,7 @@ Source of truth for Rich's developer environment: rules, slash commands, skills,
 - **[CI Integration](CI-INTEGRATION.md)** — how to plug your repo into dev-platform's taxonomy gate
 - **[New Project](NEW-PROJECT.md)** — conversational Q&A for scaffolding new projects
 - **[Project CLAUDE.md template](PROJECT_CLAUDE_TEMPLATE.md)** — what every project's CLAUDE.md should contain
+- **[Cross-Repo Comms](CROSS-REPO-COMMS.md)** — how a consumer (PA/Keystone/ATLAS) files asks against a dependency (GitHub issues, not file-relay)
 
 ## Latest release
 
