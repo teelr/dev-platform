@@ -75,19 +75,66 @@ still open" — none of which a pile of markdown files across two repos provides
 - **Consumer status** — what the consumer shipped (usually: gated off, no
   workaround), so the team knows nothing is blocked on their side.
 
-## Outbound from the dependency (releases / broadcasts)
+## Outbound from the dependency (the dependency telling consumers about versions)
 
-The mirror direction — the dependency telling consumers about new versions —
-should use **GitHub Releases + release notes**, with consumers watching the repo
-or running Dependabot/Renovate, rather than hand-written broadcast docs relayed
-into each consumer's inbox. (Migration of the existing broadcast-doc flow is a
-separate, larger change; this document governs the inbound *ask* direction.)
+This is the mirror of the inbound rule. Where inbound is "the consumer files an
+issue and filing is delivery," outbound is "the dependency cuts a release and the
+release is the announcement." The consumer pulls; the dependency does not push a
+hand-written doc into each consumer's repo.
+
+### The outbound rule in one sentence
+
+**The dependency announces every version as a GitHub Release with release notes.
+The Release is the source of truth that a new version exists. Consumers learn
+about it by watching the repo's Releases and/or running Dependabot/Renovate
+against their pin — not by a broadcast doc relayed into an inbox.**
+
+### What goes where (outbound)
+
+| Concern | Home | Why |
+| --- | --- | --- |
+| A new version exists (what changed, new primitives, breaking changes, pin to bump to) | **GitHub Release + release notes on the dependency repo** | Single source of truth; one place per version; notifications via repo watch |
+| A consumer learning a version shipped | **Repo watch + Dependabot/Renovate** in the consumer repo | Pull, not push; the consumer's tooling opens a bump PR — no manual relay |
+| A consumer's own adoption notes (which pin it moved to, what it had to change) | A receipt file in the **consumer** repo | Local audit trail, not the transport |
+
+### Deprecated: the broadcast-doc relay
+
+Hand-writing a release-broadcast doc and relaying it into each consumer's
+`HARNESS_REPLIES_INBOX.md` is **deprecated as a transport**, for the same reason
+the inbound file-relay was: it is lossy and needs a manual copy step. Existing
+`HARNESS_REPLIES_INBOX.md` files stay as a historical receipt trail — they are no
+longer how a consumer learns a version shipped.
+
+### Adopting on the consumer side
+
+dev-platform ships a copy-paste Dependabot config at
+[`extensions/github-actions/dependabot-consumer-template.yml`](../extensions/github-actions/dependabot-consumer-template.yml).
+Copy it to `.github/dependabot.yml` in the consumer repo and keep the
+`package-ecosystem` blocks that match the stack. It is **opt-in per consumer**.
+
+### What dev-platform ships vs. what each repo does
+
+dev-platform owns the **standard** (this section), the **Dependabot template**,
+and a **delivery check** (`scripts/check-comms-delivery.sh`, which confirms each
+post-migration ask-communique links a live upstream issue). The actual cutover is
+per-repo coordination, not something dev-platform performs: the dependency stops
+relaying broadcast docs and starts cutting Releases **from its own session**, and
+each consumer enables Dependabot **from its own session**. Until those steps run,
+the dependency may still relay docs — this section defines the target, it does
+not assert the switch already happened.
 
 ## Migration status
 
-- **Adopted 2026-06-28** for PA↔Harness (pilot issue `teelr/kermit-harness#200`).
-- **Keystone↔Harness, ATLAS↔Harness:** adopt the same protocol; add
-  `consumer:keystone` / `consumer:atlas` labels on the harness repo when those
-  consumers file their next ask.
-- The legacy `tasks/communique-to-*` files and `HARNESS_INBOX.md` remain as the
-  historical receipt trail; they are no longer the transport.
+- **Inbound adopted 2026-06-28** for PA↔Harness (pilot issue `teelr/kermit-harness#200`).
+- **Outbound standard defined** in this Roadmap Phase (v1.5): Releases +
+  Dependabot/Renovate, with the consumer template and delivery check shipped in
+  dev-platform.
+- **Remaining per-repo coordination** (tracked as post-merge steps in
+  `tasks/dev-platform-comms-migration-spec.md`): create the `consumer:*` labels
+  on the harness repo (`scripts/setup-consumer-labels.sh --apply`); the harness
+  stops relaying broadcast docs and cuts Releases from its own session; each
+  consumer adopts the Dependabot template from its own session;
+  Keystone↔Harness and ATLAS↔Harness add their `consumer:*` label on their next ask.
+- The legacy `tasks/communique-to-*` files, `HARNESS_INBOX.md`, and
+  `HARNESS_REPLIES_INBOX.md` remain as the historical receipt trail; they are no
+  longer the transport.
