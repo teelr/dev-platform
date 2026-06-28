@@ -1,0 +1,62 @@
+# Dependabot consumer template — copy-paste from teelr/dev-platform.
+#
+# WHAT THIS IS: the outbound half of the cross-repo comms standard
+# (docs/CROSS-REPO-COMMS.md). Instead of the dependency hand-relaying a
+# release-broadcast doc into your repo's inbox, you watch the dependency's
+# GitHub Releases here and Dependabot opens a PR when a new version ships.
+#
+# HOW TO ADOPT (opt-in, per consumer repo):
+#   1. Copy this file to .github/dependabot.yml in your repo (NOT this path).
+#   2. Keep only the `updates:` blocks that match your stack; delete the rest.
+#   3. Adjust `directory` to where your manifest lives (usually "/").
+#   4. Commit. Dependabot runs on GitHub's schedule and opens version-bump PRs.
+#
+# Notes:
+#   - This is a TEMPLATE. dev-platform itself does not run it — it lives under
+#     extensions/github-actions/ next to dev-platform-gate.yml, not at
+#     .github/dependabot.yml.
+#   - Dependabot tracks dependencies declared in your manifest (requirements.txt,
+#     pyproject.toml, package.json, go.mod, the `uses:` pins in your workflows).
+#     A dependency pinned by a Git tag/branch is bumped when you reference it as
+#     a versioned requirement; a plain Git URL with no version constraint is not
+#     auto-bumped — pin to a release tag to get the PRs.
+
+version: 2
+updates:
+  # --- Python consumers (kermit-pa, keystone-python, ...) -------------------
+  # Bumps PyPI + versioned Git dependencies in your Python manifest.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+
+  # --- GitHub Actions pins --------------------------------------------------
+  # Bumps the `uses: teelr/dev-platform/...@vX.Y` pin in your workflows (and any
+  # other action pins) when a new dev-platform release tag is published. This is
+  # how the dev-platform-gate.yml consumer template stays current.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+
+  # --- Node consumers (OPIE, ...) — uncomment if your repo uses npm ----------
+  # - package-ecosystem: "npm"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #   open-pull-requests-limit: 5
+  #   labels:
+  #     - "dependencies"
+
+  # --- Go consumers — uncomment if your repo uses go modules -----------------
+  # - package-ecosystem: "gomod"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #   labels:
+  #     - "dependencies"

@@ -1,0 +1,26 @@
+[
+  {
+    "consumer": "kermit-pa",
+    "path": "projects/kermit-pa",
+    "dep_slug": "harness",
+    "upstream_repo": "teelr/kermit-harness",
+    "label": "consumer:pa",
+    "active": true
+  },
+  {
+    "consumer": "keystone",
+    "path": "projects/keystone",
+    "dep_slug": "harness",
+    "upstream_repo": "teelr/kermit-harness",
+    "label": "consumer:keystone",
+    "active": true
+  },
+  {
+    "consumer": "atlas",
+    "path": "projects/atlas",
+    "dep_slug": "harness",
+    "upstream_repo": "teelr/kermit-harness",
+    "label": "consumer:atlas",
+    "active": false
+  }
+]

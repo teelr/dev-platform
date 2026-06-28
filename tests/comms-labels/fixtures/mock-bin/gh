@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Mock gh CLI for tests/comms-labels/run.sh.
+#
+# Records every invocation (one line per call, args space-joined) to the file
+# named by $MOCK_GH_LOG, then exits 0. Lets the label-setup test assert which
+# `gh label create` calls were made without touching any real GitHub repo.
+#
+# Failure injection: if $MOCK_GH_FAIL is set and non-empty, exit 1 (used to
+# exercise the script's error-accounting path).
+
+set -uo pipefail
+
+: "${MOCK_GH_LOG:?MOCK_GH_LOG must be set in env}"
+echo "$*" >> "${MOCK_GH_LOG}"
+
+if [[ -n "${MOCK_GH_FAIL:-}" ]]; then
+    exit 1
+fi
+exit 0

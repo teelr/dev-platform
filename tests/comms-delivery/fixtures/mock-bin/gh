@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Mock gh CLI for tests/comms-delivery/run.sh.
+#
+# Implements just the call comms_delivery.verify_issue makes:
+#   gh issue view <n> --repo <r> --json number,state
+#
+# An issue number listed in $MOCK_GH_EXISTING (space-separated) "exists":
+# exit 0 with a JSON blob. Anything else is "missing": exit 1 with a
+# "Could not resolve" message on stderr (the text verify_issue keys on).
+
+set -uo pipefail
+
+if [[ "${1:-}" == "issue" && "${2:-}" == "view" ]]; then
+    number="${3:-}"
+    for existing in ${MOCK_GH_EXISTING:-}; do
+        if [[ "${number}" == "${existing}" ]]; then
+            echo "{\"number\":${number},\"state\":\"OPEN\"}"
+            exit 0
+        fi
+    done
+    echo "Could not resolve to an Issue with the number of ${number}." >&2
+    exit 1
+fi
+
+echo "mock-gh: unsupported command '$*'" >&2
+exit 1
