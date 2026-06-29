@@ -91,22 +91,53 @@ install_skills() {
     echo "  skills: ${count} entries linked"
 }
 
+# Deploy a runtime-writable settings file as a REAL local file, not a symlink
+# (v1.6 Local Settings Isolation). Claude Code writes "always allow" grants into
+# these files at runtime; a symlink into the repo would push those grants into
+# the tracked repo. If the target is currently a symlink (pre-v1.6 cutover),
+# capture its resolved content first so no grants are lost, then replace it with
+# a real file.
+materialize_if_symlink() {
+    local target="$1"
+    if [[ -L "${target}" ]]; then
+        local content
+        content="$(cat "${target}" 2>/dev/null || echo "")"
+        rm -f "${target}"
+        printf '%s' "${content}" > "${target}"
+    fi
+}
+
 install_settings() {
     require_safe_target "${HOME_CLAUDE}"
     mkdir -p "${HOME_CLAUDE}"
-    local linked="settings.json"
-    link_file "${REPO}/settings/settings.json" "${HOME_CLAUDE}/settings.json"
+
+    # claude-global.md + keybindings.json are NOT runtime-writable — keep symlinked.
     link_file "${REPO}/settings/claude-global.md" "${HOME_CLAUDE}/CLAUDE.md"
-    linked="${linked}, claude-global.md"
+    local linked="claude-global.md (symlink)"
     if [[ -f "${REPO}/settings/keybindings.json" ]]; then
         link_file "${REPO}/settings/keybindings.json" "${HOME_CLAUDE}/keybindings.json"
-        linked="${linked}, keybindings.json"
+        linked="${linked}, keybindings.json (symlink)"
     fi
-    if [[ -f "${REPO}/settings/settings.local.json" ]]; then
-        link_file "${REPO}/settings/settings.local.json" "${HOME_CLAUDE}/settings.local.json"
-        linked="${linked}, settings.local.json"
+
+    # settings.json — merge-deploy as a real file. Cutover any pre-v1.6 symlink to
+    # a real file first (preserving its grants), then union the repo baseline in.
+    materialize_if_symlink "${HOME_CLAUDE}/settings.json"
+    python3 "${REPO}/scripts/merge_settings.py" \
+        "${REPO}/settings/settings.json" "${HOME_CLAUDE}/settings.json"
+    linked="${linked}, settings.json (merged real file)"
+
+    # settings.local.json — seed once from the tracked .example, then never touch.
+    # Cutover any pre-v1.6 symlink to a real file (preserving its local entries).
+    materialize_if_symlink "${HOME_CLAUDE}/settings.local.json"
+    if [[ ! -e "${HOME_CLAUDE}/settings.local.json" ]]; then
+        cp "${REPO}/settings/settings.local.json.example" \
+            "${HOME_CLAUDE}/settings.local.json"
+        linked="${linked}, settings.local.json (seeded local file)"
+    else
+        linked="${linked}, settings.local.json (local file, left as-is)"
     fi
-    echo "  settings: linked (${linked})"
+
+    echo "  settings: ${linked}"
 }
 
 install_hooks() {

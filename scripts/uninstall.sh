@@ -5,8 +5,12 @@
 #
 # After uninstall:
 #   - ~/.claude/projects/ (memory, transcripts, session state) untouched
-#   - ~/.claude/{commands,skills,settings.json,keybindings.json} no longer
+#   - ~/.claude/{commands,skills,CLAUDE.md,keybindings.json} symlinks no longer
 #     reference this repo
+#   - ~/.claude/settings.json and settings.local.json are REAL local files
+#     (v1.6 Local Settings Isolation) holding per-machine grants + secrets — they
+#     are NOT symlinks into the repo, so remove_repo_symlinks leaves them in place
+#     by design. Deleting them would lose your local "always allow" grants.
 #   - User can re-run install.sh to restore (idempotent)
 
 set -euo pipefail

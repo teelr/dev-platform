@@ -32,6 +32,50 @@ check_symlink() {
     fi
 }
 
+# v1.6: settings.json is deployed as a REAL local file (runtime grants stay
+# local), not a symlink. Verify it exists, is NOT a symlink into the repo (the
+# exact regression this guards), and is a superset of the baseline's allow-list.
+check_local_settings() {
+    local baseline="$1"
+    local deployed="$2"
+    if [[ ! -e "${deployed}" ]]; then
+        echo "  X NOT deployed: ${deployed} (run install.sh)"
+        ERRORS=$((ERRORS + 1))
+        return
+    fi
+    if [[ -L "${deployed}" ]]; then
+        echo "  ! drift (symlink): ${deployed} must be a REAL local file, not a symlink (run install.sh)"
+        ERRORS=$((ERRORS + 1))
+        return
+    fi
+    if python3 -c "
+import json, sys
+base = json.load(open('${baseline}'))
+live = json.load(open('${deployed}'))
+b = set(base.get('permissions', {}).get('allow', []))
+l = set(live.get('permissions', {}).get('allow', []))
+sys.exit(0 if b.issubset(l) else 1)
+" 2>/dev/null; then
+        echo "  OK ${deployed} (real file, superset of baseline)"
+    else
+        echo "  ! drift: ${deployed} is missing baseline allow entries (run install.sh)"
+        ERRORS=$((ERRORS + 1))
+    fi
+}
+
+# v1.6: settings.local.json is a purely local file (seed-once). It must never be
+# a symlink into the repo, but has no baseline to compare against.
+check_local_only() {
+    local deployed="$1"
+    [[ -e "${deployed}" ]] || return  # absent is fine (seeded on next install)
+    if [[ -L "${deployed}" ]]; then
+        echo "  ! drift (symlink): ${deployed} must be a REAL local file, not a symlink"
+        ERRORS=$((ERRORS + 1))
+    else
+        echo "  OK ${deployed} (local file)"
+    fi
+}
+
 echo "Verifying commands..."
 for f in "${REPO}/commands"/*.md; do
     [[ -e "${f}" ]] || continue
@@ -55,14 +99,15 @@ for d in "${REPO}/skills"/*/; do
 done
 
 echo "Verifying settings..."
-check_symlink "${REPO}/settings/settings.json" "${HOME_CLAUDE}/settings.json"
+# settings.json is a real merge-deployed local file (v1.6), not a symlink.
+check_local_settings "${REPO}/settings/settings.json" "${HOME_CLAUDE}/settings.json"
+# claude-global.md + keybindings.json stay symlinked (not runtime-writable).
 check_symlink "${REPO}/settings/claude-global.md" "${HOME_CLAUDE}/CLAUDE.md"
 if [[ -f "${REPO}/settings/keybindings.json" ]]; then
     check_symlink "${REPO}/settings/keybindings.json" "${HOME_CLAUDE}/keybindings.json"
 fi
-if [[ -f "${REPO}/settings/settings.local.json" ]]; then
-    check_symlink "${REPO}/settings/settings.local.json" "${HOME_CLAUDE}/settings.local.json"
-fi
+# settings.local.json is a purely local seed-once file (v1.6).
+check_local_only "${HOME_CLAUDE}/settings.local.json"
 
 echo "Verifying hooks..."
 for f in "${REPO}/hooks"/*.sh; do

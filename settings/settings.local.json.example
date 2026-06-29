@@ -1,0 +1,6 @@
+{
+  "_comment": "SEED for the machine-local ~/.claude/settings.local.json (v1.6 Local Settings Isolation). install.sh copies this to ~/.claude/settings.local.json ONLY if that file does not already exist, then never touches it again. Per-machine 'always allow' grants and any secret-bearing command allowlists live ONLY in the deployed local file — never commit them here. The live settings/settings.local.json is gitignored; this .example is the only tracked variant.",
+  "permissions": {
+    "allow": []
+  }
+}

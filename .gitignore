@@ -59,11 +59,16 @@ tests/**
 !tasks/*.md
 !tasks/*.sh
 !scripts/*.sh
+# v1.6: merge_settings.py — first Python helper under scripts/ (Local Settings Isolation)
+!scripts/*.py
 !commands/*.md
 !skills/*.md
 !skills/**/*.md
 !settings/*.json
 !settings/*.md
+# v1.6: seed template for the machine-local settings.local.json (the live
+# settings/*.local.json stays excluded by the later rule; *.example != *.local.json)
+!settings/*.example
 !hooks/*.sh
 !hooks/*.py
 !hooks/*.md

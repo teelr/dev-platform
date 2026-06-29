@@ -33,7 +33,9 @@ Each directory has a `README.md` documenting its contract — read that before a
 
 ## Editing artifacts
 
-The tracked file is the source of truth. Edit it in this repo, run `./scripts/install.sh` (or `./scripts/install.sh <category>` for a single category), restart Claude Code. Editing under `~/.claude/` directly is overwritten on next install — don't edit there.
+The tracked file is the source of truth. Edit it in this repo, run `./scripts/install.sh` (or `./scripts/install.sh <category>` for a single category), restart Claude Code. Most artifacts deploy as symlinks, so editing under `~/.claude/` directly is overwritten on next install — don't edit there.
+
+**Exception — `settings.json` (v1.6):** because Claude Code writes "always allow" grants into the user settings file at runtime, `settings.json` is deployed as a real local file (via `scripts/merge_settings.py`), not a symlink — so those grants accumulate in `~/.claude/settings.json` and never pollute this repo. Install **merges** the tracked baseline into the live file (preserving local grants). `settings.local.json` is seeded once from `settings.local.json.example`. See `settings/README.md`.
 
 `./scripts/install.sh` accepts: `commands`, `skills`, `settings`, `hooks`, `vscode`, `git-hooks` (v1.2 — opt-in pre-commit hook), `worktree` (v1.4 — concurrent-dev isolation tooling), or `all` (default).
 
@@ -43,7 +45,7 @@ The tracked file is the source of truth. Edit it in this repo, run `./scripts/in
 ./scripts/verify.sh
 ```
 
-Reports drift between tracked and deployed state — flags missing symlinks, real files where a symlink should be, and orphan symlinks pointing at stale paths. Exits non-zero on any drift.
+Reports drift between tracked and deployed state — flags missing symlinks, real files where a symlink should be, and orphan symlinks pointing at stale paths. For `settings.json` (a real local file post-v1.6) it instead checks the live file exists, is NOT a repo symlink, and is a superset of the tracked baseline. Exits non-zero on any drift.
 
 ## Uninstall
 
