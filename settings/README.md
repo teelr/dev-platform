@@ -4,14 +4,15 @@ Claude Code global configuration. Tracked here, deployed by `scripts/install.sh`
 
 ## Files
 
-- `settings.json` — global Claude Code settings (hooks, permissions, env vars)
-- `claude-global.md` — global Claude Code behavior layer, deployed to `~/.claude/CLAUDE.md`. Loads into every Claude Code session, INCLUDING sessions outside `/home/rich/dev/`. Distinct from `/home/rich/dev/CLAUDE.md` which is the workspace dev-standards file (loads only when working under `/home/rich/dev/`). Two-tier model: `claude-global.md` for tool behavior, `dev/CLAUDE.md` for development standards.
-- `keybindings.json` — global keybindings (NOT currently tracked: this machine has never customized keybindings, so the file does not exist in `~/.claude/`. Add it here and re-run install if you customize a key.)
-- `*.local.json` — gitignored, machine-specific overlays (auth tokens, machine paths)
+- `settings.json` — global Claude Code settings (hooks, permissions, env vars). The **tracked baseline**. Deployed as a real local file via merge (see Deployment model below), NOT a symlink — because Claude Code writes "always allow" grants into the live file at runtime and a symlink would push those grants into this repo.
+- `claude-global.md` — global Claude Code behavior layer, deployed to `~/.claude/CLAUDE.md`. Loads into every Claude Code session, INCLUDING sessions outside `/home/rich/dev/`. Distinct from `/home/rich/dev/CLAUDE.md` which is the workspace dev-standards file (loads only when working under `/home/rich/dev/`). Two-tier model: `claude-global.md` for tool behavior, `dev/CLAUDE.md` for development standards. **Symlinked** (not runtime-writable).
+- `keybindings.json` — global keybindings (NOT currently tracked: this machine has never customized keybindings, so the file does not exist in `~/.claude/`. Add it here and re-run install if you customize a key.) **Symlinked** when present.
+- `settings.local.json.example` — secret-free seed for the machine-local `~/.claude/settings.local.json`. `install.sh` copies it ONCE if the live file is absent, then never touches it.
+- `*.local.json` — gitignored, machine-specific overlays (auth tokens, machine paths). The live `settings/settings.local.json` is local-only; only the `.example` seed is tracked.
 
 ## Editing
 
-Edit the file in this directory, then run `./scripts/install.sh` (or `./scripts/install.sh settings` to redeploy just this category). Edits to `~/.claude/settings.json` directly will be overwritten on next install — don't edit there.
+Edit the baseline in this directory, then run `./scripts/install.sh` (or `./scripts/install.sh settings` to redeploy just this category). For `settings.json`, install **merges** the baseline into the live `~/.claude/settings.json` (it does NOT overwrite — see the Deployment model). The live file's runtime "always allow" grants are preserved; the baseline's curated entries are added.
 
 Editing `claude-global.md` affects Claude Code's behavior in EVERY session. The change takes effect on next session start (Claude Code reads CLAUDE.md once at startup, doesn't re-read mid-session).
 
@@ -42,6 +43,14 @@ Anything that varies per machine — auth tokens, DB passwords, absolute paths b
 
 ## Hygiene
 
-Periodically prune `settings.json` of one-off prompt-acceptance entries that accumulate during sessions (`Bash(do echo "=== $hash ===")`, `Bash(done)`, `Bash(sudo kill 4011)` — auto-added permissions for ad-hoc commands that shouldn't have been baked into the allowlist). The `fewer-permission-prompts` skill helps automate this.
+Runtime "always allow" grants now accumulate in the **live** `~/.claude/settings.json` (a real local file), NOT in this tracked baseline — so the repo no longer collects one-off prompt-acceptance junk on its own. Prune the *live* file periodically (`Bash(done)`, `Bash(sudo kill 4011)`, etc.); the `fewer-permission-prompts` skill helps. The tracked baseline only changes when you edit it here on purpose.
 
-**Deployment:** `scripts/install.sh` symlinks `settings.json` (and `keybindings.json` if present) into `~/.claude/`. The `settings.local.json` overlay is symlinked separately when present.
+## Deployment model (v1.6 Local Settings Isolation)
+
+`scripts/install.sh` deploys this category two ways, by whether Claude Code writes to the file at runtime:
+
+- **Symlinked** (live edits, repo is source of truth): `claude-global.md` → `~/.claude/CLAUDE.md`, and `keybindings.json` when present. Editing `~/.claude/` directly is overwritten on next install — edit here instead.
+- **Merge-deployed as a real local file**: `settings.json`. `scripts/merge_settings.py` unions the baseline's `permissions.allow/deny/ask` into the live `~/.claude/settings.json` and overwrites config keys (`hooks`, `model`, …); runtime grants in the live file are preserved. The live file is NOT a symlink, so "always allow" grants never reach this repo. **Limitation:** a union-merge can ADD but not REMOVE a permission — to retract one, edit the live file or add a `deny` rule.
+- **Seeded once as a real local file**: `settings.local.json`. Copied from `settings.local.json.example` only if `~/.claude/settings.local.json` is absent; never clobbered (it holds per-machine grants + secrets).
+
+Why settings.json isn't symlinked: Claude Code persists "always allow" grants into the user settings file at runtime. When that file was a symlink into this repo, every grant polluted the tracked repo (the recurring `settings/settings.json` drift). Making it a real local file is the fix. Precedent: `install.sh vscode` already copy-deploys rather than symlinking.
