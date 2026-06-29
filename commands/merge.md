@@ -102,10 +102,28 @@ git checkout main && git pull --ff-only
 
    ```bash
    git checkout main && git pull --ff-only
+   # Before removing the worktree: stop any process whose cwd is INSIDE it. A
+   # backend started from within .claude/worktrees/<branch>/ has its cwd deleted
+   # when the worktree is removed, so every later `claude` subprocess fails with
+   # "cwd was deleted" → ProcessError → red chat. Match by cwd (the actual
+   # failure condition), NOT by a hardcoded port — this command is universal
+   # across projects. The session itself is safe: ExitWorktree already moved it
+   # back to the main checkout, so its cwd is no longer under ${WT}.
+   for _cwd_link in /proc/[0-9]*/cwd; do
+       [[ "$(readlink "${_cwd_link}" 2>/dev/null)" == "${WT}"* ]] || continue
+       _pid="$(basename "$(dirname "${_cwd_link}")")"
+       echo "Stopping PID ${_pid} — its cwd is inside the worktree being removed"
+       kill "${_pid}" 2>/dev/null || true
+   done
+   sleep 1   # let any stopped process release the worktree before removal
    git worktree remove --force "${WT}"        # drop the now-merged worktree
    git branch -D "${BR}" 2>/dev/null || true  # drop the local branch gh couldn't
    git worktree prune
    ```
+
+   If a backend was stopped, restart it from the main checkout with that
+   project's own start script (e.g. `./scripts/start_dev.sh`) — `/merge` does
+   not restart apps, it only frees the worktree.
 
 Either way, this fetches the squash-merge commit and fast-forwards local main. The remote branch deletion from Step 4 already happened.
 
