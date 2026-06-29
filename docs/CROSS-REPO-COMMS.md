@@ -119,22 +119,26 @@ and a **delivery check** (`scripts/check-comms-delivery.sh`, which confirms each
 post-migration ask-communique links a live upstream issue). The actual cutover is
 per-repo coordination, not something dev-platform performs: the dependency stops
 relaying broadcast docs and starts cutting Releases **from its own session**, and
-each consumer enables Dependabot **from its own session**. Until those steps run,
-the dependency may still relay docs — this section defines the target, it does
-not assert the switch already happened.
+each consumer enables Dependabot **from its own session**. The harness completed
+that cutover in v4.84.2 (2026-06-29) — relay retired, Releases now the transport;
+the section below tracks current state.
 
 ## Migration status
 
-- **Inbound adopted 2026-06-28** for PA↔Harness (pilot issue `teelr/kermit-harness#200`).
-- **Outbound standard defined** in this Roadmap Phase (v1.5): Releases +
+- **Inbound** adopted 2026-06-28 (PA↔Harness, pilot issue `teelr/kermit-harness#200`).
+- **Outbound standard** defined in Roadmap Phase v1.5: Releases +
   Dependabot/Renovate, with the consumer template and delivery check shipped in
   dev-platform.
-- **Remaining per-repo coordination** (tracked as post-merge steps in
-  `tasks/dev-platform-comms-migration-spec.md`): create the `consumer:*` labels
-  on the harness repo (`scripts/setup-consumer-labels.sh --apply`); the harness
-  stops relaying broadcast docs and cuts Releases from its own session; each
-  consumer adopts the Dependabot template from its own session;
-  Keystone↔Harness and ATLAS↔Harness add their `consumer:*` label on their next ask.
+- **Outbound cutover — DONE** (harness v4.84.2, 2026-06-29): the broadcast-doc
+  relay was retired (`check_outbound_reply_sync` / CT92 deregistered + deleted;
+  `check_release_broadcast_exists` / CT93 repurposed to an offline CHANGELOG
+  release-notes check), and versions are now announced via GitHub Releases.
+- **`consumer:*` labels — DONE** on the harness repo (`consumer:pa` /
+  `consumer:keystone` / `consumer:atlas`; pilot `#200` labeled `consumer:pa`).
+- **Consumer Dependabot adoption — DONE** for PA (kermit-pa `#127`) and Keystone
+  (keystone `#355`); ATLAS deprecated, so complete for active consumers.
+- **Only open item:** Keystone applies its `consumer:keystone` label on its next
+  actual harness ask (the label exists; it is just unused so far).
 - The legacy `tasks/communique-to-*` files, `HARNESS_INBOX.md`, and
   `HARNESS_REPLIES_INBOX.md` remain as the historical receipt trail; they are no
   longer the transport.
