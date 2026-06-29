@@ -20,6 +20,13 @@
 #     A dependency pinned by a Git tag/branch is bumped when you reference it as
 #     a versioned requirement; a plain Git URL with no version constraint is not
 #     auto-bumped — pin to a release tag to get the PRs.
+#   - LOCALLY-INSTALLED dependencies are NOT trackable. A package installed
+#     editable (`pip install -e`), from a vendored wheel, or otherwise not
+#     published to the index Dependabot reads cannot be resolved — Dependabot
+#     errors on it instead of skipping. `ignore` it (see the pip block below) and
+#     keep its pin a manual bump. For Rich's harness consumers this is
+#     `kermit-harness` (local editable in PA; vendored wheel in Keystone — not on
+#     PyPI for any consumer). Confirmed by the PA adoption, 2026-06-28.
 
 version: 2
 updates:
@@ -32,6 +39,13 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    # Ignore dependencies Dependabot can't resolve because they're installed
+    # locally (editable / vendored wheel / not on the index). Without this,
+    # Dependabot errors on them instead of skipping. Their pin stays a manual
+    # bump. Uncomment + set to your locally-installed dep — for harness
+    # consumers that's kermit-harness (not on PyPI for any consumer):
+    # ignore:
+    #   - dependency-name: "kermit-harness"
 
   # --- GitHub Actions pins --------------------------------------------------
   # Bumps the `uses: teelr/dev-platform/...@vX.Y` pin in your workflows (and any
