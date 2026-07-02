@@ -131,6 +131,8 @@ Each step requires the user to invoke it. Completing one step does NOT mean star
 
 **Verification before done:** Never mark a task complete without proving it works. Ask: "Would a staff engineer approve this?" Run tests, check logs, demonstrate correctness.
 
+**Per-Spec-Phase branching decision rule:** Default to one feature branch + one PR per Spec Phase (2–5 Changes), each assigned to the matching GitHub Milestone. Deviate to a single branch for the whole spec when either: (a) a Spec Phase is small (fits in ~150–200 LOC diff) — splitting would make per-PR ceremony exceed per-PR content, or (b) the Phases are NOT independently shippable/testable (e.g. one Phase creates a resource, the next tears it down — shipping the first alone leaves an untested half-feature). Call out the chosen strategy explicitly in the spec's Design Philosophy or Implementation Order section so `/code` knows whether to create one branch or many. Promoted from three recurring dev-platform lessons (v0.5 adoption, v0.6 small-Phase deviation, v1.4 tightly-coupled-Phase deviation).
+
 ## Development Terminology
 
 | Level | Term | Definition |
