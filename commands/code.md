@@ -58,7 +58,7 @@ git checkout -b v<X.Y>/phase-<N>-<slug>
 
 Worktree mode is opt-in via the project's committed `.claude/worktree-deps` file (see `shell/worktree/README.md`). `/merge` tears the worktree down after the PR lands.
 
-If already in a worktree or already on a feature branch, skip creation and proceed.
+If already in a worktree or already on a feature branch, skip creation and proceed. This is the common case now — `/plan` creates the branch/worktree when it writes the spec, so this is a fallback for hand-authored specs or specs written before that convention.
 
 ## Step 2: Create Todo List
 
