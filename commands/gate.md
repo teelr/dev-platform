@@ -16,6 +16,40 @@ Check `$PWD` to determine which project is active:
 
 - Path contains `kermit-pa` → **PA project**
 - Path contains `kermit` but NOT `kermit-pa` → **Harness project**
+- Neither of the above, but `scripts/gate_fast.sh` exists at the repo root → **Generic gate_fast.sh project** (dev-platform itself, Keystone, OPIE, SQRL, and any project scaffolded from dev-platform's standard structure)
+- None of the above → STOP and report: no known gate convention detected for this directory.
+
+---
+
+## Generic Gate (`gate_fast.sh` convention)
+
+Work directory: repo root (wherever `scripts/gate_fast.sh` was found).
+
+### fast
+
+Run before every commit.
+
+```bash
+./scripts/gate_fast.sh
+```
+
+Runs constitutional checks + all auto-discovered `tests/<suite>/*.sh` runners, aggregates to a single PASS/FAIL. Counts grow with the suite — see live output.
+
+### full
+
+```bash
+./scripts/gate_full.sh
+```
+
+Only if `scripts/gate_full.sh` exists for this project (e.g. Keystone). If it doesn't exist, report: "no `gate_full.sh` for this project — only `fast` is available" and stop; do NOT silently substitute `fast`.
+
+### release
+
+```bash
+./scripts/gate_release.sh
+```
+
+Same rule as `full`: only if `scripts/gate_release.sh` exists. If not, report it's unavailable and stop.
 
 ---
 
@@ -116,8 +150,8 @@ Do NOT fix failures automatically. Report them and wait for user instruction.
 
 ## Report Format
 
-```
-Project: kermit-pa | kermit-harness
+```text
+Project: kermit-pa | kermit-harness | <generic project name>
 Gate: fast | full | release
 Result: PASS | FAIL
 
@@ -142,6 +176,9 @@ NOT hardcode them in this template (they drift every release).
   [load L1                PASS]               ← release only
   [load L3                PASS]               ← release only
   [load L4                PASS]               ← release only
+
+  [generic gate_fast.sh project]
+  constitutional checks + tests   PASS  (N PASS, N FAIL, N SKIP)
 
 Skipped tests: <list any skipped with reason>
 Total time: Xs
