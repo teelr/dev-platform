@@ -5,8 +5,8 @@ Current state of the repo. Refreshed at every spec-completion by `/docs`.
 ## Current state
 
 - **Name:** `dev-platform` (GitHub: `teelr/dev-platform`, mounted at `/home/rich/dev/`)
-- **Active spec:** none in flight (last shipped: `tasks/dev-platform-local-settings-isolation-spec.md`, v1.6 — Local Settings Isolation).
-- **Active Roadmap Phase:** **v1.6 SHIPPED** (2026-06-29, PR #37 — Local Settings Isolation: `settings.json` is now merge-deployed as a real local file via `scripts/merge_settings.py` so Claude Code "always allow" grants stop polluting the tracked repo; released `v1.6`, milestone closed). Prior: **v1.5 SHIPPED** (2026-06-28, PR #35 — cross-repo comms migration; released `v1.5`, milestone closed, issue #34 closed). **Nothing currently in flight.**
+- **Active spec:** none written via `/plan` — v1.7 was built conversationally (no `tasks/*-spec.md`), same shape as the "Workflow redesign chore" precedent.
+- **Active Roadmap Phase:** **v1.7 IN PROGRESS** (started 2026-07-01, branch `v1.7/phase-1-plan-branch-creation`, milestone #17 open) — Plan-Time Isolation: `/plan` now creates the branch/worktree + renames the tmux window at plan time instead of waiting for `/code`; adds `shell/new-session.sh` for manually starting a second parallel CLI+tmux session. See ROADMAP.md for full description. Prior: **v1.6 SHIPPED** (2026-06-29, PR #37 — Local Settings Isolation: `settings.json` is now merge-deployed as a real local file via `scripts/merge_settings.py` so Claude Code "always allow" grants stop polluting the tracked repo; released `v1.6`, milestone closed). Before that: **v1.5 SHIPPED** (2026-06-28, PR #35 — cross-repo comms migration; released `v1.5`, milestone closed, issue #34 closed).
 
 ## Recently shipped
 
@@ -45,7 +45,9 @@ Hashes intentionally omitted — `git log` is the authoritative record; this sec
 
 ## In flight
 
-**Nothing in flight.** Session-end state 2026-06-29: on `main`, working tree clean, no open PRs or milestones. v1.5 + v1.6 shipped and released this session (see Recently shipped). Open cross-repo items live in **other repos' sessions**, not dev-platform: Keystone's Dependabot bump PR (`@v1.5 → @v1.6`, auto on GitHub's weekly schedule, ~2026-07-06) and the harness `#199` offer decision (a Keystone product call — handoff prompt drafted). Neither is dev-platform's to act on.
+**v1.7: Plan-Time Isolation** — branch `v1.7/phase-1-plan-branch-creation`, milestone #17 open, not yet pushed/PR'd. Built conversationally (no `tasks/*-spec.md`): `/plan` now creates the branch/worktree + renames the tmux tab at plan time; `commands/code.md` updated so its own branch-creation step is documented as the fallback; new `shell/new-session.sh` for manually starting a second parallel session. `/review` fixed one real bug (MAIN-path capture ordering in the worktree-mode instructions) before commit. Gate at 197 PASS (no new suite — this is instruction-file content, not new deployable code). Next: push, `/pr`, CI, `/merge`.
+
+Open cross-repo items live in **other repos' sessions**, not dev-platform: Keystone's Dependabot bump PR (`@v1.5 → @v1.6`, auto on GitHub's weekly schedule, ~2026-07-06) and the harness `#199` offer decision (a Keystone product call — handoff prompt drafted). Neither is dev-platform's to act on.
 
 ## Taxonomy migration note (2026-05-11)
 
