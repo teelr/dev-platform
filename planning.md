@@ -46,7 +46,7 @@ Hashes intentionally omitted — `git log` is the authoritative record; this sec
 
 ## In flight
 
-**Nothing in flight.**
+**Nothing in flight.** Open cross-repo items live in **other repos' sessions**, not dev-platform: Keystone's Dependabot bump PR (`@v1.5 → @v1.6`, auto on GitHub's weekly schedule, ~2026-07-06) and the harness `#199` offer decision (a Keystone product call — handoff prompt drafted). Neither is dev-platform's to act on.
 
 Open cross-repo items live in **other repos' sessions**, not dev-platform: Keystone's Dependabot bump PR (`@v1.5 → @v1.6`, auto on GitHub's weekly schedule, ~2026-07-06) and the harness `#199` offer decision (a Keystone product call — handoff prompt drafted). Neither is dev-platform's to act on.
 
