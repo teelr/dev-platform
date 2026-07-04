@@ -80,6 +80,12 @@ Do NOT repeat rules from /home/rich/dev/CLAUDE.md — those apply automatically.
 {Project-specific patterns. Architectural decisions.
 Do NOT repeat patterns from /home/rich/dev/CLAUDE.md.}
 
+## Development Workflow
+
+`/plan → /code → /review → /gate fast → commit → push → /pr → CI → /merge → post-merge`
+
+Run `./scripts/gate_fast.sh` before every commit.
+
 ## Spec Files
 
 All `tasks/*-spec.md` files MUST use the Phase + Change taxonomy from `/home/rich/dev/CLAUDE.md`:

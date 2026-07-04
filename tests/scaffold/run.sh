@@ -61,6 +61,26 @@ for template in go-service python-agent next-frontend; do
         fi
     fi
 
+    # v1.8 audit reports the freshly scaffolded project CLEAN (chain seeded,
+    # no spec files → taxonomy clean). Guards against a template edit dropping
+    # the chain and reintroducing MISSING_CHAIN.
+    audit_reg="$(mktemp)"
+    cat > "${audit_reg}" <<REOF
+[{"name": "${project}", "path": "${project_dir}", "gate_cmd": "true", "primary_language": "bash", "enabled": true}]
+REOF
+    # Require fully CLEAN — no MISSING_CHAIN (missing) AND no DRIFT (review-less
+    # chain). A fresh scaffold's taxonomy is always CLEAN, so a bare "grep CLEAN"
+    # would falsely pass a review-less template; exclude DRIFT too.
+    audit_out="$(bash "${REPO}/scripts/audit-project-drift.sh" --project "${project}" --registry "${audit_reg}" 2>&1)"
+    if echo "${audit_out}" | grep -q "CLEAN" \
+       && ! echo "${audit_out}" | grep -q "MISSING_CHAIN" \
+       && ! echo "${audit_out}" | grep -q "DRIFT"; then
+        record_pass "scaffold ${template}: audit-project-drift reports CLEAN (chain seeded, not DRIFT/MISSING)"
+    else
+        record_fail "scaffold ${template}: audit not fully CLEAN — ${audit_out}"
+    fi
+    rm -f "${audit_reg}"
+
     rm -rf "${project_dir}"
 done
 
