@@ -42,5 +42,12 @@
     "gate_cmd": "./scripts/gate_fast.sh",
     "primary_language": "typescript",
     "enabled": true
+  },
+  {
+    "name": "SQRL",
+    "path": "projects/SQRL",
+    "gate_cmd": "./scripts/gate_fast.sh",
+    "primary_language": "typescript",
+    "enabled": true
   }
 ]
