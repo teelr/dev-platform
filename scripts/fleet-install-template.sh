@@ -28,7 +28,7 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REGISTRY="${REPO_ROOT}/monitoring/projects.json"
 SOURCE_TEMPLATE="${REPO_ROOT}/extensions/github-actions/dev-platform-gate.yml"
-DEFAULT_PIN="v1.8"
+DEFAULT_PIN="v1.9"
 
 PROJECT=""
 APPLY=0
