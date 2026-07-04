@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tests/migration/run.sh — fixture suite for v0.9 Phase 2 migration tooling.
 # Validates migrate-workflow-chain.sh and audit-project-drift.sh against
-# mock project trees under mktemp. 17 assertions.
+# mock project trees under mktemp. 21 assertions.
 #
 # Auto-discovered by scripts/gate_fast.sh per the v0.4 contract.
 
@@ -92,6 +92,22 @@ cat > "${MOCK_ROOT}/review-less-1/CLAUDE.md" <<'EOF'
 Follow: /plan → /code → /gate fast → commit → push → /pr → CI → /merge → post-merge
 EOF
 
+# ─── Mock project: no-chain-1 ────────────────────────────────────────────
+# CLAUDE.md exists but documents NO workflow chain at all (the SQRL case).
+# Must be reported MISSING_CHAIN, distinct from CLEAN and DRIFT.
+mkdir -p "${MOCK_ROOT}/no-chain-1/tasks"
+cat > "${MOCK_ROOT}/no-chain-1/CLAUDE.md" <<'EOF'
+# No-Chain Project
+
+## Project Overview
+
+A project whose CLAUDE.md never references the dev workflow chain.
+
+## Ports
+
+Backend on 9999.
+EOF
+
 # ─── Mock registry ───────────────────────────────────────────────────────
 MOCK_REGISTRY="${TMP}/registry.json"
 cat > "${MOCK_REGISTRY}" <<EOF
@@ -101,7 +117,8 @@ cat > "${MOCK_REGISTRY}" <<EOF
   {"name": "old-chain-2",     "path": "${MOCK_ROOT}/old-chain-2",     "gate_cmd": "true", "primary_language": "bash", "enabled": true},
   {"name": "no-claude-1",     "path": "${MOCK_ROOT}/no-claude-1",     "gate_cmd": "true", "primary_language": "bash", "enabled": true},
   {"name": "taxonomy-drift-1","path": "${MOCK_ROOT}/taxonomy-drift-1","gate_cmd": "true", "primary_language": "bash", "enabled": true},
-  {"name": "review-less-1",   "path": "${MOCK_ROOT}/review-less-1",   "gate_cmd": "true", "primary_language": "bash", "enabled": true}
+  {"name": "review-less-1",   "path": "${MOCK_ROOT}/review-less-1",   "gate_cmd": "true", "primary_language": "bash", "enabled": true},
+  {"name": "no-chain-1",      "path": "${MOCK_ROOT}/no-chain-1",      "gate_cmd": "true", "primary_language": "bash", "enabled": true}
 ]
 EOF
 
@@ -257,4 +274,48 @@ if echo "${audit_out}" | grep -q "clean-1" && echo "${audit_out}" | grep -q "CLE
     record_pass "migration: audit reports review-ful clean-1 as CHAIN=CLEAN (no false flag)"
 else
     record_fail "migration: review-ful chain falsely flagged — output: ${audit_out}"
+fi
+
+# ─── Check 18: chain-less CLAUDE.md reported MISSING_CHAIN ────────────────
+# The SQRL blind spot: file present, no old-chain pattern, no canonical anchor.
+audit_out="$("${AUDIT}" --project no-chain-1 --registry "${MOCK_REGISTRY}" 2>&1)"
+if echo "${audit_out}" | grep -q "no-chain-1" && echo "${audit_out}" | grep -q "MISSING_CHAIN"; then
+    record_pass "migration: audit reports no-chain-1 as MISSING_CHAIN"
+else
+    record_fail "migration: audit did not flag no-chain-1 as MISSING_CHAIN — output: ${audit_out}"
+fi
+
+# ─── Check 19: canonical clean-1 NOT reclassified MISSING (anchor not too strict) ─
+audit_out="$("${AUDIT}" --project clean-1 --registry "${MOCK_REGISTRY}" 2>&1)"
+if echo "${audit_out}" | grep -q "CLEAN" && ! echo "${audit_out}" | grep -q "MISSING_CHAIN"; then
+    record_pass "migration: audit keeps canonical clean-1 as CLEAN (not MISSING_CHAIN)"
+else
+    record_fail "migration: canonical chain misclassified as MISSING — output: ${audit_out}"
+fi
+
+# ─── Check 20: MISSING_CHAIN counts toward the drift summary (isolated) ───
+# Isolated registry: one CLEAN + one MISSING_CHAIN project only. Asserts the
+# count is exactly 1, so the check fails if MISSING_CHAIN is NOT wired into
+# drift_count — the full-sweep registry has other drift that would mask it.
+ISO_REGISTRY="${TMP}/registry-iso.json"
+cat > "${ISO_REGISTRY}" <<EOF
+[
+  {"name": "clean-1",    "path": "${MOCK_ROOT}/clean-1",    "gate_cmd": "true", "primary_language": "bash", "enabled": true},
+  {"name": "no-chain-1", "path": "${MOCK_ROOT}/no-chain-1", "gate_cmd": "true", "primary_language": "bash", "enabled": true}
+]
+EOF
+audit_out="$("${AUDIT}" --registry "${ISO_REGISTRY}" 2>&1)"
+if echo "${audit_out}" | grep -q "Drift found in 1 project(s)."; then
+    record_pass "migration: MISSING_CHAIN counts toward the drift summary (exactly 1 of clean+missing)"
+else
+    record_fail "migration: MISSING_CHAIN not counted (expected 'Drift found in 1') — output: ${audit_out}"
+fi
+
+# ─── Check 21: migrate cannot insert a missing chain (no-op) ─────────────
+# Documents why MISSING_CHAIN gets a manual-add hint, not the migrate hint.
+migrate_out="$("${MIGRATE}" --project no-chain-1 --registry "${MOCK_REGISTRY}" --apply 2>&1)"
+if echo "${migrate_out}" | grep -q "already up-to-date"; then
+    record_pass "migration: migrate-workflow-chain.sh reports no-chain-1 already-up-to-date (cannot insert a missing chain)"
+else
+    record_fail "migration: expected migrate to no-op on a chain-less CLAUDE.md — output: ${migrate_out}"
 fi
