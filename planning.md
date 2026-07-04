@@ -5,8 +5,8 @@ Current state of the repo. Refreshed at every spec-completion by `/docs`.
 ## Current state
 
 - **Name:** `dev-platform` (GitHub: `teelr/dev-platform`, mounted at `/home/rich/dev/`)
-- **Active spec:** none in flight (last shipped: built conversationally, no `tasks/*-spec.md` — v1.7 Plan-Time Isolation, same shape as the "Workflow redesign chore" precedent).
-- **Active Roadmap Phase:** **v1.7 SHIPPED** (2026-07-01, PR #41 — Plan-Time Isolation: `/plan` now creates the branch/worktree + renames the tmux window at plan time instead of waiting for `/code`; adds `shell/new-session.sh` for manually starting a second parallel CLI+tmux session; released `v1.7`, milestone closed). Prior: **v1.6 SHIPPED** (2026-06-29, PR #37 — Local Settings Isolation: `settings.json` is now merge-deployed as a real local file via `scripts/merge_settings.py` so Claude Code "always allow" grants stop polluting the tracked repo; released `v1.6`, milestone closed). **Nothing currently in flight.**
+- **Active spec:** `tasks/audit-project-drift-spec.md` (v1.8 Missing-Chain Detection) — implemented on branch `v1.8/phase-1-audit-project-drift`, pending review/gate/merge.
+- **Active Roadmap Phase:** **v1.8 in flight** (Missing-Chain Detection: `audit-project-drift.sh` gains a fourth chain state, `MISSING_CHAIN`, so a `CLAUDE.md` that omits the workflow chain no longer reads as `CLEAN`; +4 assertions in `tests/migration/run.sh`). Prior: **v1.7 SHIPPED** (2026-07-01, PR #41 — Plan-Time Isolation: `/plan` now creates the branch/worktree + renames the tmux window at plan time instead of waiting for `/code`; adds `shell/new-session.sh` for manually starting a second parallel CLI+tmux session; released `v1.7`, milestone closed). Prior: **v1.6 SHIPPED** (2026-06-29, PR #37 — Local Settings Isolation: `settings.json` is now merge-deployed as a real local file via `scripts/merge_settings.py` so Claude Code "always allow" grants stop polluting the tracked repo; released `v1.6`, milestone closed).
 
 ## Recently shipped
 
@@ -47,7 +47,7 @@ Hashes intentionally omitted — `git log` is the authoritative record; this sec
 
 ## In flight
 
-**Nothing in flight.** Open cross-repo items live in **other repos' sessions**, not dev-platform: Keystone's Dependabot bump PR (`@v1.5 → @v1.6`, auto on GitHub's weekly schedule, ~2026-07-06) and the harness `#199` offer decision (a Keystone product call — handoff prompt drafted). Neither is dev-platform's to act on.
+**v1.8 Missing-Chain Detection** on branch `v1.8/phase-1-audit-project-drift` — audit code + tests + docs implemented, pending `/review → /gate fast → commit → push → /pr → CI → /merge`. Open cross-repo items live in **other repos' sessions**, not dev-platform: Keystone's Dependabot bump PR (`@v1.5 → @v1.6`, auto on GitHub's weekly schedule, ~2026-07-06) and the harness `#199` offer decision (a Keystone product call — handoff prompt drafted). Neither is dev-platform's to act on.
 
 Open cross-repo items live in **other repos' sessions**, not dev-platform: Keystone's Dependabot bump PR (`@v1.5 → @v1.6`, auto on GitHub's weekly schedule, ~2026-07-06) and the harness `#199` offer decision (a Keystone product call — handoff prompt drafted). Neither is dev-platform's to act on.
 

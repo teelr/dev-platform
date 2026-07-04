@@ -5,6 +5,10 @@
 #   (1) chain_drift  — old workflow chain in CLAUDE.md
 #   (2) taxonomy_drift — killed-term headers in ROADMAP.md / planning.md
 #   (3) has_claude_md — CLAUDE.md presence
+# Chain states: NO_CLAUDE_MD (no file) / DRIFT (old chain present) /
+#   CLEAN (canonical chain present) / MISSING_CHAIN (file present but
+#   documents no canonical workflow chain — e.g. the chain section was
+#   never added).
 #
 # Read-only. Makes NO changes. Exit 0 always — this is a reporter, not a gate.
 # Use scripts/migrate-workflow-chain.sh --apply to fix chain drift.
@@ -47,6 +51,10 @@ Checks each enabled project for:
   (1) Old workflow chain in CLAUDE.md (chain_drift)
   (2) Taxonomy violations in ROADMAP.md / planning.md (taxonomy_drift)
   (3) Missing CLAUDE.md (has_claude_md)
+
+Chain states: NO_CLAUDE_MD / DRIFT (old chain present) / CLEAN
+  (canonical chain present) / MISSING_CHAIN — CLAUDE.md present but
+  documents no canonical workflow chain.
 
 Read-only. Exit 0 always — this is a reporter, not a gate.
 Use scripts/migrate-workflow-chain.sh --apply to fix chain drift.
@@ -108,13 +116,20 @@ audit_project() {
     fi
 
     # Check 2: chain drift in CLAUDE.md.
+    # Order is load-bearing: DRIFT (old/wrong chain) must win before the
+    # canonical-anchor check, so a file mixing an old and the new chain is
+    # still flagged. A file with the canonical anchor is CLEAN; a file with
+    # neither an old pattern nor the anchor documents no chain at all →
+    # MISSING_CHAIN (the SQRL case — file present, workflow chain absent).
     local chain_status
     if [[ "${has_claude_md}" == "NO" ]]; then
         chain_status="NO_CLAUDE_MD"
     elif grep -qE "/code → /test →|/test → /review|/code → /gate fast" "${claude_md}" 2>/dev/null; then
         chain_status="DRIFT"
-    else
+    elif grep -qE "/code → /review" "${claude_md}" 2>/dev/null; then
         chain_status="CLEAN"
+    else
+        chain_status="MISSING_CHAIN"
     fi
 
     # Check 3: taxonomy drift in tasks/ spec files.
@@ -165,7 +180,7 @@ while IFS= read -r row; do
     chain="$(echo "${row}" | jq -r '.chain')"
     taxonomy="$(echo "${row}" | jq -r '.taxonomy')"
     echo "| ${name} | ${has} | ${chain} | ${taxonomy} |"
-    if [[ "${chain}" == "DRIFT" || "${taxonomy}" == "DRIFT" || "${has}" == "NO" ]]; then
+    if [[ "${chain}" == "DRIFT" || "${chain}" == "MISSING_CHAIN" || "${taxonomy}" == "DRIFT" || "${has}" == "NO" ]]; then
         (( drift_count++ )) || true
     fi
 done < <(echo "${results}" | jq -c '.[]')
@@ -176,4 +191,5 @@ if [[ ${drift_count} -eq 0 ]]; then
 else
     echo "Drift found in ${drift_count} project(s)."
     echo "  Chain drift: run \`./scripts/migrate-workflow-chain.sh --project <name> --apply\` to fix."
+    echo "  Missing chain: add the canonical chain to the project's CLAUDE.md (see docs/PROJECT_CLAUDE_TEMPLATE.md); migrate-workflow-chain.sh cannot insert a chain that isn't there."
 fi
