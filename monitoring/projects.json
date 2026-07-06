@@ -49,5 +49,12 @@
     "gate_cmd": "./scripts/gate_fast.sh",
     "primary_language": "typescript",
     "enabled": true
+  },
+  {
+    "name": "kermit-v3",
+    "path": "projects/kermit-v3",
+    "gate_cmd": "./scripts/gate_fast.sh",
+    "primary_language": "python",
+    "enabled": true
   }
 ]

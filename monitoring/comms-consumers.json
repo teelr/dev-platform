@@ -22,5 +22,13 @@
     "upstream_repo": "teelr/kermit-harness",
     "label": "consumer:atlas",
     "active": false
+  },
+  {
+    "consumer": "kermit-v3",
+    "path": "projects/kermit-v3",
+    "dep_slug": "harness",
+    "upstream_repo": "teelr/kermit-harness",
+    "label": "consumer:kermit-v3",
+    "active": true
   }
 ]
