@@ -100,7 +100,7 @@
   {
     "name": "kermit-v3",
     "path": "projects/kermit-v3",
-    "remote_url": "https://github.com/teelr/kermit-v3.git",
+    "remote_url": "git@github.com:teelr/kermit-v3.git",
     "github_account": "teelr",
     "local_email": null
   }
