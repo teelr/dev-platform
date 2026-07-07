@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Mock gh CLI for tests/phase-milestones/run.sh.
+#
+# Supports the single gh invocation check-phase-milestones.sh makes:
+#   gh api repos/<owner>/<repo>/milestones?state=open&per_page=100
+#     → emit the JSON array in $MOCK_MILESTONES_FILE
+#
+# The mock ignores the actual repo path — the suite drives it entirely via
+# MOCK_MILESTONES_FILE so canned responses are deterministic and no real
+# GitHub call is made.
+#
+# Failure injection: if MOCK_FAIL is set (non-empty), the api path exits 1 —
+# used to test that a fetch failure is treated as ERROR (exit 2), not "clean".
+
+set -uo pipefail
+
+case "${1:-}" in
+    api)
+        if [[ -n "${MOCK_FAIL:-}" ]]; then
+            echo "mock-gh: injected API failure" >&2
+            exit 1
+        fi
+        : "${MOCK_MILESTONES_FILE:?MOCK_MILESTONES_FILE must be set in env}"
+        cat "${MOCK_MILESTONES_FILE}"
+        ;;
+    *)
+        echo "mock-gh: unsupported command '${1:-}'" >&2
+        exit 1
+        ;;
+esac

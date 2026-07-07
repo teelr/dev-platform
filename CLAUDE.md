@@ -115,7 +115,7 @@ Each step requires the user to invoke it. Completing one step does NOT mean star
 - **`/pr`** — Opens PR against `main`. Auto-derives title, milestone, body.
 - **CI** — Wait for `gate-fast` to go GREEN. If red, fix on the branch and re-push.
 - **`/merge`** — Squash-merges after verifying CI green. Refuses on red/pending/conflicts.
-- **post-merge** — Bespoke deferred steps from the spec. No-op if the spec named none.
+- **post-merge** — Bespoke deferred steps from the spec. No-op if the spec named none. **One sub-step is standard, not bespoke: Roadmap-Phase completion.** When a merge ships the **last Change of a Roadmap Phase** — whether the phase goal was satisfied by shipped code OR closed by an explicit scope decision (e.g. a planned item dropped as over-engineering) — always: (1) mark the phase complete in `ROADMAP.md` and `planning.md` with today's date and status, and (2) close its GitHub milestone (`gh api -X PATCH repos/:owner/:repo/milestones/<n> -f state=closed`, or `scripts/sync-milestones.sh --apply` where the project ships it — it reads the now-`complete` ROADMAP entry and closes the milestone). Verify afterward with `scripts/check-phase-milestones.sh` (flags a milestone left `open` with 0 open issues). A mid-phase merge that does NOT complete the phase skips this sub-step.
 
 **Optional steps:**
 

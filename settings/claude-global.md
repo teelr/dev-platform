@@ -33,7 +33,7 @@ Shorthand affirmatives like "fix all", "do it", "go", "yes" authorize the IMMEDI
 
 The full chain: `/plan → /code → /review → /gate fast → commit → push → /pr → CI → /merge → post-merge`. `/review` is a mandatory independent review gate on every change. `/security-review` is optional for changes touching auth, credentials, external input, or new endpoints. `/test` and `/docs` are standalone — `/code` handles verification, auto-fix, and doc updates internally.
 
-**No merge before CI green.** `/merge` queries the PR's CI status and refuses on red, pending, or zero-check. No override. Red CI means fix-on-branch-and-re-push, never merge-around. **post-merge** captures any deferred work the spec called out (branch-protection updates, release-tag cuts, cross-project re-installs); no-op if none. post-merge is NOT a slash command — each spec's post-merge is bespoke, the spec is the runbook.
+**No merge before CI green.** `/merge` queries the PR's CI status and refuses on red, pending, or zero-check. No override. Red CI means fix-on-branch-and-re-push, never merge-around. **post-merge** captures any deferred work the spec called out (branch-protection updates, release-tag cuts, cross-project re-installs); no-op if none. post-merge is NOT a slash command — each spec's post-merge is bespoke, the spec is the runbook. The one **standard** (non-bespoke) post-merge sub-step is **Roadmap-Phase completion**: when a merge ships the last Change of a Roadmap Phase (goal met by code, or closed by an explicit scope decision), mark the phase complete in `ROADMAP.md` + `planning.md` (date + status) and close its GitHub milestone, then verify with `scripts/check-phase-milestones.sh`. Full shape in `/home/rich/dev/CLAUDE.md`.
 
 ## Gate Before Commit — CRITICAL
 
