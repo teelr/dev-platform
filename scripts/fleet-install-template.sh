@@ -28,7 +28,7 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REGISTRY="${REPO_ROOT}/monitoring/projects.json"
 SOURCE_TEMPLATE="${REPO_ROOT}/extensions/github-actions/dev-platform-gate.yml"
-DEFAULT_PIN="v1.9"
+DEFAULT_PIN="v1.10"
 
 PROJECT=""
 APPLY=0
@@ -70,7 +70,7 @@ Modes:
 Options:
   --project <name>      Required. Project name from monitoring/projects.json.
   --force               Overwrite existing target (default: refuse-to-clobber).
-  --pin <vX.Y>          Pin tag to rewrite into the template (default: v0.7).
+  --pin <vX.Y>          Pin tag to rewrite into the template (default: v1.10).
   --registry <path>     Override registry path (for tests).
   --help, -h            Show this help.
 

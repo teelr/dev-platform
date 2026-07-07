@@ -155,16 +155,17 @@ else
     record_fail "fleet-install: --force didn't overwrite — rc=${rc}"
 fi
 
-# ─── Check 10: --pin v0.6 rewrites the @v1.1 tag ──────────────────
-# Write to clean-1 again — it already has @v1.1 from check 7. Use --force
-# + --pin v0.6 to get a v0.6-pinned file. The sed rewrite uses word-boundary
-# anchor so it touches the `uses:` directive but intentionally leaves any
-# in-comment examples untouched — that's a feature, not a bug.
-# The assertion checks the `uses:` line specifically.
+# ─── Check 10: --pin v0.6 rewrites the default @v1.10 tag ─────────
+# Write to clean-1 again — it already has the default pin (@v1.10) from check 7.
+# Use --force + --pin v0.6 to get a v0.6-pinned file. The sed rewrite uses
+# word-boundary anchor so it touches the `uses:` directive but intentionally
+# leaves any in-comment examples untouched — that's a feature, not a bug.
+# The assertion checks the `uses:` line specifically, and that the real default
+# pin (@v1.10) was actually replaced (not a phantom old value).
 out="$(HOME="${APPLY_HOME}" "${SCRIPT}" --project clean-1 --apply --force --pin v0.6 --registry "${MOCK_REGISTRY}" 2>&1)"; rc=$?
 uses_line="$(grep "uses:" "${target_clean}" || true)"
-if [[ ${rc} -eq 0 ]] && [[ "${uses_line}" == *"@v0.6"* ]] && [[ "${uses_line}" != *"@v1.1"* ]]; then
-    record_pass "fleet-install: --pin v0.6 rewrites @v1.1 → @v0.6 in target's uses: directive"
+if [[ ${rc} -eq 0 ]] && [[ "${uses_line}" == *"@v0.6"* ]] && [[ "${uses_line}" != *"@v1.10"* ]]; then
+    record_pass "fleet-install: --pin v0.6 rewrites default @v1.10 → @v0.6 in target's uses: directive"
 else
     record_fail "fleet-install: --pin rewrite broken — rc=${rc}, uses_line='${uses_line}'"
 fi
