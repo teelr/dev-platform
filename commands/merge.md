@@ -138,6 +138,14 @@ Print:
   - Read the spec for the just-merged PR (look at `tasks/*-spec.md` files added/modified in `git diff HEAD~1 --name-only`).
   - If the spec has a "Post-merge step" section, list its actions briefly so the user knows what to invoke.
   - If no spec was touched (e.g., chore PR), say "no post-merge step — this PR is fully shipped."
+- **Detect Roadmap-Phase completion.** Determine whether this merge shipped the *last Change of a Roadmap Phase*:
+  - Read the just-merged spec (from `git diff HEAD~1 --name-only` → `tasks/*-spec.md`). If its Overview lists Changes across Phases and this PR merged the final Phase's last Change, the phase is complete. A single-PR-per-spec change completing the spec also completes its Roadmap Phase.
+  - A phase can also be complete by an explicit **scope decision** recorded in the spec or PR (a planned item dropped) — treat that the same as code-complete.
+  - If complete, surface the **standard Roadmap-Phase-completion actions** (do NOT execute them — the user invokes post-merge):
+    1. Mark the phase complete in `ROADMAP.md` + `planning.md` (today's date + status).
+    2. Close the GitHub milestone: `gh api -X PATCH repos/:owner/:repo/milestones/<n> -f state=closed` (or `./scripts/sync-milestones.sh --apply` where the project ships it).
+    3. Verify: `./scripts/check-phase-milestones.sh` should report no open-but-completed milestones.
+  - If this merge did NOT complete a phase (a mid-phase Change), say so explicitly: "mid-phase merge — no phase-completion step."
 
 Then STOP. **DO NOT** execute the post-merge actions automatically. Each spec's post-merge is bespoke (branch-protection updates, release-tag cuts, Pages-enable, sync-milestones --apply, etc.) — the user must explicitly invoke them.
 
@@ -148,4 +156,5 @@ Then STOP. **DO NOT** execute the post-merge actions automatically. Each spec's 
 - **Delete the branch on merge.** Long-lived feature branches accumulate; the `--delete-branch` flag is mandatory.
 - **Don't touch the spec or any code.** This command merges; it doesn't edit.
 - **Report the post-merge runbook from the spec, but DON'T execute it.** Per Workflow Step Discipline, the user explicitly invokes post-merge actions one at a time.
+- **Surface phase-completion, don't perform it.** When the merge completes a Roadmap Phase, `/merge` names the standard close-out actions (mark ROADMAP/planning complete, close the milestone) in its report — but per Workflow Step Discipline the user invokes post-merge explicitly. `/merge` never edits docs or closes milestones itself.
 - **NEVER merge to a branch other than `main`.** PRs target `main` per the per-Spec-Phase strategy. If a PR targets something else, that's a different workflow.

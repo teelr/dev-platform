@@ -179,6 +179,10 @@ Once `/review` gives APPROVE, commit normally.
 
 Push to GitHub. Create a PR if on a feature branch.
 
+### Step 7: Post-merge (deferred, per spec)
+
+After `/merge`, run any deferred steps the spec's "Post-merge" section named (branch-protection updates, release-tag cuts, cross-project re-installs). These are bespoke — the spec is the runbook — with **one standard sub-step**: **Roadmap-Phase completion.** When the merge shipped the last Change of a Roadmap Phase (goal met by code, or the phase closed by an explicit scope decision), mark the phase complete in `ROADMAP.md` + `planning.md` (date + status) and close its GitHub milestone (`gh api -X PATCH repos/:owner/:repo/milestones/<n> -f state=closed`, or `scripts/sync-milestones.sh --apply` where present). Verify with `scripts/check-phase-milestones.sh` — it flags any milestone left `open` with 0 open issues. `/merge`'s final report tells you whether the just-merged PR completed a phase.
+
 ## Workflow: Quick Fix (No Spec Needed)
 
 For small bug fixes or trivial changes, skip the spec — but `/review` is still mandatory:

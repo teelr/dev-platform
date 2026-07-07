@@ -32,8 +32,11 @@ tests/
 │   └── legitimate-step.md
 ├── install/
 │   └── run.sh                      install → verify → uninstall round-trip
-└── scaffold/
-    └── run.sh                      new-project.sh smoke
+├── scaffold/
+│   └── run.sh                      new-project.sh smoke
+└── phase-milestones/
+    ├── run.sh                      check-phase-milestones.sh detector (offline mock-gh)
+    └── fixtures/mock-bin/gh        mock gh CLI for canned milestone responses
 ```
 
 ## Adding a new suite
