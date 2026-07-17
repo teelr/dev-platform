@@ -9,6 +9,7 @@ Claude Code global configuration. Tracked here, deployed by `scripts/install.sh`
 - `keybindings.json` — global keybindings (NOT currently tracked: this machine has never customized keybindings, so the file does not exist in `~/.claude/`. Add it here and re-run install if you customize a key.) **Symlinked** when present.
 - `settings.local.json.example` — secret-free seed for the machine-local `~/.claude/settings.local.json`. `install.sh` copies it ONCE if the live file is absent, then never touches it.
 - `*.local.json` — gitignored, machine-specific overlays (auth tokens, machine paths). The live `settings/settings.local.json` is local-only; only the `.example` seed is tracked.
+- `managed-settings.json` — v1.11: machine-wide Claude Code auth pin (`forceLoginMethod: "claudeai"`). Deployed to `/etc/claude-code/managed-settings.json` (Linux managed-settings path), NOT `~/.claude/` — managed settings sit outside the user's own write access so they take precedence over `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN`/`apiKeyHelper`, closing the leak where a project's `.env` (meant for the app's own Anthropic API usage) gets inherited into a terminal and silently switches Claude Code's own billing off the subscription. Copy-deployed (root-owned, requires `sudo`) via `./scripts/install.sh managed`, not symlinked.
 
 ## Editing
 
