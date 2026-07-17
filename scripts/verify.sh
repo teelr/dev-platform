@@ -121,6 +121,23 @@ for f in "${REPO}/hooks"/*.py; do
     check_symlink "${f}" "${HOME_CLAUDE}/hooks/$(basename "${f}")"
 done
 
+echo "Verifying managed settings..."
+# v1.11: /etc/claude-code/managed-settings.json is a system path, copy-deployed
+# (not symlinked, root-owned by design) — compare content, not symlink target.
+_managed_target="/etc/claude-code/managed-settings.json"
+_managed_source="${REPO}/settings/managed-settings.json"
+if [[ -f "${_managed_source}" ]]; then
+    if [[ ! -f "${_managed_target}" ]]; then
+        echo "  X NOT deployed: ${_managed_target} (run: ./scripts/install.sh managed)"
+        ERRORS=$((ERRORS + 1))
+    elif ! cmp -s "${_managed_source}" "${_managed_target}"; then
+        echo "  ! drift: ${_managed_target} does not match tracked baseline (run: ./scripts/install.sh managed)"
+        ERRORS=$((ERRORS + 1))
+    else
+        echo "  OK ${_managed_target}"
+    fi
+fi
+
 echo "Verifying git-hooks..."
 for f in "${REPO}/shell/git-hooks"/*; do
     [[ -f "${f}" ]] || continue

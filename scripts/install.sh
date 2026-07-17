@@ -13,6 +13,7 @@
 #   ./scripts/install.sh settings
 #   ./scripts/install.sh hooks
 #   ./scripts/install.sh vscode
+#   ./scripts/install.sh managed    # v1.11 — machine-wide auth pin (sudo)
 #   ./scripts/install.sh git-hooks  # v1.2 — opt-in pre-commit hook
 #   ./scripts/install.sh worktree   # v1.4 — worktree isolation tooling
 #
@@ -218,6 +219,36 @@ install_vscode() {
     return 0
 }
 
+install_managed() {
+    # v1.11 — machine-wide Claude Code auth pin (forceLoginMethod: "claudeai").
+    # Deployed to a system path (/etc/claude-code/), not ~/.claude/, because
+    # managed settings must sit outside the user's own unprivileged write
+    # access to take precedence over ANTHROPIC_API_KEY/ANTHROPIC_AUTH_TOKEN/
+    # apiKeyHelper (see settings.md: managed settings "can't be overridden by
+    # anything"). Copy-deployed (not symlinked) and root-owned by design;
+    # requires sudo. Permissive on failure (no TTY / no sudo access) — same
+    # philosophy as install_vscode: this category is orthogonal to the rest,
+    # a WARN shouldn't abort `install.sh all`.
+    local target_dir="/etc/claude-code"
+    local target="${target_dir}/managed-settings.json"
+    local source="${REPO}/settings/managed-settings.json"
+    if [[ ! -f "${source}" ]]; then
+        echo "  managed: no tracked file at ${source#${REPO}/} — skipping"
+        return 0
+    fi
+    if [[ -f "${target}" ]] && cmp -s "${source}" "${target}"; then
+        echo "  managed: ${target} already up to date"
+        return 0
+    fi
+    if sudo mkdir -p "${target_dir}" && sudo cp "${source}" "${target}" && sudo chmod 644 "${target}"; then
+        echo "  managed: ${target} deployed"
+    else
+        echo "  managed: WARN failed to deploy ${target} (no sudo/TTY?) — run manually:" >&2
+        echo "    sudo mkdir -p ${target_dir} && sudo cp ${source} ${target} && sudo chmod 644 ${target}" >&2
+    fi
+    return 0
+}
+
 install_git_hooks() {
     # v1.2 — universal pre-commit hook (and future git hooks). Symlinks each
     # tracked file under shell/git-hooks/ into ~/.claude/git-hooks/. Opt-in:
@@ -262,11 +293,12 @@ case "${CATEGORY}" in
     settings)   install_settings ;;
     hooks)      install_hooks ;;
     vscode)     install_vscode ;;
+    managed)    install_managed ;;
     git-hooks)  install_git_hooks ;;
     worktree)   install_worktree ;;
-    all)        install_commands; install_skills; install_settings; install_hooks; install_vscode; install_git_hooks; install_worktree ;;
+    all)        install_commands; install_skills; install_settings; install_hooks; install_vscode; install_managed; install_git_hooks; install_worktree ;;
     *)          echo "Unknown category: ${CATEGORY}" >&2
-                echo "Usage: $0 [commands|skills|settings|hooks|vscode|git-hooks|worktree|all]" >&2
+                echo "Usage: $0 [commands|skills|settings|hooks|vscode|managed|git-hooks|worktree|all]" >&2
                 exit 1 ;;
 esac
 
