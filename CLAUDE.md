@@ -280,12 +280,13 @@ Each project gets its own port series. Check before assigning.
 | 8100s | Keystone Platform | 8100-8190 |
 | 8200s | NVR Dashboard | 8200 (backend), 8210 (frontend), 8889 (WebRTC) |
 | 8300 | TIS Standalone App (ATLAS Mode 2) | 8300 |
+| 8400 | kanban | 8400 (Next.js app — frontend + API routes, own Postgres) |
 | 6000s | OPIE | 6001 (frontend), 6002 (backend) |
 | 7000s | kermit-v3 | 7000 (backend), 7001 (frontend), 7002 (trigger webhook), 7003 (PTY WS), 7010 (storage) |
 | 9000 | SQRL splash | 9000 |
 | 15400s | Kermit Harness test infra | 15401 (chromadb), 15418 (mongodb), 15424 (nats), 15432 (milvus gRPC), 15436 (postgres), 15480 (redis), 15493 (milvus health) |
 
-**Next available series:** 8400s
+**Next available series:** 8500s
 
 ## Production Deployment Pattern
 
