@@ -30,6 +30,7 @@
 !monitoring/
 !shell/
 !tests/
+!deploy/
 
 # Inside re-included directories, allow only specific extensions to keep
 # generated content out of git.
@@ -46,6 +47,7 @@ scaffolding/**
 monitoring/**
 shell/**
 tests/**
+deploy/**
 
 # .github/ holds GitHub Actions workflows (v0.7 Phase 2 — CI, reusable
 # workflow, Pages deploy). Re-include the subdir (re-include must precede
@@ -139,6 +141,14 @@ tests/**
 # Added v0.6 — tests sometimes need a `code` or `python` mock without an extension
 # because the real binary they're standing in for has no extension either.
 !tests/**/mock-bin/*
+
+# deploy/ holds systemd --user unit files for dev-platform-level maintenance
+# tasks (e.g. the Milvus-compaction timer) — a different deployment target
+# (~/.config/systemd/user/) than ~/.claude/, so it has its own install script
+# rather than folding into scripts/install.sh's ~/.claude/-symlink categories.
+!deploy/**/
+!deploy/systemd/*.service
+!deploy/systemd/*.timer
 
 # Machine-local overlays (gitignored — keep secrets / per-machine paths out)
 settings/*.local.json

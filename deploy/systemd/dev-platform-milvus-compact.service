@@ -1,0 +1,7 @@
+[Unit]
+Description=dev-platform: compact every running dev/test Milvus instance (oneshot)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/rich/dev
+ExecStart=/home/rich/miniconda/bin/python3 /home/rich/dev/scripts/compact_dev_milvus.py
