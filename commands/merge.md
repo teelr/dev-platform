@@ -80,10 +80,17 @@ fi
 Then squash-merge:
 
 ```bash
-gh pr merge "${PR_NUM}" --squash --delete-branch
+if [[ "${IN_WORKTREE}" == "1" ]]; then
+    gh pr merge "${PR_NUM}" --squash
+    REPO="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
+    MERGED_BRANCH="$(gh pr view "${PR_NUM}" --json headRefName --jq .headRefName)"
+    gh api -X DELETE "repos/${REPO}/git/refs/heads/${MERGED_BRANCH}"
+else
+    gh pr merge "${PR_NUM}" --squash --delete-branch
+fi
 ```
 
-The `--delete-branch` flag deletes the remote branch (and the local branch in branch mode). In worktree mode gh may warn it can't delete the local branch while the worktree holds it — that's expected and handled in Step 5.
+In branch mode, `--delete-branch` deletes the branch both remotely and locally in one call. In worktree mode, `--delete-branch` fails the entire `gh pr merge` command — not just a warning — because `gh` can't check out anything else locally while the worktree holds the branch and `main` is already checked out in the primary checkout. So in worktree mode the merge runs without `--delete-branch`, and the remote branch is deleted explicitly via the GitHub API instead, which touches no local checkout state. The branch to delete is looked up from the PR itself (`MERGED_BRANCH`, via `gh pr view`) rather than assumed to be `${BR}` — Step 1 allows an explicit PR-number argument that can target a different PR than the one the current worktree's branch is for, so the two aren't always the same branch. Local deletion in worktree mode is unaffected — it's still handled by Step 5's `git branch -D "${BR}"` (always the worktree's own branch, regardless of which PR was merged), which runs after `ExitWorktree` has returned the session to the main checkout.
 
 If `gh pr merge` errors, report verbatim and STOP. Don't retry.
 
@@ -117,7 +124,7 @@ git checkout main && git pull --ff-only
    done
    sleep 1   # let any stopped process release the worktree before removal
    git worktree remove --force "${WT}"        # drop the now-merged worktree
-   git branch -D "${BR}" 2>/dev/null || true  # drop the local branch gh couldn't
+   git branch -D "${BR}" 2>/dev/null || true  # drop the local branch (worktree mode never asks gh to do this)
    git worktree prune
    ```
 
@@ -153,7 +160,7 @@ Then STOP. **DO NOT** execute the post-merge actions automatically. Each spec's 
 
 - **The CI-green check is non-overridable.** No `--force`, no `--allow-red` flag. If CI is red, fix the branch. If CI is genuinely irrelevant (e.g., docs-only change that nonetheless triggered CI), the failure indicates something else worth investigating — don't bypass.
 - **Always squash, never rebase or merge-commit.** The dev-platform default is squash-merge per the per-Spec-Phase strategy. Every PR becomes ONE commit on main.
-- **Delete the branch on merge.** Long-lived feature branches accumulate; the `--delete-branch` flag is mandatory.
+- **Delete the branch on merge, in both modes.** Long-lived feature branches accumulate. Branch mode uses `gh pr merge --delete-branch` for both remote+local in one call; worktree mode deletes the remote branch via `gh api` and the local branch via Step 5's `git branch -D` (see Step 4 for why the two modes diverge).
 - **Don't touch the spec or any code.** This command merges; it doesn't edit.
 - **Report the post-merge runbook from the spec, but DON'T execute it.** Per Workflow Step Discipline, the user explicitly invokes post-merge actions one at a time.
 - **Surface phase-completion, don't perform it.** When the merge completes a Roadmap Phase, `/merge` names the standard close-out actions (mark ROADMAP/planning complete, close the milestone) in its report — but per Workflow Step Discipline the user invokes post-merge explicitly. `/merge` never edits docs or closes milestones itself.
