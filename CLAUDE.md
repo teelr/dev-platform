@@ -127,6 +127,8 @@ Each step requires the user to invoke it. Completing one step does NOT mean star
 
 **Quick fixes:** fix → `/review` → `/gate fast` → commit → push → `/pr` → CI → `/merge`.
 
+**Trivial edits (zero behavior change):** A single-line or few-line addition to a registry, table, or doc — no effect on code behavior, not read programmatically by any script or test (e.g., a new Port Allocation Registry row, a typo fix, a broken link) — skips the chain: `./scripts/gate_fast.sh` (or the project's equivalent), then commit straight to `main`. No branch, no `/plan`, no `/review`, no PR, no CI wait. NOT trivial — use Quick fixes instead — if the edit: touches `commands/`, `skills/`, `hooks/`, `scripts/`, or any file a script/test parses; changes a rule that alters behavior (workflow chain, taxonomy, gate contract); or spans more than ~5 lines. When in doubt, treat it as a quick fix, not a trivial edit.
+
 **Plan mode default:** Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions). If something goes sideways, STOP and re-plan.
 
 **Verification before done:** Never mark a task complete without proving it works. Ask: "Would a staff engineer approve this?" Run tests, check logs, demonstrate correctness.
@@ -356,4 +358,4 @@ For a new slash command / skill / hook / setting: (1) write the file in the corr
 - **Cascade verification** — Parent delete handles all children explicitly.
 - **Horizontal tracing** — Every endpoint traced through all layers before marking complete.
 - **Create and delete together** — Same work session.
-- **Dev workflow** — `/plan → /code → /review → /gate fast → commit → push → /pr → CI → /merge → post-merge` for features. Quick fixes: `/review → /gate fast` → commit → push → `/pr` → CI → `/merge`. `/review` is mandatory on every change.
+- **Dev workflow** — `/plan → /code → /review → /gate fast → commit → push → /pr → CI → /merge → post-merge` for features. Quick fixes: `/review → /gate fast` → commit → push → `/pr` → CI → `/merge`. `/review` is mandatory on every change. Trivial edits (zero behavior change, ≤5 lines, no script/test reads the file): `/gate fast` → commit straight to `main` — no branch, no review, no PR.
