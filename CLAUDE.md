@@ -43,7 +43,7 @@ All development standards for projects in `/home/rich/dev/projects/`. This is th
 
 **Drift detection:** `scripts/check_spec_taxonomy.sh` (wired into every project's gate fast). `/review` (slash command + workflow contracts on staged changes). Cross-project audits via `/dev` or status surveys.
 
-**Drift correction:** Fix lands in dev-platform FIRST; each project re-runs `scripts/install.sh` to pick up the change.
+**Drift correction:** Fix lands in dev-platform FIRST. For deployed artifacts (commands, skills, settings, hooks, vscode) each project re-runs `scripts/install.sh` to pick up the change. Rule text in THIS file (dev workflow, taxonomy, language matrix) needs no install step — Claude Code auto-loads `CLAUDE.md` from every parent directory of a session's cwd, so a fix here is live for any session under `/home/rich/dev/` immediately.
 
 ## Response Style — GET TO THE POINT
 
