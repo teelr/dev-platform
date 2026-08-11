@@ -185,11 +185,21 @@ After `/merge`, run any deferred steps the spec's "Post-merge" section named (br
 
 ## Workflow: Quick Fix (No Spec Needed)
 
-For small bug fixes or trivial changes, skip the spec — but `/review` is still mandatory:
+For small bug fixes or behavior changes too small for a spec, skip `/plan` — but `/review` is still mandatory:
 
 1. Make the fix directly
 2. `/review` → `/gate fast`
-3. Commit
+3. Commit → push → `/pr` → CI → `/merge`
+
+## Workflow: Trivial Edit (No Chain)
+
+For a single-line or few-line addition to a registry, table, or doc — zero effect on code behavior, not read programmatically by any script or test (e.g. a new Port Allocation Registry row, a typo fix, a broken link) — skip the chain entirely:
+
+1. Make the edit directly
+2. `./scripts/gate_fast.sh` (or the project's equivalent)
+3. Commit straight to `main` — no branch, no `/review`, no PR, no CI wait
+
+NOT trivial — use Quick Fix instead — if the edit touches `commands/`, `skills/`, `hooks/`, `scripts/`, or any file a script/test parses; changes a rule that alters behavior (workflow chain, taxonomy, gate contract); or spans more than ~5 lines. When in doubt, treat it as a quick fix, not a trivial edit.
 
 ## Workflow: Existing Codebase Audit
 
