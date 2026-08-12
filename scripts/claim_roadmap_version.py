@@ -2,11 +2,12 @@
 """claim_roadmap_version.py — compute the next free Roadmap Phase version number
 and atomically create its GitHub milestone.
 
-Checks BOTH origin/main's ROADMAP.md (## v<N>.<M>: headers) AND every open+closed
-GitHub milestone matching v<N>.<M>: for the highest currently-used minor version,
-proposes max+1, and creates the milestone for it. Retries forward on a narrow race
-(another session's milestone for the exact same number appears between the check
-and the create call).
+Checks BOTH origin/main's ROADMAP.md (Roadmap Phase entries in either heading
+form `## v<N>.<M>: <Title>` or list form `- **v<N>.<M>: <Title>** ...`) AND
+every open+closed GitHub milestone matching v<N>.<M>: for the highest
+currently-used minor version, proposes max+1, and creates the milestone for
+it. Retries forward on a narrow race (another session's milestone for the
+exact same number appears between the check and the create call).
 
 Usage: python3 scripts/claim_roadmap_version.py "Feature Title" [--major N]
 
@@ -23,7 +24,7 @@ import re
 import subprocess
 import sys
 
-_ROADMAP_VERSION_RE = re.compile(r"^## v(\d+)\.(\d+):", re.MULTILINE)
+_ROADMAP_VERSION_RE = re.compile(r"^(?:## |- \*\*)v(\d+)\.(\d+):", re.MULTILINE)
 _MILESTONE_VERSION_RE = re.compile(r"^v(\d+)\.(\d+):")
 _MAX_CLAIM_ATTEMPTS = 5
 

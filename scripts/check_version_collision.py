@@ -4,12 +4,14 @@ introduces must not already be used by origin/main or a differently-titled GitHu
 milestone.
 
 Two-layer check:
-  1. Local (no network beyond `git fetch`, always runs): every `## v<N>.<M>:`
-     header present in the WORKING TREE's ROADMAP.md but absent from
-     origin/main's ROADMAP.md is a "new" version this branch is introducing.
-     If origin/main's ROADMAP.md ALSO has that exact v<N>.<M> under a
-     DIFFERENT title, that's a real collision — the number shipped as
-     something else while this branch was in flight.
+  1. Local (no network beyond `git fetch`, always runs): every Roadmap Phase
+     entry — heading form (`## v<N>.<M>: <Title>`) or list form
+     (`- **v<N>.<M>: <Title>** ...`), both supported, matching
+     check_spec_taxonomy.sh's own dual-form pattern — present in the WORKING
+     TREE's ROADMAP.md but absent from origin/main's ROADMAP.md is a "new"
+     version this branch is introducing. If origin/main's ROADMAP.md ALSO has
+     that exact v<N>.<M> under a DIFFERENT title, that's a real collision —
+     the number shipped as something else while this branch was in flight.
   2. GitHub milestone cross-check (best-effort — SKIPs, does not FAIL, if `gh`
      is unavailable/unauthenticated): for each "new" version from step 1,
      check every open+closed milestone titled `v<N>.<M>: ...`. A match with a
@@ -34,7 +36,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-_VERSION_HEADER_RE = re.compile(r"^## (v(\d+)\.(\d+)): (.+?)\s*(?:—.*)?$", re.MULTILINE)
+_VERSION_HEADER_HEADING_RE = re.compile(r"^## (v(\d+)\.(\d+)): (.+?)\s*(?:—.*)?$", re.MULTILINE)
+_VERSION_HEADER_LIST_RE = re.compile(r"^- \*\*(v(\d+)\.(\d+)): (.+?)\*\*", re.MULTILINE)
 _MILESTONE_TITLE_RE = re.compile(r"^(v(\d+)\.(\d+)):\s*(.+)$")
 
 
@@ -47,9 +50,14 @@ def _run(args: list[str], timeout: int = 15) -> str | None:
 
 
 def _versions_in(text: str) -> dict[str, str]:
-    """version token (e.g. 'v0.74') -> title, for every '## v<N>.<M>: <Title>' header."""
+    """version token (e.g. 'v0.74') -> title, for every Roadmap Phase entry —
+    heading form ('## v<N>.<M>: <Title>') or list form
+    ('- **v<N>.<M>: <Title>** ...'), matching check_spec_taxonomy.sh's
+    dual-form support."""
     out: dict[str, str] = {}
-    for full, _maj, _min, title in _VERSION_HEADER_RE.findall(text):
+    for full, _maj, _min, title in _VERSION_HEADER_HEADING_RE.findall(text):
+        out[full] = title.strip()
+    for full, _maj, _min, title in _VERSION_HEADER_LIST_RE.findall(text):
         out[full] = title.strip()
     return out
 
