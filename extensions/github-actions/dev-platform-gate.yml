@@ -17,6 +17,15 @@
 # like @main break reproducibility. Bump the tag when dev-platform
 # cuts a new release. See docs/CI-INTEGRATION.md in dev-platform
 # for the full adoption guide.
+#
+# The permissions: block below is REQUIRED, not optional. This calls a
+# reusable workflow in a DIFFERENT repo (and usually a different GitHub
+# org/owner than yours). For a cross-repo reusable-workflow call, GitHub
+# rejects the call outright — a silent startup_failure that never even
+# appears in your PR's checks list — unless the calling workflow (this
+# file) explicitly grants at least what the called job requests. The
+# version-collision job needs contents: read + issues: read. Found live
+# on SQRL's adoption (2026-08-12): the check was silently never running.
 
 name: dev-platform-gate
 
@@ -25,6 +34,10 @@ on:
     branches: [main]
   push:
     branches: [main]
+
+permissions:
+  contents: read
+  issues: read
 
 jobs:
   taxonomy:
