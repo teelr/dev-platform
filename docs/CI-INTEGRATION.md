@@ -112,6 +112,7 @@ Permanently: delete the file. If the check was a required status check in branch
 | Check fails on a header that looks correct | The check requires exact format — leading hyphen + double-asterisks for list-form, two `#` for heading-form | Compare to a passing dev-platform `ROADMAP.md` entry |
 | Required check stuck in "Expected" state | Workflow ran on a prior commit but not the latest PR commit | Push an empty commit (`git commit --allow-empty -m "trigger CI"`) to re-trigger |
 | `version-collision` check fails with "COLLISION" | Your branch's `ROADMAP.md` claims a `v<X.Y>` that `origin/main` or a live GitHub milestone already uses under a different title | Renumber to a free version (see the check's own output for the specific collision), or if you're intentionally updating an existing Phase's title, make sure `ROADMAP.md` and the milestone agree |
+| `version-collision` check never appears at all — not even a red X, no run in the Actions tab | Missing `permissions:` block in your `dev-platform-gate.yml`. This is a cross-repo (often cross-org) reusable-workflow call — GitHub silently rejects it (`startup_failure`) unless the caller explicitly grants at least `contents: read` + `issues: read` | Add a top-level `permissions: { contents: read, issues: read }` block to your `dev-platform-gate.yml` (present in the template since 2026-08-12 — re-copy the template if yours predates that) |
 
 ## See also
 
