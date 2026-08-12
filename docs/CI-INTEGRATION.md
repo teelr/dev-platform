@@ -5,6 +5,7 @@ How to plug your repo into dev-platform's taxonomy enforcement gate via GitHub A
 ## What this gives you
 
 - **Taxonomy enforcement on every PR.** Roadmap Phase headers in your `ROADMAP.md` / `planning.md` must match `v<MAJOR>.<MINOR>: <Title>`; spec headers under `tasks/*-spec.md` can't use killed terms (`Sprint`, `Stage`, `Step`, `Task`, etc.). Violations fail the check.
+- **Roadmap-version collision detection on every PR.** If two branches independently claim the same `v<MAJOR>.<MINOR>` Roadmap Phase number — the exact race that happens when two sessions run `/plan` around the same time in separate worktrees — the PR that would introduce the collision fails with the specific colliding version and both titles named. Degrades to a non-blocking warning (never a silent false pass, never a hard fail) if `gh`/network access isn't available to the runner.
 - **A green status check** that demonstrates your repo conforms to the dev-platform standard. Useful when teammates skim PR lists.
 - **Zero vendored code.** The reusable workflow lives in `teelr/dev-platform`; your repo pins to a release tag. Upgrades are a one-line tag bump.
 
@@ -110,6 +111,7 @@ Permanently: delete the file. If the check was a required status check in branch
 | `taxonomy-check.yml` not found error | The pinned tag doesn't exist in dev-platform | Check [available tags](https://github.com/teelr/dev-platform/tags) and bump your `@vX.Y` to one that exists |
 | Check fails on a header that looks correct | The check requires exact format — leading hyphen + double-asterisks for list-form, two `#` for heading-form | Compare to a passing dev-platform `ROADMAP.md` entry |
 | Required check stuck in "Expected" state | Workflow ran on a prior commit but not the latest PR commit | Push an empty commit (`git commit --allow-empty -m "trigger CI"`) to re-trigger |
+| `version-collision` check fails with "COLLISION" | Your branch's `ROADMAP.md` claims a `v<X.Y>` that `origin/main` or a live GitHub milestone already uses under a different title | Renumber to a free version (see the check's own output for the specific collision), or if you're intentionally updating an existing Phase's title, make sure `ROADMAP.md` and the milestone agree |
 
 ## See also
 

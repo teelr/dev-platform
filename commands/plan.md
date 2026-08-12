@@ -29,7 +29,13 @@ Do this now, before exploring the codebase — this is the moment you've decided
 
 1. Derive the slug from the feature description: kebab-case (e.g. "add image generation" → `image-generation`). This is the same slug used for the spec filename in Step 5 below — derive it once, here, and reuse it.
 2. Check the current branch: `git branch --show-current`. If it's already something other than `main` — a prior `/plan` or `/code` already put you on a feature branch or in a worktree this session — skip straight to Step 3. Don't create anything new.
-3. If on `main`, read the active Roadmap Phase version from `planning.md` (e.g. `v0.9`). A brand-new spec always starts at Phase 1, so the branch name is `v<X.Y>/phase-1-<slug>`.
+3. If on `main`, this is a new Roadmap Phase — claim its version number atomically instead of reading one and hoping it's free (two concurrent `/plan` sessions can otherwise both read the same "next" number, as happened twice in one afternoon on kermit-v3). First derive a short Title-Cased feature title from the same feature description used for the slug in sub-step 1 (e.g. slug `image-generation` → title "Image Generation") — this exact title is reused verbatim as the milestone title AND, later in Step 5, as the ROADMAP.md `## v<X.Y>: <Title>` header, so the two never drift apart (a title mismatch between them is precisely what `check_version_collision.py` flags as a collision). Then derive the major version from `planning.md`'s stated Active Roadmap Phase line (e.g. `**Active Roadmap Phase:** **v1.10 SHIPPED**` → major `1`), or the highest `## v<N>.<M>:` header in `ROADMAP.md` if `planning.md` has none. Run:
+
+   ```bash
+   python3 /home/rich/dev/scripts/claim_roadmap_version.py "<Title-Cased feature title>" --major <N>
+   ```
+
+   This fetches `origin/main`'s `ROADMAP.md` AND every GitHub milestone (open + closed) to find the true highest-claimed minor version, creates the milestone for the next one, and retries forward if another session's milestone appears mid-claim. On success it prints `Claimed v<X.Y> — milestone #<N>: <title>` — parse `v<X.Y>` from that line and use it for the rest of this Step, the branch name, and the spec. **If the script exits non-zero** (no `gh` auth, repo detection failed, or 5 consecutive collisions), STOP and report the error verbatim — do NOT fall back to guessing a version number; that defeats the entire point of claiming it here. A brand-new spec always starts at Phase 1, so the branch name is `v<X.Y>/phase-1-<slug>` using the claimed version.
 4. Pick the mode the same way `/code` does:
 
    ```bash
@@ -155,9 +161,13 @@ Create the spec file at `tasks/{slug}-spec.md`, using the same slug derived in S
 - [ ] `/security-review` run before `/gate fast`
 ```
 
-## Step 6: Ensure GitHub Milestone Exists
+## Step 6: Verify the Milestone (fallback only)
 
-After writing the spec, derive the version prefix from the spec filename (e.g. `tasks/v2.45.0-foo-spec.md` → `v2.45`) and check whether a matching milestone exists:
+If Step 2 already claimed a version via `claim_roadmap_version.py` (the normal path for any brand-new Roadmap Phase), its milestone already exists — skip this step entirely.
+
+This step only fires for the two cases Step 2 doesn't cover: (a) a hand-authored spec added to `tasks/` without going through `/plan`'s branch-creation flow, or (b) a later Spec Phase of the SAME Roadmap Phase added via a fresh `/plan` invocation on an EXISTING feature branch. Case (b) should almost never actually find a missing milestone — Change 3's Step 2 already created it when Phase 1 of the same Roadmap Phase ran — so hitting the "no milestone exists" branch below in case (b) is a signal something already drifted, not a normal occurrence.
+
+Derive the version prefix from the spec filename or branch name, then check:
 
 ```bash
 PREFIX="v<X.Y>"   # substitute actual major.minor
@@ -168,14 +178,13 @@ gh api repos/{owner}/{repo}/milestones?state=all \
 Derive `{owner}/{repo}` from `git remote get-url origin`.
 
 - **If the milestone exists:** note its title and move on.
-- **If no milestone exists:** create one automatically:
+- **If no milestone exists:** claim one the same race-safe way Step 2 does — do NOT create it directly via `gh api ... POST` (that path has no collision protection, which is the exact bug this spec exists to fix):
 
 ```bash
-gh api repos/{owner}/{repo}/milestones --method POST \
-    -f title="v<X.Y>: <Title from spec or ROADMAP.md>"
+python3 /home/rich/dev/scripts/claim_roadmap_version.py "<Title from spec or ROADMAP.md>" --major <N>
 ```
 
-Use the Roadmap Phase title from `ROADMAP.md` if the version appears there; otherwise use the spec's feature name Title-Cased. Report the created milestone title to the user.
+`claim_roadmap_version.py` always claims the NEXT free minor version — it does not accept a specific target number. If the branch/spec already commits to an exact `v<X.Y>` that turns out to be missing its milestone, and the script would claim a DIFFERENT number, STOP and report to the user rather than silently claiming a mismatched number under the hood — that mismatch is itself worth a human looking at.
 
 This prevents the "No vX.Y milestone exists" warning that surfaces later at `/pr` time.
 
