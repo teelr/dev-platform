@@ -2,11 +2,16 @@
 # .github/workflows/ to plug into dev-platform's taxonomy enforcement
 # at the PR boundary.
 #
-# What it does: runs check_spec_taxonomy.sh against your repo's
-# tasks/*-spec.md, ROADMAP.md, and planning.md on every PR targeting
-# main and every push to main. Fails the build if any header uses a
-# killed prefix (R<N>:, Sprint X:, Stage Y:, Q<N>-<YYYY>:, etc.) or
-# any Spec Phase header uses a killed Change-level synonym.
+# What it does: runs two independent checks on every PR targeting
+# main and every push to main. (1) check_spec_taxonomy.sh — fails
+# the build if any header in tasks/*-spec.md, ROADMAP.md, or
+# planning.md uses a killed prefix (R<N>:, Sprint X:, Stage Y:,
+# Q<N>-<YYYY>:, etc.) or a killed Change-level synonym. (2)
+# check_version_collision.py — fails the build if this branch's
+# ROADMAP.md claims a Roadmap Phase version number that origin/main
+# or a live GitHub milestone already uses under a different title
+# (best-effort: degrades to a non-blocking warning, never a false
+# failure, if gh/network access is unavailable).
 #
 # Pin to a specific tag (e.g., @v0.7) for stability — floating tags
 # like @main break reproducibility. Bump the tag when dev-platform

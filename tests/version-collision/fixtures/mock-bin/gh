@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# Mock gh CLI for tests/version-collision/run.sh.
+#
+# Supports the gh invocations claim_roadmap_version.py and
+# check_version_collision.py make:
+#   gh auth status / gh --version
+#       -> exit 0 (always "available" in this suite — the degraded-coverage
+#          test case drives SKIP via an unresolvable repo slug instead, see
+#          run.sh Check 5, not via gh-unavailability)
+#   gh api --paginate repos/<slug>/milestones?state=all --jq ".[].title"
+#       -> emits the plain-text title lines in $MOCK_MILESTONES_FILE
+#          (already --jq-filtered, matching what real gh would print for
+#          this exact invocation — no JSON parsing needed on either side)
+#   gh api repos/<slug>/milestones --method POST -f title=... -f description=...
+#       -> creates a milestone: emits canned {"number":N,"html_url":"..."}
+#          JSON. Fails with an "already_exists"-shaped stderr message on the
+#          first $MOCK_CREATE_FAIL_COUNT calls (tracked via
+#          $MOCK_CREATE_COUNTER_FILE) to exercise claim_roadmap_version.py's
+#          retry-forward logic.
+#
+# Failure injection: MOCK_FAIL (if set) makes any `gh api` call exit 1 —
+# used to test degraded/SKIP handling independent of the repo-slug path.
+
+set -uo pipefail
+
+case "${1:-}" in
+    auth)
+        [[ "${2:-}" == "status" ]] && exit 0
+        exit 1
+        ;;
+    --version)
+        exit 0
+        ;;
+    api)
+        shift
+        if [[ -n "${MOCK_FAIL:-}" ]]; then
+            echo "mock-gh: injected API failure" >&2
+            exit 1
+        fi
+
+        method="GET"
+        title=""
+        prev=""
+        for arg in "$@"; do
+            [[ "${prev}" == "--method" ]] && method="${arg}"
+            [[ "${arg}" == title=* ]] && title="${arg#title=}"
+            prev="${arg}"
+        done
+
+        if [[ "${method}" == "POST" ]]; then
+            n=0
+            if [[ -n "${MOCK_CREATE_COUNTER_FILE:-}" ]]; then
+                [[ -f "${MOCK_CREATE_COUNTER_FILE}" ]] && n="$(cat "${MOCK_CREATE_COUNTER_FILE}")"
+                n=$((n + 1))
+                echo "${n}" > "${MOCK_CREATE_COUNTER_FILE}"
+            fi
+            if [[ "${MOCK_CREATE_FAIL_COUNT:-0}" -gt 0 && "${n}" -le "${MOCK_CREATE_FAIL_COUNT:-0}" ]]; then
+                echo "mock-gh: HTTP 422: Validation Failed (already_exists) for title '${title}'" >&2
+                exit 1
+            fi
+            num="${MOCK_CREATE_NUMBER:-99}"
+            echo "{\"number\": ${num}, \"html_url\": \"https://github.com/owner/repo/milestone/${num}\"}"
+            exit 0
+        fi
+
+        # GET (list) -- emit the already-title-filtered canned response
+        : "${MOCK_MILESTONES_FILE:?MOCK_MILESTONES_FILE must be set in env}"
+        cat "${MOCK_MILESTONES_FILE}"
+        exit 0
+        ;;
+    *)
+        echo "mock-gh: unsupported command '${1:-}'" >&2
+        exit 1
+        ;;
+esac
