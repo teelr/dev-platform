@@ -139,7 +139,8 @@ scan_roadmap_file() {
   fi
 }
 
-scan_roadmap_file "$PROJECT_ROOT/ROADMAP.md"
+ROADMAP_FILE="${ROADMAP_PATH:-ROADMAP.md}"
+scan_roadmap_file "$PROJECT_ROOT/$ROADMAP_FILE"
 scan_roadmap_file "$PROJECT_ROOT/planning.md"
 
 if [[ "$found_roadmap_violations" -eq 1 ]]; then

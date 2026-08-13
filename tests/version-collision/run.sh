@@ -238,3 +238,57 @@ if [[ ${RC} -eq 0 ]] && echo "${OUT}" | grep -q "Claimed v0.2"; then
 else
     record_fail "claim-roadmap-version: heading-form regressed — rc=${RC}, out=${OUT:0:200}"
 fi
+
+# --- ROADMAP_PATH coverage (v1.13) -----------------------------------------------
+
+# A third origin/work pair whose roadmap lives at docs/roadmap.md, not
+# ROADMAP.md at all — proves the override works AND that the default path
+# genuinely doesn't find it (the exact silent-no-op v1.13 fixes).
+CUSTOM_ORIGIN="${TMP}/custom-origin.git"
+git init -q --bare "${CUSTOM_ORIGIN}"
+git -C "${CUSTOM_ORIGIN}" symbolic-ref HEAD refs/heads/main
+
+CUSTOM_SEED="${TMP}/custom-seed"
+git init -q "${CUSTOM_SEED}"
+(
+    cd "${CUSTOM_SEED}"
+    git checkout -q -b main
+    mkdir -p docs
+    printf -- '- **v0.1: Foundation** *(complete — 2026-01-01)* — initial phase.\n' > docs/roadmap.md
+    git add docs/roadmap.md
+    git -c user.email=t@t -c user.name=t commit -q -m seed
+    git remote add origin "${CUSTOM_ORIGIN}"
+    git push -q origin main
+)
+
+CUSTOM_WORK="${TMP}/custom-work"
+git clone -q "${CUSTOM_ORIGIN}" "${CUSTOM_WORK}"
+(
+    cd "${CUSTOM_WORK}"
+    git checkout -q -b feature
+    printf -- '- **v0.1: Foundation** *(complete — 2026-01-01)* — initial phase.\n- **v0.2: Widgets** *(complete — 2026-01-02)* — new phase.\n' > docs/roadmap.md
+)
+
+# Check 13: check_version_collision.py — ROADMAP_PATH override finds the new
+# entry at the custom path, AND the default path (unset) genuinely finds
+# nothing against the exact same directory.
+with_override="$(cd "${CUSTOM_WORK}" && env ROADMAP_PATH=docs/roadmap.md VERSION_GUARD_REPO_SLUG=owner/repo MOCK_MILESTONES_FILE="${empty_titles}" PATH="${MOCK_BIN}:${PATH}" python3 "${CHECK_SCRIPT}" . 2>&1)"
+with_override_rc=$?
+without_override="$(cd "${CUSTOM_WORK}" && PATH="${MOCK_BIN}:${PATH}" python3 "${CHECK_SCRIPT}" . 2>&1)"
+without_override_rc=$?
+if [[ ${with_override_rc} -eq 0 ]] && echo "${with_override}" | grep -q "OK: 1 new version header(s), no collision detected" \
+        && [[ ${without_override_rc} -eq 0 ]] && echo "${without_override}" | grep -q "no ROADMAP.md — nothing to check"; then
+    record_pass "version-collision: ROADMAP_PATH override finds custom-path entry; default path still finds nothing there"
+else
+    record_fail "version-collision: ROADMAP_PATH case wrong — with_rc=${with_override_rc}/${with_override:0:120}, without_rc=${without_override_rc}/${without_override:0:120}"
+fi
+
+# Check 14: claim_roadmap_version.py computes roadmap_high from the custom
+# path when ROADMAP_PATH is set (origin/main's docs/roadmap.md has only
+# v0.1, so it claims v0.2).
+run_claim "Widgets" "${CUSTOM_WORK}" ROADMAP_PATH=docs/roadmap.md VERSION_GUARD_REPO_SLUG=owner/repo MOCK_MILESTONES_FILE="${empty_titles}"
+if [[ ${RC} -eq 0 ]] && echo "${OUT}" | grep -q "Claimed v0.2"; then
+    record_pass "claim-roadmap-version: ROADMAP_PATH override computes roadmap_high from custom path"
+else
+    record_fail "claim-roadmap-version: ROADMAP_PATH override broken — rc=${RC}, out=${OUT:0:200}"
+fi

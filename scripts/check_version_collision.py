@@ -26,6 +26,14 @@ collision was found in whatever WAS checked — matches this project's
 CT-SCHEMA/gate_fast.sh convention of a distinct SKIP exit code rather than
 silently reporting PASS on a check that couldn't fully run.
 
+A note on the roadmap path itself: set ROADMAP_PATH (relative to the repo
+root, e.g. "docs/roadmap.md") if your roadmap doesn't live at the default
+ROADMAP.md. Do NOT satisfy this by symlinking a root ROADMAP.md to the real
+file — `git show origin/main:ROADMAP.md` does not dereference symlinks, it
+returns the raw symlink target-path string as the file's "content," which
+makes every real version look "new" and produces false COLLISION failures
+against your own milestone history. Set ROADMAP_PATH instead.
+
 Usage: python3 scripts/check_version_collision.py [project_root]
 """
 from __future__ import annotations
@@ -84,16 +92,17 @@ def _repo_slug() -> str | None:
 
 
 def main(project_root: Path) -> int:
-    roadmap = project_root / "ROADMAP.md"
+    roadmap_path = os.environ.get("ROADMAP_PATH", "ROADMAP.md")
+    roadmap = project_root / roadmap_path
     if not roadmap.exists():
-        print("no ROADMAP.md — nothing to check")
+        print(f"no {roadmap_path} — nothing to check")
         return 0
 
     local_text = roadmap.read_text()
     local_versions = _versions_in(local_text)
 
     fetch_ok = _run(["git", "fetch", "origin", "main", "--quiet"]) is not None
-    main_text = _run(["git", "show", "origin/main:ROADMAP.md"], timeout=20)
+    main_text = _run(["git", "show", f"origin/main:{roadmap_path}"], timeout=20)
     if not fetch_ok or main_text is None:
         print("SKIP: could not fetch origin/main — local-only check unavailable")
         return 2
@@ -123,7 +132,7 @@ def main(project_root: Path) -> int:
     for version, local_title in reused_versions.items():
         collisions.append(
             f"{version}: this branch claims {local_title!r}, but origin/main's "
-            f"ROADMAP.md already titles it {main_versions[version]!r}"
+            f"{roadmap_path} already titles it {main_versions[version]!r}"
         )
 
     # Layer 2: GitHub milestones, best-effort. Any branch that can't complete

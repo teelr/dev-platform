@@ -89,3 +89,40 @@ run_roadmap_fixture "conformant-roadmap.md"      0 "ROADMAP with valid v<N>.<N>:
 run_roadmap_fixture "bad-roadmap-sprint.md"      1 "ROADMAP with Sprint X: killed prefix detected"            "Sprint K:"
 run_roadmap_fixture "bad-roadmap-rprefix.md"     1 "ROADMAP with legacy R<N>: killed prefix detected"         "R7:"
 run_roadmap_fixture "bad-roadmap-multi.md"       1 "ROADMAP with both Sprint X: AND R<N>: violations detected" "Sprint K:"
+
+# ROADMAP_PATH coverage (v1.13) — same fixtures, placed at a non-default
+# path, checked with ROADMAP_PATH pointing at that path instead of the
+# default ROADMAP.md.
+run_roadmap_fixture_custom_path() {
+    local fixture="$1"
+    local rel_path="$2"
+    local expected_exit="$3"
+    local description="$4"
+    local expected_match="${5:-}"
+
+    local tmp
+    tmp="$(mktemp -d)"
+    trap "rm -rf '${tmp}'" RETURN
+
+    mkdir -p "$(dirname "${tmp}/${rel_path}")"
+    cp "${HERE}/fixtures/${fixture}" "${tmp}/${rel_path}"
+    mkdir -p "${tmp}/tasks"
+    echo "# stub" > "${tmp}/tasks/stub-spec.md"
+
+    local output
+    output="$(cd "${tmp}" && ROADMAP_PATH="${rel_path}" bash "${CHECKER}" 2>&1)"
+    local actual_exit=$?
+
+    if [[ ${actual_exit} -ne ${expected_exit} ]]; then
+        record_fail "taxonomy: ${description} (expected exit ${expected_exit}, got ${actual_exit})"
+        return
+    fi
+    if [[ -n "${expected_match}" ]] && ! grep -qF "${expected_match}" <<<"${output}"; then
+        record_fail "taxonomy: ${description} (exit OK but expected output to contain '${expected_match}')"
+        return
+    fi
+    record_pass "taxonomy: ${description} (exit ${expected_exit})"
+}
+
+run_roadmap_fixture_custom_path "bad-roadmap-sprint.md" "docs/roadmap.md" 1 "ROADMAP_PATH override finds violation at custom path" "Sprint K:"
+run_roadmap_fixture_custom_path "conformant-roadmap.md" "docs/roadmap.md" 0 "ROADMAP_PATH override: clean roadmap at custom path passes"
