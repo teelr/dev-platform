@@ -11,6 +11,11 @@ exact same number appears between the check and the create call).
 
 Usage: python3 scripts/claim_roadmap_version.py "Feature Title" [--major N]
 
+Set ROADMAP_PATH (relative to the repo root, e.g. "docs/roadmap.md") if your
+roadmap doesn't live at the default ROADMAP.md. Do NOT symlink a root
+ROADMAP.md to the real file as a substitute — `git show origin/main:...`
+does not dereference symlinks; set ROADMAP_PATH instead.
+
 Prints the claimed version (e.g. "v0.75") and milestone number/URL on success.
 Exit 0 on success, non-zero on failure (no `gh` auth, repo detection failed, or
 every retry attempt raced).
@@ -55,8 +60,9 @@ def _repo_slug() -> str:
 
 
 def _highest_minor_in_roadmap(major: int) -> int:
+    roadmap_path = os.environ.get("ROADMAP_PATH", "ROADMAP.md")
     _run(["git", "fetch", "origin", "main", "--quiet"])
-    roadmap_text = _run(["git", "show", "origin/main:ROADMAP.md"])
+    roadmap_text = _run(["git", "show", f"origin/main:{roadmap_path}"])
     highest = 0
     for maj_s, min_s in _ROADMAP_VERSION_RE.findall(roadmap_text):
         if int(maj_s) == major:

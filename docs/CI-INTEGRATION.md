@@ -97,6 +97,25 @@ bash ~/dev-platform/scripts/check_spec_taxonomy.sh /path/to/your-repo
 
 Exit 0 = clean. Exit 1 = at least one violation; the offending lines print to stderr.
 
+## Non-default roadmap location
+
+If your project's Roadmap Phase entries don't live at the repo-root
+`ROADMAP.md` (e.g. Keystone's live at `docs/roadmap.md`), set `ROADMAP_PATH`
+(relative to the repo root) — `check_version_collision.py`,
+`check_spec_taxonomy.sh`, and `claim_roadmap_version.py` all read it, falling
+back to `ROADMAP.md` when unset. Set it as a `env:` entry on the calling
+step/job in your `dev-platform-gate.yml`, or export it before running
+`/plan`/`gate_fast.sh` locally.
+
+**Do not symlink a root `ROADMAP.md` to your real file as a substitute.**
+`check_version_collision.py` and `claim_roadmap_version.py` both compare
+against `origin/main`'s copy via `git show origin/main:<path>`, which does
+NOT dereference symlinks — it returns the raw symlink target-path string as
+the file's "content." This makes every real version look "new" and produces
+false `COLLISION` failures against your own milestone history (confirmed
+live on Keystone's first attempt, reverted the same night). Set
+`ROADMAP_PATH` instead.
+
 ## Disabling
 
 Temporarily: comment out the `on:` triggers in `.github/workflows/dev-platform-gate.yml`, or change `branches: [main]` to a branch that doesn't exist. The workflow file stays in the repo but never runs.
@@ -113,6 +132,7 @@ Permanently: delete the file. If the check was a required status check in branch
 | Required check stuck in "Expected" state | Workflow ran on a prior commit but not the latest PR commit | Push an empty commit (`git commit --allow-empty -m "trigger CI"`) to re-trigger |
 | `version-collision` check fails with "COLLISION" | Your branch's `ROADMAP.md` claims a `v<X.Y>` that `origin/main` or a live GitHub milestone already uses under a different title | Renumber to a free version (see the check's own output for the specific collision), or if you're intentionally updating an existing Phase's title, make sure `ROADMAP.md` and the milestone agree |
 | `version-collision` check never appears at all — not even a red X, no run in the Actions tab | Missing `permissions:` block in your `dev-platform-gate.yml`. This is a cross-repo (often cross-org) reusable-workflow call — GitHub silently rejects it (`startup_failure`) unless the caller explicitly grants at least `contents: read` + `issues: read` | Add a top-level `permissions: { contents: read, issues: read }` block to your `dev-platform-gate.yml` (present in the template since 2026-08-12 — re-copy the template if yours predates that) |
+| Check reports "no ROADMAP.md — nothing to check" but you DO have a roadmap doc | It's not at the repo-root `ROADMAP.md` path the checks default to | Set `ROADMAP_PATH` (see "Non-default roadmap location" above) — do not symlink |
 
 ## See also
 
