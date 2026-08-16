@@ -15,7 +15,9 @@ Claude's operating rules — how to act regardless of project. Development stand
 
 **The rule is "STOP and wait", NOT "say nothing about what's next".**
 
-After `/plan`, `/code`, `/review`, `/gate`, `commit`, `push`, `/pr`, `/merge`, or `post-merge`: report results, state which step is next, then STOP and wait for the user to invoke it explicitly. Do NOT auto-advance.
+After `/plan`, `/code`, `/review`, `/gate`, `commit`, `push`, `/pr`, or `post-merge`: report results, state which step is next, then STOP and wait for the user to invoke it explicitly. Do NOT auto-advance.
+
+**Exception: `/merge` → `post-merge` does NOT stop.** `/merge` runs post-merge itself as its own final step (see the `merge` skill) — the user has pre-authorized this because post-merge has followed every single merge in practice, so the separate invocation was pure friction. Every other step boundary in the chain still stops and waits.
 
 Required end-of-step format:
 
