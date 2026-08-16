@@ -134,34 +134,39 @@ git checkout main && git pull --ff-only
 
 Either way, this fetches the squash-merge commit and fast-forwards local main. The remote branch deletion from Step 4 already happened.
 
-## Step 6: Report + prompt next step
+## Step 6: Report the merge
 
 Print:
 
 - The merge commit SHA (`git rev-parse HEAD`)
 - The PR URL (for reference)
 - In worktree mode: that the worktree was removed and the session is back in the main checkout.
-- A REMINDER about the post-merge step:
-  - Read the spec for the just-merged PR (look at `tasks/*-spec.md` files added/modified in `git diff HEAD~1 --name-only`).
-  - If the spec has a "Post-merge step" section, list its actions briefly so the user knows what to invoke.
-  - If no spec was touched (e.g., chore PR), say "no post-merge step — this PR is fully shipped."
-- **Detect Roadmap-Phase completion.** Determine whether this merge shipped the *last Change of a Roadmap Phase*:
-  - Read the just-merged spec (from `git diff HEAD~1 --name-only` → `tasks/*-spec.md`). If its Overview lists Changes across Phases and this PR merged the final Phase's last Change, the phase is complete. A single-PR-per-spec change completing the spec also completes its Roadmap Phase.
-  - A phase can also be complete by an explicit **scope decision** recorded in the spec or PR (a planned item dropped) — treat that the same as code-complete.
-  - If complete, surface the **standard Roadmap-Phase-completion actions** (do NOT execute them — the user invokes post-merge):
-    1. Mark the phase complete in `ROADMAP.md` + `planning.md` (today's date + status).
-    2. Close the GitHub milestone: `gh api -X PATCH repos/:owner/:repo/milestones/<n> -f state=closed` (or `./scripts/sync-milestones.sh --apply` where the project ships it).
-    3. Verify: `./scripts/check-phase-milestones.sh` should report no open-but-completed milestones.
-  - If this merge did NOT complete a phase (a mid-phase Change), say so explicitly: "mid-phase merge — no phase-completion step."
 
-Then STOP. **DO NOT** execute the post-merge actions automatically. Each spec's post-merge is bespoke (branch-protection updates, release-tag cuts, Pages-enable, sync-milestones --apply, etc.) — the user must explicitly invoke them.
+## Step 7: Run post-merge automatically
+
+`/merge` owns post-merge — it runs immediately, in the same turn, with no separate invocation. Do NOT stop and wait for the user to ask for it.
+
+1. **Find the spec.** Look at `tasks/*-spec.md` files added/modified in `git diff HEAD~1 --name-only` for the just-merged commit.
+2. **No spec touched** (e.g. a chore PR): report "no post-merge step — this PR is fully shipped" and stop here.
+3. **Spec has a "Post-merge step" section:** execute its actions now, exactly as written — the spec is the runbook. These are bespoke per project (branch-protection updates, release-tag cuts, Pages-enable, `sync-milestones --apply`, cross-project re-installs, etc.). If a listed action is unusually high-blast-radius for an ordinary post-merge step (e.g. a prod deploy, a credential rotation, anything touching a shared system beyond this repo) — flag it and confirm before running it, same as any other hard-to-reverse action; everything else in the spec's normal post-merge shape just runs.
+4. **Detect Roadmap-Phase completion**, whether or not the spec had its own Post-merge section. Determine whether this merge shipped the *last Change of a Roadmap Phase*:
+   - Read the just-merged spec. If its Overview lists Changes across Phases and this PR merged the final Phase's last Change, the phase is complete. A single-PR-per-spec change completing the spec also completes its Roadmap Phase.
+   - A phase can also be complete by an explicit **scope decision** recorded in the spec or PR (a planned item dropped) — treat that the same as code-complete.
+   - If complete, **execute the standard Roadmap-Phase-completion actions**: mark the phase complete in `ROADMAP.md` + `planning.md` (today's date + status), close the GitHub milestone (`gh api -X PATCH repos/:owner/:repo/milestones/<n> -f state=closed`, or `./scripts/sync-milestones.sh --apply` where the project ships it), and verify with `./scripts/check-phase-milestones.sh`.
+   - If this merge did NOT complete a phase (a mid-phase Change), say so explicitly: "mid-phase merge — no phase-completion step." and stop here (nothing to commit).
+5. **Land any file changes from steps 3-4.** If the project's rules forbid direct commits to `main` (check its CLAUDE.md), run the SAME mini-cycle this skill already knows how to do — reuse Steps 1-5 above on a fresh branch:
+   - Cut a branch (`chore/<slug>` per this project's naming convention), commit the doc/config changes, push.
+   - Run the project's local gate (`./scripts/gate_fast.sh` or equivalent) before committing — same rule as any other commit. A docs-only diff should be fast; if the project's gate doesn't already skip its expensive legs (test suite, lint, typecheck) for a diff touching only docs/roadmap files, that's worth a separate follow-on, not a reason to skip the gate here.
+   - Open the PR (`gh pr create`), then run Steps 2-5 of THIS skill against it: poll CI, verify green, squash-merge, sync local main. This is the one case `/merge` calls its own logic recursively — it's still gated by the same non-overridable CI-green check as any other merge.
+   - If the project instead permits a direct-to-`main` trivial-edit path for pure doc/roadmap changes, use that instead — it's faster and the outcome is identical.
+6. **Report what post-merge did** — the actions taken, files changed, milestone closed, and (if step 5 ran) the doc-update PR's own merge commit SHA (or "nothing to do" if steps 2-4 found nothing).
 
 ## Rules
 
 - **The CI-green check is non-overridable.** No `--force`, no `--allow-red` flag. If CI is red, fix the branch. If CI is genuinely irrelevant (e.g., docs-only change that nonetheless triggered CI), the failure indicates something else worth investigating — don't bypass.
 - **Always squash, never rebase or merge-commit.** The dev-platform default is squash-merge per the per-Spec-Phase strategy. Every PR becomes ONE commit on main.
 - **Delete the branch on merge, in both modes.** Long-lived feature branches accumulate. Branch mode uses `gh pr merge --delete-branch` for both remote+local in one call; worktree mode deletes the remote branch via `gh api` and the local branch via Step 5's `git branch -D` (see Step 4 for why the two modes diverge).
-- **Don't touch the spec or any code.** This command merges; it doesn't edit.
-- **Report the post-merge runbook from the spec, but DON'T execute it.** Per Workflow Step Discipline, the user explicitly invokes post-merge actions one at a time.
-- **Surface phase-completion, don't perform it.** When the merge completes a Roadmap Phase, `/merge` names the standard close-out actions (mark ROADMAP/planning complete, close the milestone) in its report — but per Workflow Step Discipline the user invokes post-merge explicitly. `/merge` never edits docs or closes milestones itself.
+- **Don't touch the spec or any code as part of the merge itself (Steps 1-6).** This command merges; it doesn't edit — until Step 7, which is scoped exclusively to the spec's own declared post-merge runbook plus the standard Roadmap-Phase-completion sub-step. Never improvise beyond what the spec's Post-merge section says or what the standard sub-step covers.
+- **Post-merge is folded into `/merge`, not a separate manually-invoked step.** This is a deliberate exception to Workflow Step Discipline's general "stop between steps" rule — the user has pre-authorized it (durable instruction, `settings/claude-global.md` "Workflow Step Discipline") because post-merge has been run after every single merge in practice. Every OTHER step boundary in the chain still stops and waits for explicit invocation.
+- **Still confirm before an unusually risky bespoke action.** Folding post-merge in covers the ordinary shape of post-merge work (doc updates, milestone closes, tag cuts, config syncs). A spec that asks for something well outside that shape — a prod deploy, a credential rotation, anything touching shared infrastructure beyond this repo — still gets a heads-up and a pause, per the general rule on hard-to-reverse actions.
 - **NEVER merge to a branch other than `main`.** PRs target `main` per the per-Spec-Phase strategy. If a PR targets something else, that's a different workflow.

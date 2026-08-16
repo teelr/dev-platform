@@ -98,7 +98,7 @@ When you add `<dir>/<newfile>.<newext>` in a glob-managed directory (`hooks/`, `
 
 **CRITICAL — DO NOT ADVANCE STEPS WITHOUT EXPLICIT USER INVOCATION.**
 
-Each step requires the user to invoke it. Completing one step does NOT mean start the next. Stop and wait. End-of-step "Ready for X" format is defined in `settings/claude-global.md`.
+Each step requires the user to invoke it. Completing one step does NOT mean start the next. Stop and wait. End-of-step "Ready for X" format is defined in `settings/claude-global.md`. **The one exception is `/merge` → post-merge** — `/merge` runs post-merge itself, no separate invocation (see below).
 
 **Standard chain:**
 
@@ -114,8 +114,8 @@ Each step requires the user to invoke it. Completing one step does NOT mean star
 - **push** — Push the feature branch.
 - **`/pr`** — Opens PR against `main`. Auto-derives title, milestone, body.
 - **CI** — Wait for `gate-fast` to go GREEN. If red, fix on the branch and re-push.
-- **`/merge`** — Squash-merges after verifying CI green. Refuses on red/pending/conflicts.
-- **post-merge** — Bespoke deferred steps from the spec. No-op if the spec named none. **One sub-step is standard, not bespoke: Roadmap-Phase completion.** When a merge ships the **last Change of a Roadmap Phase** — whether the phase goal was satisfied by shipped code OR closed by an explicit scope decision (e.g. a planned item dropped as over-engineering) — always: (1) mark the phase complete in `ROADMAP.md` and `planning.md` with today's date and status, and (2) close its GitHub milestone (`gh api -X PATCH repos/:owner/:repo/milestones/<n> -f state=closed`, or `scripts/sync-milestones.sh --apply` where the project ships it — it reads the now-`complete` ROADMAP entry and closes the milestone). Verify afterward with `scripts/check-phase-milestones.sh` (flags a milestone left `open` with 0 open issues). A mid-phase merge that does NOT complete the phase skips this sub-step.
+- **`/merge`** — Squash-merges after verifying CI green. Refuses on red/pending/conflicts. **Then runs post-merge itself, same turn, no separate invocation** — the standing exception to "STOP and wait," because post-merge has followed every merge in practice and the extra invocation was pure friction.
+- **post-merge** (run automatically by `/merge`, not invoked separately) — Bespoke deferred steps from the spec. No-op if the spec named none. **One sub-step is standard, not bespoke: Roadmap-Phase completion.** When a merge ships the **last Change of a Roadmap Phase** — whether the phase goal was satisfied by shipped code OR closed by an explicit scope decision (e.g. a planned item dropped as over-engineering) — always: (1) mark the phase complete in `ROADMAP.md` and `planning.md` with today's date and status, and (2) close its GitHub milestone (`gh api -X PATCH repos/:owner/:repo/milestones/<n> -f state=closed`, or `scripts/sync-milestones.sh --apply` where the project ships it — it reads the now-`complete` ROADMAP entry and closes the milestone). Verify afterward with `scripts/check-phase-milestones.sh` (flags a milestone left `open` with 0 open issues). A mid-phase merge that does NOT complete the phase skips this sub-step. A bespoke post-merge action well outside this normal shape (prod deploy, credential rotation, shared-infra changes) still gets a heads-up and a pause before running, per the general rule on hard-to-reverse actions.
 
 **Optional steps:**
 

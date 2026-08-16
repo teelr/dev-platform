@@ -137,7 +137,7 @@ The canonical chain for any feature across any project:
 /plan → /code → /review → /gate fast → commit → push → /pr → CI → /merge → post-merge
 ```
 
-`/review` is **mandatory** on every change — it runs after `/code` and before `/gate fast`. `/test` and `/docs` are standalone helpers, not gates in the chain.
+`/review` is **mandatory** on every change — it runs after `/code` and before `/gate fast`. `/test` and `/docs` are standalone helpers, not gates in the chain. `/merge → post-merge` is the one arrow in this chain that isn't a separate invocation: `/merge` runs post-merge itself as its final step (see Step 7). Every other arrow is still a stop-and-wait boundary.
 
 ### Step 1: Plan
 
@@ -179,9 +179,9 @@ Once `/review` gives APPROVE, commit normally.
 
 Push to GitHub. Create a PR if on a feature branch.
 
-### Step 7: Post-merge (deferred, per spec)
+### Step 7: Post-merge (automatic, part of `/merge`)
 
-After `/merge`, run any deferred steps the spec's "Post-merge" section named (branch-protection updates, release-tag cuts, cross-project re-installs). These are bespoke — the spec is the runbook — with **one standard sub-step**: **Roadmap-Phase completion.** When the merge shipped the last Change of a Roadmap Phase (goal met by code, or the phase closed by an explicit scope decision), mark the phase complete in `ROADMAP.md` + `planning.md` (date + status) and close its GitHub milestone (`gh api -X PATCH repos/:owner/:repo/milestones/<n> -f state=closed`, or `scripts/sync-milestones.sh --apply` where present). Verify with `scripts/check-phase-milestones.sh` — it flags any milestone left `open` with 0 open issues. `/merge`'s final report tells you whether the just-merged PR completed a phase.
+`/merge` runs this itself, immediately, with no separate invocation — it's the last thing `/merge` does, not a step you invoke afterward. It executes any deferred steps the spec's "Post-merge" section named (branch-protection updates, release-tag cuts, cross-project re-installs). These are bespoke — the spec is the runbook — with **one standard sub-step**: **Roadmap-Phase completion.** When the merge shipped the last Change of a Roadmap Phase (goal met by code, or the phase closed by an explicit scope decision), mark the phase complete in `ROADMAP.md` + `planning.md` (date + status) and close its GitHub milestone (`gh api -X PATCH repos/:owner/:repo/milestones/<n> -f state=closed`, or `scripts/sync-milestones.sh --apply` where present). Verify with `scripts/check-phase-milestones.sh` — it flags any milestone left `open` with 0 open issues. `/merge`'s final report tells you what post-merge did.
 
 ## Workflow: Quick Fix (No Spec Needed)
 
