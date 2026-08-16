@@ -29,6 +29,23 @@ _LOCK_HELPER="${HOME}/.claude/worktree/gate-lock.sh"
 # shellcheck disable=SC1090
 source "${_LOCK_HELPER}"
 
+# Docs-only diff detection (v1.14) — skip the expensive test-suite loop below
+# when every changed file is pure documentation. Lift checks above/below this
+# block (taxonomy, syntax, JSON, secrets, live verify) always still run — see
+# docs/RULE_RATIONALE.md "Gate-Fast Docs-Only Diff Skip" for why that's safe.
+#
+# Override the shared helper's generic default: bare `*.md` matches ANY .md
+# file at any depth (bash's `[[ str == pattern ]]` lets `*` cross `/`), which
+# would wrongly classify commands/*.md and skills/**/*.md as inert docs —
+# tests/commands/frontmatter.sh validates the LIVE commands/*.md files
+# directly, and a docs-only diff that only touched a command file would
+# silently skip the one test that checks it. Scope dev-platform's own
+# allowlist to what's actually inert here: root markdown + docs/ + tasks/.
+DOCS_ONLY_ALLOW_PATTERNS=("README.md" "CLAUDE.md" "ROADMAP.md" "planning.md" "docs/*" "tasks/*")
+# shellcheck disable=SC1091
+source "${REPO}/scripts/lib/docs_only_diff.sh"
+compute_docs_only_diff
+
 START=$(date +%s)
 echo "=== gate fast ==="
 echo ""
@@ -100,6 +117,10 @@ fi
 # this orchestrator — matching the contract documented in tests/README.md.
 echo ""
 echo "--- test suites ---"
+if [[ "${DOCS_ONLY_DIFF}" -eq 1 ]]; then
+    echo "  docs-only diff detected — skipping test suites (structural lift checks above still ran)"
+    echo "  changed: ${DOCS_ONLY_CHANGED_FILES//$'\n'/ }"
+fi
 
 for suite_dir in "${REPO}/tests"/*/; do
     suite_dir="${suite_dir%/}"
@@ -118,7 +139,9 @@ for suite_dir in "${REPO}/tests"/*/; do
     while IFS= read -r runner; do
         found_any=1
         echo "  suite: ${runner#${REPO}/}"
-        if [[ -x "${runner}" ]]; then
+        if [[ "${DOCS_ONLY_DIFF}" -eq 1 ]]; then
+            record_skip "${suite_name}: ${runner#${REPO}/} (docs-only diff)"
+        elif [[ -x "${runner}" ]]; then
             bash "${runner}" || true   # PASS/FAIL captured via assert.sh helpers
         else
             record_fail "${suite_name}: ${runner#${REPO}/} not executable"

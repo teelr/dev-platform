@@ -63,6 +63,11 @@ deploy/**
 !scripts/*.sh
 # v1.6: merge_settings.py — first Python helper under scripts/ (Local Settings Isolation)
 !scripts/*.py
+# v1.14: scripts/lib/ — first subdirectory under scripts/. Re-include must
+# precede file patterns (files in an ignored dir can't be unignored by a
+# file-pattern rule alone) — same shape as the extensions/**/ subdir re-include.
+!scripts/lib/
+!scripts/lib/*.sh
 !commands/*.md
 !skills/*.md
 !skills/**/*.md

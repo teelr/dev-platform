@@ -234,6 +234,8 @@ Asymmetric coverage by design:
 
 Why asymmetric: adding load-tier to fast-tier kills inner-loop velocity (~5s → ~10 min). But "concurrency-shaped state that only opens its window at scale" recurs often enough that load-tier coverage MUST run before release. Project-specific gate-tier detail in `docs/RULE_RATIONALE.md`.
 
+`/gate fast` additionally skips its expensive code-verifying checks (test suites, lint, build) when the diff vs. the default branch touches only root markdown / `docs/*` / `tasks/*` files — structural/taxonomy checks always still run, and `commands/*.md`/`skills/**/*.md` deliberately do NOT count as docs here (`tests/commands/frontmatter.sh` validates them live). Reusable detector + adoption guide: `scripts/lib/docs_only_diff.sh` + `docs/RULE_RATIONALE.md` → "Gate-Fast Docs-Only Diff Skip".
+
 ## Planning Requirements
 
 Before writing ANY new code: search the codebase for existing implementations (Grep/Glob), check if similar functionality exists, identify reusable components, follow existing patterns. Reuse first.
