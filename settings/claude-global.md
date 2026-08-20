@@ -15,7 +15,9 @@ Claude's operating rules — how to act regardless of project. Development stand
 
 **The rule is "STOP and wait", NOT "say nothing about what's next".**
 
-After `/plan`, `/code`, `/review`, `/gate`, `commit`, `push`, `/pr`, or `post-merge`: report results, state which step is next, then STOP and wait for the user to invoke it explicitly. Do NOT auto-advance.
+After `/plan`, `/review`, `/gate`, `commit`, `push`, `/pr`, or `post-merge`: report results, state which step is next, then STOP and wait for the user to invoke it explicitly. Do NOT auto-advance.
+
+**Exception: `/code` → `/review` does NOT stop.** `/code` runs `/review` itself as its own final step (see the `code` skill) — the user has pre-authorized this because `/review` has followed every single `/code` turn in practice, so the separate invocation was pure friction. This fold does NOT move where the workflow stops: it still stops immediately after `/review` finishes, before `/gate fast` — only the `/code`→`/review` boundary is gone, not the `/review`→`/gate fast` boundary.
 
 **Exception: `/merge` → `post-merge` does NOT stop.** `/merge` runs post-merge itself as its own final step (see the `merge` skill) — the user has pre-authorized this because post-merge has followed every single merge in practice, so the separate invocation was pure friction. Every other step boundary in the chain still stops and waits.
 
@@ -33,7 +35,7 @@ The "Ready for X" line is REQUIRED. What's forbidden is **invoking the next step
 
 Shorthand affirmatives like "fix all", "do it", "go", "yes" authorize the IMMEDIATE action only — never workflow advancement. "Yes" to a /review fix is permission to fix the code, not to run /gate or commit.
 
-The full chain: `/plan → /code → /review → /gate fast → commit → push → /pr → CI → /merge → post-merge`. `/review` is a mandatory independent review gate on every change. `/security-review` is optional for changes touching auth, credentials, external input, or new endpoints. `/test` and `/docs` are standalone — `/code` handles verification, auto-fix, and doc updates internally.
+The full chain: `/plan → /code → /review → /gate fast → commit → push → /pr → CI → /merge → post-merge`. `/review` is a mandatory independent review gate on every change, normally auto-run by `/code` as its own final step (no separate invocation needed — see the exception above) and also invokable standalone for a fresh pass. `/security-review` is optional for changes touching auth, credentials, external input, or new endpoints. `/test` and `/docs` are standalone — `/code` handles verification, auto-fix, and doc updates internally.
 
 **No merge before CI green.** `/merge` queries the PR's CI status and refuses on red, pending, or zero-check. No override. Red CI means fix-on-branch-and-re-push, never merge-around. **post-merge** captures any deferred work the spec called out (branch-protection updates, release-tag cuts, cross-project re-installs); no-op if none. post-merge is NOT a slash command — each spec's post-merge is bespoke, the spec is the runbook. One **standard** (non-bespoke) post-merge sub-step is **Roadmap-Phase completion**: when a merge ships the last Change of a Roadmap Phase (goal met by code, or closed by an explicit scope decision), mark the phase complete in `ROADMAP.md` + `planning.md` (date + status) and close its GitHub milestone, then verify with `scripts/check-phase-milestones.sh`. Full shape in `/home/rich/dev/CLAUDE.md`. A second standard sub-step, unconditional on phase completion: **Change Summary** — every `/merge` ends its report with a chat-only Problem/Opportunity → What shipped summary, derived from the `planning.md` diff (preferred), the spec's framing, or the PR title (in that fallback order). No new file is written. Full shape in `/home/rich/dev/CLAUDE.md`.
 

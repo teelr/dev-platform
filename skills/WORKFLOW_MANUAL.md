@@ -64,6 +64,7 @@ Implements a spec file task by task with verification after each step.
 3. Implements each task exactly as described
 4. Runs build/typecheck/tests after each change
 5. Flags any deviations from the spec
+6. Runs `/review`'s full procedure itself as its own final step — auto-fixing SECURITY/BUG/COMPLIANCE/QUALITY issues, surfacing ARCHITECTURE issues — no separate invocation needed.
 
 **Key behavior:**
 
@@ -105,7 +106,7 @@ A structured QC report with:
 
 ### `/review` — Pre-Commit Code Review
 
-Reviews staged git changes before committing.
+Reviews staged git changes before committing. Normally auto-run by `/code` as its own final step — no separate invocation needed. Also invokable standalone for a fresh re-review after manual edits, or to resume a `/code` session interrupted before its review step ran.
 
 **Usage:**
 
@@ -137,7 +138,7 @@ The canonical chain for any feature across any project:
 /plan → /code → /review → /gate fast → commit → push → /pr → CI → /merge → post-merge
 ```
 
-`/review` is **mandatory** on every change — it runs after `/code` and before `/gate fast`. `/test` and `/docs` are standalone helpers, not gates in the chain. `/merge → post-merge` is the one arrow in this chain that isn't a separate invocation: `/merge` runs post-merge itself as its final step (see Step 7). Every other arrow is still a stop-and-wait boundary.
+`/review` is **mandatory** on every change — it runs after `/code` and before `/gate fast`. `/test` and `/docs` are standalone helpers, not gates in the chain. Two arrows in this chain aren't separate invocations: `/code → /review` (see Step 4) and `/merge → post-merge` (see Step 7) — each runs its second half itself, same turn. Every other arrow is still a stop-and-wait boundary, including the arrow right after the folded `/review` half: the workflow still stops before `/gate fast` runs.
 
 ### Step 1: Plan
 
@@ -163,13 +164,9 @@ Watch it implement task by task. It will flag any spec issues.
 
 Review the QC report. If there are failures, go back to Step 2. `/test` is a standalone validator, not a gate in the chain — `/code` verifies as it goes, so run `/test` only when you want a separate spec-conformance pass.
 
-### Step 4: Review (mandatory)
+### Step 4: Review (automatic, part of `/code`)
 
-```
-/review
-```
-
-Stage your changes (`git add`), then run review. **Mandatory on every change** — it runs after `/code` and before `/gate fast`. Auto-fixes SECURITY / BUG / COMPLIANCE / QUALITY; surfaces ARCHITECTURE for your decision.
+`/code` runs this itself, immediately after updating project docs — it's the last thing `/code` does, not a step you invoke afterward. **Mandatory on every `/code` turn** — auto-fixes SECURITY / BUG / COMPLIANCE / QUALITY; surfaces ARCHITECTURE for your decision. The workflow stops right after this finishes, before `/gate fast` — review the `# Code Review` report block in `/code`'s final output before moving on.
 
 ### Step 5: Commit
 
