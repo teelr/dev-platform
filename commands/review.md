@@ -1,5 +1,5 @@
 ---
-description: Mandatory independent review gate on staged git changes — runs between /code and /gate fast on every change. The fresh-eyes pass /code cannot be.
+description: Independent review gate on staged/unstaged changes. Auto-run by /code as its final step; also invokable standalone for a fresh pass. The fresh-eyes pass /code cannot be.
 allowed-tools: Read, Grep, Glob, Bash, Edit, Write, TodoWrite
 ---
 
@@ -8,6 +8,8 @@ allowed-tools: Read, Grep, Glob, Bash, Edit, Write, TodoWrite
 You are a code review agent. Your job is to **review staged git changes** before they're committed, catching issues that automated tools miss. You produce an actionable review — no vague suggestions.
 
 `/review` is a **mandatory gate** in the canonical chain, running between `/code` and `/gate fast` on every change. It runs *after* `/code`'s own adversarial self-review — and that is the entire point: an independent pass, not the author grading their own homework. The same mental model that wrote a bug cannot reliably catch it; you are the fresh-eyes backstop `/code` structurally cannot be.
+
+`/code` normally runs this exact procedure itself, automatically, as its own final step — see `commands/code.md` Step 9. You are being invoked standalone here for one of two reasons: a fresh re-review after manual edits made after `/code` finished, or resuming a `/code` session that was interrupted before its own review step ran. Either way, the procedure below is identical — nothing about what gets checked or fixed changes based on who invoked it.
 
 ## Step 1: Gather Changes
 

@@ -98,7 +98,7 @@ When you add `<dir>/<newfile>.<newext>` in a glob-managed directory (`hooks/`, `
 
 **CRITICAL — DO NOT ADVANCE STEPS WITHOUT EXPLICIT USER INVOCATION.**
 
-Each step requires the user to invoke it. Completing one step does NOT mean start the next. Stop and wait. End-of-step "Ready for X" format is defined in `settings/claude-global.md`. **The one exception is `/merge` → post-merge** — `/merge` runs post-merge itself, no separate invocation (see below).
+Each step requires the user to invoke it. Completing one step does NOT mean start the next. Stop and wait. End-of-step "Ready for X" format is defined in `settings/claude-global.md`. **Two exceptions:** `/code` → `/review` does NOT stop — `/code` runs `/review` itself as its own final step, no separate invocation (see below); and `/merge` → post-merge does NOT stop — `/merge` runs post-merge itself, no separate invocation (see below). Every other step boundary in the chain still stops and waits — critically, the boundary immediately AFTER `/review` (before `/gate fast`) is unaffected by the first exception: `/code` and `/review` combine into one turn, but that combined turn still stops before `/gate fast` runs.
 
 **Standard chain:**
 
@@ -107,8 +107,8 @@ Each step requires the user to invoke it. Completing one step does NOT mean star
 ```
 
 - **`/plan`** — Spec before code. Auto-creates the feature branch.
-- **`/code`** — Implements Change by Change with auto-fix. Updates project docs (planning.md, ROADMAP.md, README.md, lessons.md) as its final step. Feature code + doc updates commit together.
-- **`/review`** — Independent fresh-eyes pass on the staged diff. Catches logic errors that still compile, edge cases, and security issues a green build won't surface. Auto-fixes SECURITY / BUG / COMPLIANCE / QUALITY; surfaces ARCHITECTURE for user decision. **Mandatory on every change.**
+- **`/code`** — Implements Change by Change with auto-fix. Updates project docs (planning.md, ROADMAP.md, README.md, lessons.md) as its final step, **then runs `/review` itself in the same turn** — no separate invocation needed. Feature code + doc updates commit together.
+- **`/review`** — Independent fresh-eyes pass on the staged (or unstaged, if nothing's staged) diff. Catches logic errors that still compile, edge cases, and security issues a green build won't surface. Auto-fixes SECURITY / BUG / COMPLIANCE / QUALITY; surfaces ARCHITECTURE for user decision. **Mandatory on every `/code` turn** — normally auto-run by `/code`, same turn (see the exception above); also invokable standalone for a fresh pass.
 - **`/gate fast`** — Constitutional checks + unit tests + smoke_fast. Must PASS before commit. (dev-platform: `./scripts/gate_fast.sh`)
 - **commit** — One atomic commit. Conventional format: `feat:`, `fix:`, etc.
 - **push** — Push the feature branch.

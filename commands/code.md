@@ -184,13 +184,29 @@ If YES to any of the above, include this line in your end-of-step report:
 
 > **Consider `/security-review`** before `/gate fast` — this change touches [auth / credentials / external input / new endpoints].
 
-## Step 9: Report — Next Step Is Mandatory `/review`
+## Step 9: Run `/review` Automatically
 
-`/review` is a mandatory gate in the canonical chain (`/plan → /code → /review → /gate fast → …`), not an optional extra. Your Step 6 adversarial self-review does NOT satisfy it — `/review` is the independent fresh-eyes pass you structurally cannot be.
+`/code` owns the independent review pass — it runs immediately, in the same turn, with no separate invocation. Do NOT stop and wait for the user to ask for it.
+
+Run the review procedure exactly as documented in `commands/review.md` Steps 1-5, unchanged:
+
+1. **Stage everything this spec touched before diffing.** Step 7 only staged the doc files (`planning.md`, `ROADMAP.md`, `README.md`, `tasks/lessons.md`) — it does not stage the implementation files from Steps 1-6. Explicitly `git add` every file this spec's Changes created or modified (use the spec's File Change Summary as the checklist), in addition to what Step 7 already staged. Do NOT use `git add -A` or `git add .` — name each file. Only once everything is staged, gather the diff (`git diff --cached`) per `commands/review.md` Step 1.
+2. Load `./CLAUDE.md` and `~/.claude/CLAUDE.md`.
+3. Review every changed file across SECURITY, BUG, COMPLIANCE, QUALITY, and ARCHITECTURE (Language Architecture Decision Matrix compliance).
+4. Fix SECURITY, BUG, COMPLIANCE, and QUALITY issues immediately — do not wait for approval. Re-read each fixed file to confirm the fix is correct. Surface ARCHITECTURE issues for the user's decision; do NOT fix them.
+5. Produce the `# Code Review` report exactly as `commands/review.md` Step 5 defines it (Files reviewed, Verdict, Fixes Applied by category, Needs Your Decision / ARCHITECTURE, Summary).
+
+This review pass is independent of Step 6's Adversarial Self-Review — it is the fresh-eyes backstop `/code` structurally cannot be by re-reading its own diff, run here as `/code`'s own final action rather than a separately invoked command. If any ARCHITECTURE issues surface, they are still unresolved when this step ends — carry them into Step 10's report exactly as `commands/review.md` would.
+
+## Step 10: Report — Next Step Is `/gate fast`
+
+Combine this turn's report: the implementation summary (Changes completed, Step 7's doc updates, Step 8's security reminder if applicable) followed by Step 9's `# Code Review` report block.
+
+If Step 9 found ARCHITECTURE issues, they are unresolved — surface them clearly; the user must decide before proceeding.
 
 End your report with:
 
-> Ready for `/review` (mandatory) → then `/gate fast`.
+> Ready for `/gate fast`.
 
 ## Rules
 
