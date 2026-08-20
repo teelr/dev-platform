@@ -147,19 +147,32 @@ Print:
 `/merge` owns post-merge — it runs immediately, in the same turn, with no separate invocation. Do NOT stop and wait for the user to ask for it.
 
 1. **Find the spec.** Look at `tasks/*-spec.md` files added/modified in `git diff HEAD~1 --name-only` for the just-merged commit.
-2. **No spec touched** (e.g. a chore PR): report "no post-merge step — this PR is fully shipped" and stop here.
-3. **Spec has a "Post-merge step" section:** execute its actions now, exactly as written — the spec is the runbook. These are bespoke per project (branch-protection updates, release-tag cuts, Pages-enable, `sync-milestones --apply`, cross-project re-installs, etc.). If a listed action is unusually high-blast-radius for an ordinary post-merge step (e.g. a prod deploy, a credential rotation, anything touching a shared system beyond this repo) — flag it and confirm before running it, same as any other hard-to-reverse action; everything else in the spec's normal post-merge shape just runs.
-4. **Detect Roadmap-Phase completion**, whether or not the spec had its own Post-merge section. Determine whether this merge shipped the *last Change of a Roadmap Phase*:
+2. **Generate the Change Summary — runs every time, unconditionally, before anything else below.** Produce a short **Problem/Opportunity → What shipped** summary using this fallback order (stop at the first tier that yields content):
+   - **Tier 1 (preferred):** `git diff HEAD~1 HEAD -- planning.md`. If this shows added lines under a "Recently shipped" (or equivalently-named changelog) section, use that prose directly — lightly trimmed if needed, not rewritten. This is the text `/code` already wrote pre-commit, already reviewed by `/review`.
+   - **Tier 2:** If `planning.md` wasn't touched by this merge but Step 1 found a spec, use the spec's Problem statement / Design Philosophy opening + its Change titles from the Overview section.
+   - **Tier 3:** If no spec was touched either, use `gh pr view "${PR_NUM}" --json title,body` — the PR title as "What shipped", and the first line of the body (or the title itself if the body is empty) as "Problem/Opportunity".
+   - Print it in the final report (sub-step 7 below) as:
+
+     ```text
+     ## Change Summary
+     **Problem/Opportunity:** <one to three sentences>
+     **What shipped:** <one to three sentences or a short bullet list>
+     ```
+
+   - This sub-step never blocks or stops the rest of Step 7 — it only produces text for the final report.
+3. **No spec touched** (e.g. a chore PR): report "no further post-merge step — this PR is fully shipped" (the Change Summary from sub-step 2 still appears in the report) and stop here.
+4. **Spec has a "Post-merge step" section:** execute its actions now, exactly as written — the spec is the runbook. These are bespoke per project (branch-protection updates, release-tag cuts, Pages-enable, `sync-milestones --apply`, cross-project re-installs, etc.). If a listed action is unusually high-blast-radius for an ordinary post-merge step (e.g. a prod deploy, a credential rotation, anything touching a shared system beyond this repo) — flag it and confirm before running it, same as any other hard-to-reverse action; everything else in the spec's normal post-merge shape just runs.
+5. **Detect Roadmap-Phase completion**, whether or not the spec had its own Post-merge section. Determine whether this merge shipped the *last Change of a Roadmap Phase*:
    - Read the just-merged spec. If its Overview lists Changes across Phases and this PR merged the final Phase's last Change, the phase is complete. A single-PR-per-spec change completing the spec also completes its Roadmap Phase.
    - A phase can also be complete by an explicit **scope decision** recorded in the spec or PR (a planned item dropped) — treat that the same as code-complete.
    - If complete, **execute the standard Roadmap-Phase-completion actions**: mark the phase complete in `ROADMAP.md` + `planning.md` (today's date + status), close the GitHub milestone (`gh api -X PATCH repos/:owner/:repo/milestones/<n> -f state=closed`, or `./scripts/sync-milestones.sh --apply` where the project ships it), and verify with `./scripts/check-phase-milestones.sh`.
-   - If this merge did NOT complete a phase (a mid-phase Change), say so explicitly: "mid-phase merge — no phase-completion step." and stop here (nothing to commit).
-5. **Land any file changes from steps 3-4.** If the project's rules forbid direct commits to `main` (check its CLAUDE.md), run the SAME mini-cycle this skill already knows how to do — reuse Steps 1-5 above on a fresh branch:
+   - If this merge did NOT complete a phase (a mid-phase Change), say so explicitly: "mid-phase merge — no phase-completion step." and continue to sub-step 6 (nothing further to commit from this sub-step).
+6. **Land any file changes from steps 4-5.** If the project's rules forbid direct commits to `main` (check its CLAUDE.md), run the SAME mini-cycle this skill already knows how to do — reuse Steps 1-5 above on a fresh branch:
    - Cut a branch (`chore/<slug>` per this project's naming convention), commit the doc/config changes, push.
    - Run the project's local gate (`./scripts/gate_fast.sh` or equivalent) before committing — same rule as any other commit. A docs-only diff should be fast; if the project's gate doesn't already skip its expensive legs (test suite, lint, typecheck) for a diff touching only docs/roadmap files, that's worth a separate follow-on, not a reason to skip the gate here.
    - Open the PR (`gh pr create`), then run Steps 2-5 of THIS skill against it: poll CI, verify green, squash-merge, sync local main. This is the one case `/merge` calls its own logic recursively — it's still gated by the same non-overridable CI-green check as any other merge.
    - If the project instead permits a direct-to-`main` trivial-edit path for pure doc/roadmap changes, use that instead — it's faster and the outcome is identical.
-6. **Report what post-merge did** — the actions taken, files changed, milestone closed, and (if step 5 ran) the doc-update PR's own merge commit SHA (or "nothing to do" if steps 2-4 found nothing).
+7. **Report what post-merge did** — starting with the Change Summary block from sub-step 2, then the actions taken (files changed, milestone closed, doc-update PR's own merge commit SHA if sub-step 6 ran), or "nothing further to do" if sub-steps 4-5 found nothing.
 
 ## Rules
 
@@ -169,4 +182,5 @@ Print:
 - **Don't touch the spec or any code as part of the merge itself (Steps 1-6).** This command merges; it doesn't edit — until Step 7, which is scoped exclusively to the spec's own declared post-merge runbook plus the standard Roadmap-Phase-completion sub-step. Never improvise beyond what the spec's Post-merge section says or what the standard sub-step covers.
 - **Post-merge is folded into `/merge`, not a separate manually-invoked step.** This is a deliberate exception to Workflow Step Discipline's general "stop between steps" rule — the user has pre-authorized it (durable instruction, `settings/claude-global.md` "Workflow Step Discipline") because post-merge has been run after every single merge in practice. Every OTHER step boundary in the chain still stops and waits for explicit invocation.
 - **Still confirm before an unusually risky bespoke action.** Folding post-merge in covers the ordinary shape of post-merge work (doc updates, milestone closes, tag cuts, config syncs). A spec that asks for something well outside that shape — a prod deploy, a credential rotation, anything touching shared infrastructure beyond this repo — still gets a heads-up and a pause, per the general rule on hard-to-reverse actions.
+- **The Change Summary always runs, even on a spec-less chore merge.** It is the one sub-step of post-merge that isn't gated on a spec being touched or a phase completing — every `/merge` report ends with it. It is chat-report-only: never write it to a file, never post it externally (no CHANGELOG, no GitHub Release, no PR comment) unless a future spec explicitly asks for that.
 - **NEVER merge to a branch other than `main`.** PRs target `main` per the per-Spec-Phase strategy. If a PR targets something else, that's a different workflow.
