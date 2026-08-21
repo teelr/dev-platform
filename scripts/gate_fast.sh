@@ -58,6 +58,16 @@ else
     record_fail "spec taxonomy (check_spec_taxonomy.sh exit 1)"
 fi
 
+# Duplicate-number check (Kermit-consumer handoff-queue "Ask #" rows +
+# lessons.md "L#" headers). dev-platform itself has neither convention, so
+# this is a graceful no-op here — the reference implementation for the
+# three consumer projects that DO use it (see docs/RULE_RATIONALE.md).
+if (cd "${REPO}" && bash scripts/check_duplicate_numbering.sh >/dev/null 2>&1); then
+    record_pass "duplicate numbering (handoff-queue / lessons)"
+else
+    record_fail "duplicate numbering (check_duplicate_numbering.sh exit 1)"
+fi
+
 # Bash syntax — all .sh files under scripts/, hooks/, scaffolding/*/scripts/, tests/
 syntax_pass=0
 syntax_fail=0

@@ -2,7 +2,7 @@
 
 All development standards for projects in `/home/rich/dev/projects/`. This is the single source of truth.
 
-**Project-specific deep-dive rules and incident rationale:** `/home/rich/dev/docs/RULE_RATIONALE.md`. Read when working in Kermit/PA/ATLAS/Keystone (Kermit-specific rules: kwarg propagation, boundary sweeps, consumer-side schema deps, harness-vs-consumer triage, load-tier gate coverage), or when a rule's reasoning is unclear.
+**Project-specific deep-dive rules and incident rationale:** `/home/rich/dev/docs/RULE_RATIONALE.md`. Read when working in Kermit/PA/ATLAS/Keystone (Kermit-specific rules: kwarg propagation, boundary sweeps, consumer-side schema deps, harness-vs-consumer triage, load-tier gate coverage, duplicate handoff-queue/lessons numbering), or when a rule's reasoning is unclear.
 
 ## Scope — dev-platform Is For The Environment, Not The Projects
 

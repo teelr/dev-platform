@@ -213,3 +213,26 @@ When the harness doesn't yet expose the primitive and waiting blocks user work, 
 ### Why this rule exists
 
 Without architectural triage at intake, "build it where the bug surfaced" becomes the default — and consumers accumulate slightly-different reimplementations of the same primitives. The Kermit PA April 26 2026 session shipped roughly 40% harness-shaped code in PA before the pattern was caught (recency intent detection, truncation heuristic, in-flight task registry, dedup helpers, cascade delete, async/sync wrap pattern). Every other consumer would have built each one slightly differently. Triage at intake stops the drift.
+
+## Duplicate Numbering Check — Handoff-Queue "Ask #" / Lessons "L#"
+
+Two Kermit-harness-consumer conventions have no live external arbiter the way a Roadmap Phase version does (`check_version_collision.py` can ask GitHub whether a milestone number is taken; these can't ask anything): `tasks/HARNESS_HANDOFF_QUEUE.md`'s "Ask #" row numbers, and `tasks/lessons.md`'s "L#" entry headers. Two Roadmap Phases in flight at once can each independently pick the next free number; git merges the text cleanly (different line positions — sometimes not even a real conflict), leaving a silent duplicate nothing catches until a human notices. Live incident: kermit-v3 PR #481 (2026-08-21) hit both — a queue row collision on Ask #51 that merged with zero text conflict, and an L60 collision that at least showed up as a real git conflict. [teelr/dev-platform#75](https://github.com/teelr/dev-platform/issues/75).
+
+**Unlike the version-collision guard, this can't claim ahead of time.** The number only exists as text inside one file; the collision only becomes real at merge time. So the fix is the simpler shape the issue itself proposed: a mechanical duplicate-number check run at gate time (and therefore in CI on every PR), not a pre-claim script.
+
+**The three consumer projects do NOT share one file shape — verified live, not assumed:**
+
+- **kermit-v3**: 5 independently-numbered `| # | ... |`-headed tables in `HARNESS_HANDOFF_QUEUE.md`; `## L<N> —` headers in `lessons.md` (not in file order — consolidated/renumbered over time).
+- **Keystone**: same `## L<N>` lessons convention; 4 of the same `| # | ... |`-headed queue tables, but not kermit-v3's specific Ask table — its outbound-communiques table has no `#` column and correctly falls outside the check.
+- **kermit-pa**: same `## L<N>` lessons convention, but its queue file has **zero** `#`-headed tables at all (`| Date | Feature | Where it lives | Why harness-shaped | Migration plan |` — a different shape entirely). The queue-table check is a correct no-op there; the lessons check still applies.
+
+**The pattern:** `scripts/check_duplicate_numbering.sh` runs two independent passes, each a graceful no-op (not an error) when its target file is absent or simply doesn't use the convention:
+
+1. **Queue tables** — any markdown table whose header row's first cell is literally `#`. Duplicate first-column values are flagged only within the SAME table's data rows; the identical value reused across two DIFFERENT tables is legitimate and must NOT be flagged. Verified live against kermit-v3's real, current file: raw values `39` and `37` each appear twice in the file today, in two different independently-numbered tables — a naive whole-file grep would falsely flag both. Table scope resets at each new `| # | ... |` header row.
+2. **Lessons headers** — `## L<N> — <title>`, checked for duplicate `<N>` globally across the whole file (lessons.md is one running numbered list, not independently-scoped tables).
+
+Exact-string comparison of the trimmed first cell also correctly leaves intentional variants alone — kermit-v3's real `46` vs. `46R` (a documented regression follow-up, not a duplicate) never collide, with no special-casing needed.
+
+**Adoption in a consumer project:** copy `scripts/check_duplicate_numbering.sh` into your own `scripts/`, call it from your own `gate_fast.sh` the same way dev-platform's own gate does (`bash scripts/check_duplicate_numbering.sh`, `record_pass`/`record_fail` on its exit code). Override `HANDOFF_QUEUE_PATH`/`LESSONS_PATH` before calling it if your project's paths differ from the shared `tasks/HARNESS_HANDOFF_QUEUE.md` / `tasks/lessons.md` convention. Same "no runtime distribution mechanism for `gate_fast.sh` internals" reasoning as the docs-only-diff skip (see above) — this ships as a script to copy in, not one consumers source at runtime.
+
+**Known limitation, by design:** a table interrupted mid-body by a non-`|`-starting line (e.g. a blockquote spliced between data rows) ends that table's scope early; rows after the interruption go unscanned rather than falsely flagged. Not observed in any of the three consumer projects' real files as of this writing — conservative-by-construction, same posture as `scripts/lib/docs_only_diff.sh`.
