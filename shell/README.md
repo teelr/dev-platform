@@ -30,6 +30,8 @@ cc --help
 
 Session names are the directory's last segment with `.` and `:` replaced by `_`, since tmux treats both as target-syntax separators — so a worktree at `v0.37+phase-1` becomes session `v0_37+phase-1`. When claude exits, the pane falls back to a login shell rather than closing the session.
 
+The file runs `unalias cc` before defining the function. An existing `cc` alias makes `cc() {` a parse error in interactive shells — alias expansion happens at parse time — so without that line the alias silently wins and the function is never defined. It only reproduces interactively, which is why `tests/shell/run.sh` uses `bash -i` for that one assertion.
+
 **`cc` shadows `/usr/bin/cc`, the C compiler.** This is deliberate. Build tools (`make`, `cargo`, `cmake`) invoke `cc` through `execvp`, and bash functions are not inherited by child processes, so builds are unaffected — only typing `cc foo.c` at a prompt. Use `command cc` or `\cc` to reach the compiler.
 
 `cc` and `new-session.sh` coexist: `new-session.sh` deliberately creates a new worktree + branch + window when the branch name is known upfront, while `cc` is the everyday attach-or-start path. Both name the session after the directory, so `cc` attaches to a session `new-session.sh` created rather than duplicating it.

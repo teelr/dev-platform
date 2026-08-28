@@ -58,6 +58,13 @@ This shadows /usr/bin/cc; use `command cc` for the C compiler.
 USAGE
 }
 
+# An existing `cc` alias makes the `cc() {` below a PARSE ERROR in interactive
+# shells — alias expansion happens at parse time, so bash never sees a function
+# definition and the alias silently wins. Clearing it first is the only fix that
+# works from inside this file; it must be its own command (bash parses a sourced
+# file one command at a time, so an unalias in the same parse unit is too late).
+unalias cc 2>/dev/null || true
+
 cc() {
     local name="" dir="" target="" resolved claude_bin cmd
     # Re-default rather than reading the global directly: the function stays

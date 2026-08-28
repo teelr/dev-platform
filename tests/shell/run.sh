@@ -50,6 +50,25 @@ else
     record_fail "shell: sourcing under set -u (got: ${out})"
 fi
 
+# --- 1b. a pre-existing `cc` alias must not shadow the function ---------------
+# Regression: alias expansion happens at PARSE time, so with `alias cc=...` live
+# the `cc() {` line is a syntax error and the alias silently wins. This only
+# reproduces in an INTERACTIVE shell — every `bash -c` test above passes either
+# way, which is exactly how the bug shipped. `bash -i <script>` is the cheapest
+# way to get interactive alias expansion without a tty.
+alias_probe="${TMP}/alias-probe.sh"
+cat > "${alias_probe}" <<PROBE
+alias cc='echo ALIAS-WON'
+source ${CC_SH}
+type -t cc
+PROBE
+out="$(bash -i "${alias_probe}" 2>&1 | tail -1)"
+if [[ "${out}" == "function" ]]; then
+    record_pass "shell: pre-existing cc alias does not shadow the function"
+else
+    record_fail "shell: cc alias shadowing (type -t cc = '${out}', expected 'function')"
+fi
+
 # --- 2. --help ----------------------------------------------------------------
 out="$(run_cc --help)"; rc=$?
 if [[ ${rc} -eq 0 ]] && grep -q "CC_PROJECT_ROOT" <<<"${out}"; then
