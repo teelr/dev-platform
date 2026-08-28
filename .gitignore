@@ -131,6 +131,12 @@ deploy/**
 # subdirectories, so allow every file inside shell/worktree/ (same shape as
 # the shell/git-hooks/ rule above).
 !shell/worktree/*
+# v1.18: sourced shell functions live under shell/profile.d/ (claude-tmux.sh).
+# Top-level !shell/*.sh doesn't reach subdirectories, so allow every file inside
+# shell/profile.d/ (same shape as the shell/git-hooks/ and shell/worktree/ rules
+# above). The profile.d/ split exists because shell/*.sh at the top level are
+# executable scripts, not function libraries — see shell/README.md.
+!shell/profile.d/*
 # Tests allow-list — fixtures (json/jsonl/md/txt) + runners (sh) + Python
 # assertion helpers (py) at any depth. py + jsonl added in v0.5 Phase 4 for
 # tests/monitoring/.
