@@ -259,7 +259,7 @@ Before writing ANY new code: search the codebase for existing implementations (G
 
 Headless Ubuntu server at `192.168.1.101`. NO monitor, NO keyboard. All development remote.
 
-**Power schedule:** Shuts down nightly at 9pm, restarts at 4am. If services are unreachable, check whether the server is powered off. After restart, containers with `restart: unless-stopped` come back automatically. Manually-stopped containers don't — start with `docker compose up -d`.
+**Power schedule:** Runs 24/7. The nightly 9pm shutdown / 4am RTC wake was removed on 2026-07-25 — it was the root cause of five backup bugs, all jobs racing a fixed power-off deadline. Do NOT assume the box is powered off when services are unreachable; diagnose the service. The shutdown/wake scripts remain in `~/neurX_sysops/scripts/power-management/` for manual use (maintenance, travel), and that directory's README is the source of truth for re-enabling. After any reboot, containers with `restart: unless-stopped` come back automatically; manually-stopped ones don't — start with `docker compose up -d`. tmux sessions do NOT survive a reboot (`cc` protects against the VS Code server exiting, not the machine restarting).
 
 | Context | Use | Example |
 | ------- | --- | ------- |
