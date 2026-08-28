@@ -52,11 +52,35 @@ The lockfile lives in the repo's shared git directory, so all of the project's w
 
 Open two chats, run `/code` in each, and confirm you get two separate `.claude/worktrees/...` directories and that the app runs in each.
 
+## Seeing what's running
+
+To find out what is live in a project right now, run this from anywhere inside it:
+
+```bash
+bash /home/rich/dev/scripts/check-concurrent-sessions.sh
+```
+
+```text
+sessions: 2 (this one + 1 other)
+  pid 1687039  worktree  .claude/worktrees/v0.166+phase-1-git-layer       01:25:55
+  pid 2358072  main      .                                                (this session)
+isolation: worktree mode ON — /plan gives each session its own copy of the repo
+shared: the running app and its database — one backend, one DB across all sessions
+gate: lock wired (scripts/gate_fast.sh) + helper deployed — concurrent /gate fast takes turns
+```
+
+`/dev` runs it at session start and reports what it says, so you get this without asking.
+
+The last line is the one worth reading. **When the lock is wired, running `/gate fast` while another session is mid-build is safe** — the second gate blocks on the lock and takes its turn. `/dev` used to warn people off the gate in exactly that situation, which turned a solved problem back into a scary one. It now reports what the script measured instead of guessing.
+
+The script reads `/proc`, so it is Linux-only. On a host without `/proc` it says `unknown` rather than reporting no other sessions — telling you that you are alone when you are not is the worse answer. It is read-only and always exits 0; it is a diagnostic, not a gate check, so it is deliberately not wired into `gate_fast.sh`.
+
 ## How it's wired
 
 - `shell/worktree/link-deps.sh` — symlinks the manifest paths into a worktree. `/code` runs it after creating the worktree.
 - `shell/worktree/gate-lock.sh` — the `with_gate_lock` take-turns helper a project's gate sources.
-- Both deploy to `~/.claude/worktree/` via `./scripts/install.sh worktree`.
+- `scripts/check-concurrent-sessions.sh` — reports live sessions, isolation mode, what's shared, and whether the gate takes turns. Run by `/dev`; not deployed, called by absolute path.
+- The two `shell/worktree/` helpers deploy to `~/.claude/worktree/` via `./scripts/install.sh worktree`.
 - `/code` creates and enters the worktree with the harness `EnterWorktree` tool; `/merge` leaves and removes it with `ExitWorktree` + `git worktree remove`.
 
 See `shell/worktree/README.md` for the file-level contract.

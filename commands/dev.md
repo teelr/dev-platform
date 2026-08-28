@@ -41,17 +41,39 @@ Detect the project's startup mechanism without launching anything yet:
 - Note which command would bring the stack up — but do NOT run it
 - If a `make smoke` or equivalent target exists, mention it as the verification step
 
-## Step 5: Report — concise, structured
+## Step 5: Check for other live sessions
+
+`cc --new` makes two, three, or four sessions on one project routine, so find out
+what else is running before you advise anything:
+
+```bash
+bash /home/rich/dev/scripts/check-concurrent-sessions.sh
+```
+
+It prints four things: the live sessions in this repo, whether worktree mode
+isolates them, what stays shared, and whether a concurrent `/gate fast` takes
+turns on the backend.
+
+**Report its lines as facts.** Do NOT re-derive any of this yourself from `ps`,
+`git worktree list`, or process inspection, and do NOT add caveats it did not
+print. The script exists because that improvisation produced confidently wrong
+advice — see the Rules below.
+
+## Step 6: Report — concise, structured
 
 Output the report as **plain markdown** — do NOT wrap it in a fenced code block. Be terse — the user is reading this to get oriented in seconds, not minutes.
 
-Use exactly these sections and this formatting (the template below is an illustration — output it as plain markdown, not inside a code block):
+Use exactly these sections and this formatting (the template below is an illustration — output it as plain markdown, not inside a code block). Include **## Other sessions** only when the detector reports more than one session, or reports `unknown` — a single-session run must not grow the report:
 
 ````text
 ## Project: <name>
 
 **Branch:** <branch> (<N> commits ahead of main, <clean|dirty>)
 **Last commit:** <hash> <subject> (<relative time>)
+
+## Other sessions
+- <the detector's session lines, verbatim>
+- <its isolation, shared, and gate lines, verbatim>
 
 ## Where work stands
 - <1-3 bullets summarizing the current Phase / Spec / Task from planning.md + most recent spec>
@@ -69,6 +91,7 @@ Use exactly these sections and this formatting (the template below is an illustr
 <the actual command, e.g. ./scripts/start_dev.sh>
 ```
 Verify with: `<smoke command>`
+<if another session is live: one sentence noting the app and database are shared, so starting or restarting the stack affects that session too>
 
 ## Recent lessons to keep in mind
 - <2-3 most relevant items from tasks/lessons.md, if any stand out>
@@ -83,4 +106,6 @@ Verify with: `<smoke command>`
 - **Do NOT** advance to `/plan` or `/code` after reporting. STOP after the report. The user will invoke the next step explicitly.
 - **Do NOT** invent state — if `planning.md` doesn't exist, say so. If no spec is active, say so.
 - Keep the report under ~40 lines. The user can ask follow-up questions.
+- **Never tell the user to avoid `/gate fast` because another session is running.** The gate lock is what makes that safe, and Step 5's detector reports whether it is wired — report that, don't guess. Improvised advice here is the exact defect this step exists to fix.
+- **Another session's worktree is off-limits** — don't read into it, don't touch its stashes, don't `git worktree remove` it. But being unable to work in *that* worktree is not a reason to tell the user they can't work at all: in a worktree-mode project, `/plan` gives this session its own.
 - If the working tree is dirty, flag it prominently — uncommitted work from a prior session is the single most common source of confusion at session start.
