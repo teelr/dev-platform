@@ -16,6 +16,7 @@
 #   ./scripts/install.sh managed    # v1.11 — machine-wide auth pin (sudo)
 #   ./scripts/install.sh git-hooks  # v1.2 — opt-in pre-commit hook
 #   ./scripts/install.sh worktree   # v1.4 — worktree isolation tooling
+#   ./scripts/install.sh shell      # v1.18 — sourced shell functions (cc)
 #
 # Idempotent — running twice produces the same state.
 
@@ -287,6 +288,36 @@ install_worktree() {
     echo "  worktree: ${count} files linked to ${HOME_CLAUDE}/worktree/"
 }
 
+install_shell() {
+    # v1.18 — sourced shell functions. Symlinks each tracked file under
+    # shell/profile.d/ into ~/.claude/profile.d/ so .bashrc can source the
+    # directory by a stable path that survives a repo move.
+    #
+    # Only profile.d/ is deployed. Top-level shell/*.sh (new-session.sh) are
+    # executable scripts, not function libraries — sourcing new-session.sh
+    # errors out on its ${1:?usage} guard and would break shell startup.
+    #
+    # Target is ~/.claude/profile.d/, NOT ~/.claude/shell/profile.d/:
+    # uninstall.sh sweeps `find ~/.claude -maxdepth 2 -type l`, and a
+    # three-deep path would survive uninstall with .bashrc still sourcing it.
+    mkdir -p "${HOME_CLAUDE}/profile.d"
+    local count=0
+    for f in "${REPO}/shell/profile.d"/*.sh; do
+        [[ -f "${f}" ]] || continue
+        local name; name="$(basename "${f}")"
+        link_file "${f}" "${HOME_CLAUDE}/profile.d/${name}"
+        count=$((count + 1))
+    done
+    echo "  shell: ${count} files linked to ${HOME_CLAUDE}/profile.d/"
+    echo "         Source them by adding this to ~/.bashrc:"
+    echo "           if [ -d \"\$HOME/.claude/profile.d\" ]; then"
+    echo "               for _f in \"\$HOME/.claude/profile.d\"/*.sh; do"
+    echo "                   [ -r \"\$_f\" ] && . \"\$_f\""
+    echo "               done"
+    echo "               unset _f"
+    echo "           fi"
+}
+
 case "${CATEGORY}" in
     commands)   install_commands ;;
     skills)     install_skills ;;
@@ -296,9 +327,10 @@ case "${CATEGORY}" in
     managed)    install_managed ;;
     git-hooks)  install_git_hooks ;;
     worktree)   install_worktree ;;
-    all)        install_commands; install_skills; install_settings; install_hooks; install_vscode; install_managed; install_git_hooks; install_worktree ;;
+    shell)      install_shell ;;
+    all)        install_commands; install_skills; install_settings; install_hooks; install_vscode; install_managed; install_git_hooks; install_worktree; install_shell ;;
     *)          echo "Unknown category: ${CATEGORY}" >&2
-                echo "Usage: $0 [commands|skills|settings|hooks|vscode|managed|git-hooks|worktree|all]" >&2
+                echo "Usage: $0 [commands|skills|settings|hooks|vscode|managed|git-hooks|worktree|shell|all]" >&2
                 exit 1 ;;
 esac
 

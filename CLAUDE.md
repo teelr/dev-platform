@@ -340,7 +340,7 @@ Every project CLAUDE.md follows `docs/PROJECT_CLAUDE_TEMPLATE.md`.
 | `extensions/` | IDE config (`vscode/server-extensions.json` is the tracked extension list; `scripts/install.sh vscode` reinstalls them all; `scripts/sync-vscode.sh` is the capture/deploy/diff helper) |
 | `scaffolding/` | New-project templates |
 | `monitoring/` | Workflow telemetry |
-| `shell/` | Shell helpers, git-hook templates, worktree-isolation tooling (`shell/worktree/`) |
+| `shell/` | Shell helpers, git-hook templates, worktree-isolation tooling (`shell/worktree/`), sourced shell functions (`shell/profile.d/` — `cc`) |
 | `scripts/` | Install / uninstall / verify; `gate_fast.sh` orchestrator; spec-taxonomy checker |
 | `tests/` | Constitutional gate-fast fixtures + per-suite runners |
 | `tasks/` | Spec files |
@@ -348,7 +348,7 @@ Every project CLAUDE.md follows `docs/PROJECT_CLAUDE_TEMPLATE.md`.
 
 ## Install / Deploy
 
-Repo is source of truth; `~/.claude/` is a *deployment*. `scripts/install.sh [category]` symlinks tracked files (`commands`, `skills`, `settings`, `hooks`, `vscode`, or `all`). The `vscode` category runs `code --install-extension` for every entry in `extensions/vscode/server-extensions.json` (skips gracefully when `code` CLI is absent). `scripts/uninstall.sh` removes symlinks (leaves `~/.claude/projects/` untouched). `scripts/verify.sh` reports drift. Edit in this repo and re-run install — never edit `~/.claude/` directly.
+Repo is source of truth; `~/.claude/` is a *deployment*. `scripts/install.sh [category]` symlinks tracked files (`commands`, `skills`, `settings`, `hooks`, `vscode`, `managed`, `git-hooks`, `worktree`, `shell`, or `all`). The `vscode` category runs `code --install-extension` for every entry in `extensions/vscode/server-extensions.json` (skips gracefully when `code` CLI is absent). `scripts/uninstall.sh` removes symlinks (leaves `~/.claude/projects/` untouched). `scripts/verify.sh` reports drift. Edit in this repo and re-run install — never edit `~/.claude/` directly.
 
 ## Adding a New Workflow Artifact
 

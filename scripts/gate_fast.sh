@@ -82,6 +82,7 @@ done < <(find \
     "${REPO}/scripts" \
     "${REPO}/hooks" \
     "${REPO}/scaffolding"/*/scripts \
+    "${REPO}/shell" \
     "${REPO}/tests" \
     -type f -name "*.sh" -print0 2>/dev/null)
 [[ ${syntax_fail} -eq 0 ]] && record_pass "bash syntax (${syntax_pass} scripts)"

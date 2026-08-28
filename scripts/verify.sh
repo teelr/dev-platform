@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # scripts/verify.sh — report drift between tracked and deployed state.
 #
-# Walks every tracked file in commands/, skills/, settings/, hooks/ and
-# verifies the corresponding ~/.claude/ path is a symlink pointing back into
-# this repo.
+# Walks every tracked file in commands/, skills/, settings/, hooks/,
+# shell/git-hooks/, shell/worktree/, and shell/profile.d/ and verifies the
+# corresponding ~/.claude/ path is a symlink pointing back into this repo.
 #
 # Exit code:
 #   0 — all tracked files deployed correctly
@@ -152,6 +152,13 @@ for f in "${REPO}/shell/worktree"/*; do
     name="$(basename "${f}")"
     [[ "${name}" == "README.md" ]] && continue
     check_symlink "${f}" "${HOME_CLAUDE}/worktree/${name}"
+done
+
+echo "Verifying shell..."
+for f in "${REPO}/shell/profile.d"/*.sh; do
+    [[ -f "${f}" ]] || continue
+    name="$(basename "${f}")"
+    check_symlink "${f}" "${HOME_CLAUDE}/profile.d/${name}"
 done
 
 echo "Verifying remotes..."
