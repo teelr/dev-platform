@@ -17,11 +17,12 @@
 # unaffected — only typing `cc foo.c` at a prompt. Use `command cc` or `\cc` to
 # reach the compiler.
 #
-# Relationship to shell/new-session.sh: that script is for deliberately starting
-# a NEW parallel session on a NEW branch + worktree, when the branch name is
-# known upfront. This is the everyday "attach me to my session for this project,
-# or start one" path. Both name their tmux session after the directory/repo, so
-# cc attaches to a session new-session.sh created rather than duplicating it.
+# Parallel sessions: `cc` attaches to (or starts) the one session for a project;
+# `cc --new` starts an additional numbered one (-2, -3, ...) in the same
+# directory. --new does no git work on purpose. Giving each session its own
+# branch is /plan's job via worktree mode, which needs the project's committed
+# .claude/worktree-deps manifest to know which git-ignored paths a fresh
+# worktree needs — something this function cannot invent.
 #
 # Deployment: symlinked to ~/.claude/profile.d/ by scripts/install.sh
 # (category: shell). Sourced by ~/.bashrc via the profile.d loop.
@@ -31,6 +32,8 @@
 #   cc kermit-v3            resolved under $CC_PROJECT_ROOT, attach or create
 #   cc ~/some/path          any directory works
 #   cc kermit-v3 --resume   unrecognised arguments pass through to claude
+#   cc --new kermit-v3      another session for it (kermit-v3-2, then -3)
+#   cc -n kermit-v3-2       get back to that one
 #   cc -n review kermit-v3  explicit session name (a second one, same project)
 #   cc --list               show live sessions
 #   cc --kill NAME          end one session
@@ -46,6 +49,7 @@ cc — run Claude Code in tmux so the session survives a disconnect
   cc <project>            resolved under $CC_PROJECT_ROOT
   cc <path>               any directory
   cc <project> [args...]  extra arguments pass through to claude
+  cc --new [project]      another session for the same project (-2, -3, ...)
   cc -n <name> [project]  explicit session name
   cc --list               show live sessions
   cc --kill <name>        end one session
@@ -66,7 +70,8 @@ USAGE
 unalias cc 2>/dev/null || true
 
 cc() {
-    local name="" dir="" target="" resolved claude_bin cmd
+    local name="" dir="" target="" resolved claude_bin cmd base n
+    local new_session=0
     # Re-default rather than reading the global directly: the function stays
     # correct under `set -u` even if CC_PROJECT_ROOT was unset after sourcing.
     local root="${CC_PROJECT_ROOT:-$HOME/dev/projects}"
@@ -93,6 +98,8 @@ cc() {
                 tmux kill-session -t "=$2" || return 1
                 printf 'cc: killed session %s\n' "$2"
                 return 0 ;;
+            --new)
+                new_session=1; shift ;;
             -n)
                 if [ -z "${2:-}" ]; then
                     printf 'cc: -n needs a name\n' >&2
@@ -103,6 +110,13 @@ cc() {
                 break ;;
         esac
     done
+
+    # --new derives a name and -n supplies one; asking for both is a
+    # contradiction, and silently letting one win would be worse than an error.
+    if [ "$new_session" -eq 1 ] && [ -n "$name" ]; then
+        printf 'cc: --new and -n are mutually exclusive\n' >&2
+        return 1
+    fi
 
     # First remaining argument is the project or directory, if it resolves to
     # one. Anything it doesn't resolve to is left for claude.
@@ -136,6 +150,22 @@ cc() {
         return 1
     fi
 
+    # --new: take the lowest free suffix rather than a counter, so killing
+    # session -2 makes the next --new reuse -2 instead of climbing forever.
+    # The 99 cap only exists so a broken has-session cannot spin forever.
+    if [ "$new_session" -eq 1 ]; then
+        base="$name"
+        n=2
+        while [ "$n" -le 99 ] && tmux has-session -t "=${base}-${n}" 2>/dev/null; do
+            n=$((n + 1))
+        done
+        if [ "$n" -gt 99 ]; then
+            printf 'cc: no free session name for %s (tried -2 through -99)\n' "$base" >&2
+            return 1
+        fi
+        name="${base}-${n}"
+    fi
+
     # Resolve claude to an absolute path: a pre-existing tmux server does not
     # inherit this shell's PATH.
     claude_bin="$(command -v claude)" || {
@@ -150,6 +180,18 @@ cc() {
         cmd="$cmd; exec \"\$SHELL\" -l"
         tmux new-session -d -s "$name" -c "$dir" "$cmd" || return 1
         printf 'cc: started session %s in %s\n' "$name" "$dir"
+        if [ "$new_session" -eq 1 ]; then
+            # Presence of the committed marker = worktree opt-in; see
+            # shell/worktree/README.md. /plan Step 2 does the actual isolation.
+            # Looked for at $dir, so running --new from inside an existing
+            # worktree reports "not isolated" — run it from the project root.
+            if [ -f "$dir/.claude/worktree-deps" ]; then
+                printf 'cc: %s is worktree-isolated — /plan gives this session its own copy of the repo\n' "${dir##*/}"
+            else
+                printf 'cc: NOTE %s is not worktree-isolated — this session shares one working tree and one branch with the others\n' "${dir##*/}" >&2
+                printf 'cc:      opt in by committing .claude/worktree-deps (see shell/worktree/README.md)\n' >&2
+            fi
+        fi
     else
         printf 'cc: attaching to existing session %s\n' "$name"
     fi
