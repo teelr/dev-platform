@@ -93,6 +93,16 @@ else
     record_fail "shell: -n with no name (rc=${rc}, out: ${out})"
 fi
 
+# --- 4b. --new and -n are mutually exclusive ---------------------------------
+# --new derives a name, -n supplies one. Letting either silently win would put
+# the user in a session they did not ask for.
+out="$(run_cc --new -n foo)"; rc=$?
+if [[ ${rc} -eq 1 ]] && grep -q -- "--new and -n are mutually exclusive" <<<"${out}"; then
+    record_pass "shell: --new with -n errors instead of picking one"
+else
+    record_fail "shell: --new/-n conflict (rc=${rc}, out: ${out})"
+fi
+
 # --- 5. unknown project name --------------------------------------------------
 out="$(CC_PROJECT_ROOT="${TMP}/projects" run_cc no-such-project-here)"; rc=$?
 if [[ ${rc} -eq 1 ]] \
@@ -236,6 +246,92 @@ STUB
         record_pass "shell: --kill ends the named session"
     else
         record_fail "shell: --kill left the session alive"
+    fi
+
+    # --- 13a + 13b. --new starts a numbered second session; the base name is
+    #     the sanitised one, not re-derived. Warns that the tree is shared,
+    #     since this fixture project has no .claude/worktree-deps marker. ---
+    out="$(cc --new 'v0.37+phase-1' 2>&1)"
+    sleep 1
+    if tmux_sessions | grep -qx "v0_37+phase-1-2"; then
+        record_pass "shell: --new starts a numbered second session (-2)"
+    else
+        record_fail "shell: --new -2 (got: $(tmux_sessions | tr '\n' ','))"
+    fi
+    if grep -q "not worktree-isolated" <<<"${out}"; then
+        record_pass "shell: --new warns when the project is not worktree-isolated"
+    else
+        record_fail "shell: --new isolation warning (out: ${out})"
+    fi
+
+    # --- 13c. the new session starts in the project directory (no git work) ---
+    if grep -qx "pwd=${TMP}/projects/v0.37+phase-1" "${CC_STUB_OUT}" 2>/dev/null; then
+        record_pass "shell: --new session starts in the same project directory"
+    else
+        record_fail "shell: --new pane cwd (got: $(cat "${CC_STUB_OUT}" 2>&1))"
+    fi
+
+    # --- 13d. extra arguments still reach claude through --new ---
+    cc --new 'v0.37+phase-1' --resume >/dev/null 2>&1
+    sleep 1
+    if grep -qx "args=--resume" "${CC_STUB_OUT}" 2>/dev/null; then
+        record_pass "shell: --new passes extra arguments to claude verbatim"
+    else
+        record_fail "shell: --new arg pass-through (got: $(cat "${CC_STUB_OUT}" 2>&1))"
+    fi
+
+    # --- 13e. successive --new calls climb: -2, -3, -4 all live at once ---
+    cc --new 'v0.37+phase-1' >/dev/null 2>&1
+    sleep 1
+    if tmux_sessions | grep -qx "v0_37+phase-1-3" \
+        && tmux_sessions | grep -qx "v0_37+phase-1-4"; then
+        record_pass "shell: successive --new calls create -3 and -4 alongside -2"
+    else
+        record_fail "shell: --new numbering (got: $(tmux_sessions | tr '\n' ','))"
+    fi
+
+    # --- 13f. -n <numbered name> is the documented way back in ---
+    before="$(tmux_sessions | wc -l)"
+    out="$(cc -n 'v0_37+phase-1-2' 2>&1)"
+    after="$(tmux_sessions | wc -l)"
+    if [[ "${before}" -eq "${after}" ]] && grep -q "attaching to existing session" <<<"${out}"; then
+        record_pass "shell: -n reattaches to a --new session without duplicating"
+    else
+        record_fail "shell: --new reattach (before=${before}, after=${after}, out: ${out})"
+    fi
+
+    # --- 13g. lowest free suffix, not a counter: killing -2 frees -2 ---
+    cc --kill 'v0_37+phase-1-2' >/dev/null 2>&1
+    cc --new 'v0.37+phase-1' >/dev/null 2>&1
+    sleep 1
+    if tmux_sessions | grep -qx "v0_37+phase-1-2" \
+        && ! tmux_sessions | grep -qx "v0_37+phase-1-5"; then
+        record_pass "shell: --new reuses the lowest free number after a kill"
+    else
+        record_fail "shell: --new lowest-free reuse (got: $(tmux_sessions | tr '\n' ','))"
+    fi
+
+    # --- 13h. marker present => reports isolation instead of warning ---
+    mkdir -p "${TMP}/projects/v0.37+phase-1/.claude"
+    touch "${TMP}/projects/v0.37+phase-1/.claude/worktree-deps"
+    out="$(cc --new 'v0.37+phase-1' 2>&1)"
+    sleep 1
+    if grep -q "is worktree-isolated" <<<"${out}" \
+        && ! grep -q "not worktree-isolated" <<<"${out}"; then
+        record_pass "shell: --new reports isolation when .claude/worktree-deps exists"
+    else
+        record_fail "shell: --new isolation notice (out: ${out})"
+    fi
+
+    # --- 13i. --new numbers from 2 even when no base session exists. The
+    #     first session for a project is not implicitly "-1". ---
+    mkdir -p "${TMP}/projects/fresh"
+    cc --new fresh >/dev/null 2>&1
+    sleep 1
+    if tmux_sessions | grep -qx "fresh-2" && ! tmux_sessions | grep -qx "fresh"; then
+        record_pass "shell: --new starts at -2 with no base session present"
+    else
+        record_fail "shell: --new fresh-project numbering (got: $(tmux_sessions | tr '\n' ','))"
     fi
 
     # --- 14. session survives claude exiting (exec \$SHELL -l fallback) ---

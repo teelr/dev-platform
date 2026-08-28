@@ -293,9 +293,10 @@ install_shell() {
     # shell/profile.d/ into ~/.claude/profile.d/ so .bashrc can source the
     # directory by a stable path that survives a repo move.
     #
-    # Only profile.d/ is deployed. Top-level shell/*.sh (new-session.sh) are
-    # executable scripts, not function libraries — sourcing new-session.sh
-    # errors out on its ${1:?usage} guard and would break shell startup.
+    # Only profile.d/ is deployed. Any top-level shell/*.sh is an executable
+    # script run by full path, not a function library — sourcing one would run
+    # its side effects (and abort on its ${1:?usage} guards) at shell startup.
+    # None ship today; the rule is why the profile.d/ split exists.
     #
     # Target is ~/.claude/profile.d/, NOT ~/.claude/shell/profile.d/:
     # uninstall.sh sweeps `find ~/.claude -maxdepth 2 -type l`, and a

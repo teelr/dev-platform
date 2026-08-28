@@ -5,7 +5,7 @@ Shell helpers, aliases, functions, and git-hook templates that support the dev-p
 **What goes here:** two kinds of file, split by whether they are *sourced* or *executed*.
 
 - `shell/profile.d/*.sh` — **sourced** into the user's interactive shell at startup (function libraries, e.g. `claude-tmux.sh`). Must be safe to source: no top-level side effects, no `${1:?...}` guards, no `exit`.
-- `shell/*.sh` at the top level — **executed** as scripts (e.g. `new-session.sh`). These are NOT safe to source: `new-session.sh` aborts on its `${1:?usage}` guard, which would break shell startup. That is why the sourced set lives in its own subdirectory.
+- `shell/*.sh` at the top level — **executed** as scripts, run by full path. These are NOT safe to source: a script's top-level side effects and `${1:?usage}` guards would run at shell startup and break it. That split is why the sourced set lives in its own subdirectory. None ship today, but the rule governs anything added here.
 - `shell/git-hooks/` — git hook templates (`pre-commit`, `commit-msg`) that projects opt into per-repo.
 - `shell/worktree/` — worktree-isolation tooling (`link-deps.sh`, `gate-lock.sh`) used by `/code` and project gate scripts.
 
@@ -22,6 +22,8 @@ cc                      session named for the current directory
 cc kermit-v3            resolved under $CC_PROJECT_ROOT (default ~/dev/projects)
 cc ~/some/path          any directory
 cc kermit-v3 --resume   unrecognised arguments pass through to claude
+cc --new                another session for the same project (-2, -3, ...)
+cc -n kermit-v3-2       get back to a numbered session
 cc -n review kermit-v3  explicit session name (a second one, same project)
 cc --list               show live sessions
 cc --kill NAME          end one session
@@ -34,4 +36,8 @@ The file runs `unalias cc` before defining the function. An existing `cc` alias 
 
 **`cc` shadows `/usr/bin/cc`, the C compiler.** This is deliberate. Build tools (`make`, `cargo`, `cmake`) invoke `cc` through `execvp`, and bash functions are not inherited by child processes, so builds are unaffected — only typing `cc foo.c` at a prompt. Use `command cc` or `\cc` to reach the compiler.
 
-`cc` and `new-session.sh` coexist: `new-session.sh` deliberately creates a new worktree + branch + window when the branch name is known upfront, while `cc` is the everyday attach-or-start path. Both name the session after the directory, so `cc` attaches to a session `new-session.sh` created rather than duplicating it.
+### Running more than one session on a project
+
+`cc --new` starts the next free numbered session — `kermit-v3-2`, then `-3`, then `-4` — in the same directory, and `cc -n kermit-v3-2` gets you back to one. It takes the lowest free number rather than counting up, so killing `-2` frees that name again.
+
+`--new` does no git work. Whether those sessions can safely code in parallel depends on the project: one that has opted into worktree mode gets its own copy of the repo per session from `/plan` (see [`shell/worktree/README.md`](worktree/README.md)), while one that hasn't shares a single working tree and branch across every session. `cc --new` prints which of the two situations you are in when it starts the session.
