@@ -255,7 +255,7 @@ Before writing ANY new code: search the codebase for existing implementations (G
 5. **No Phantom Features** — If a feature cannot be triggered from the UI end-to-end, it does not exist.
 6. **Status/Enum Consistency** — Every status field has a defined set of valid values; code only uses those values. Add new values to the model definition FIRST.
 
-## Keystone Server Environment
+## neurX Server Environment
 
 Headless Ubuntu server at `192.168.1.101`. NO monitor, NO keyboard. All development remote.
 
