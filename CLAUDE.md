@@ -94,6 +94,14 @@ When you add `<dir>/<newfile>.<newext>` in a glob-managed directory (`hooks/`, `
 4. **Directory README** — mention `<newext>` in its contract.
 5. **Test orchestrators** — `tests/<suite>/run.sh`, `scripts/gate_fast.sh`, or per-project equivalents.
 
+## Derivation Sweep — Fix Every Script That Derives the Same Value
+
+When you change how a value is **derived** from the environment — a git remote, a config path, a filename convention, an env var — grep for every other script that derives the same value and fix them together, or extract one shared helper and point them all at it.
+
+The tell is two functions with the same name and nearly the same body in different files. Fixing only the one an issue names leaves the others broken, and the next consumer finds them the hard way.
+
+This has cost three Roadmap Phases: **v1.12** (the Roadmap-version regex matched only one `ROADMAP.md` form, in two scripts), **v1.13** (`ROADMAP_PATH` needed adding to a third script the issue never mentioned, with the identical bug), **v1.21** (owner/repo derivation hardcoded `github.com` in three scripts). Every one was found by a consumer hitting it in production, never by the change that had just edited a sibling script. One `grep` before writing code finds all of them — that is the entire cost of the rule. Rationale and incident lineage: `docs/RULE_RATIONALE.md`.
+
 ## Development Workflow
 
 **CRITICAL — DO NOT ADVANCE STEPS WITHOUT EXPLICIT USER INVOCATION.**

@@ -214,6 +214,20 @@ When the harness doesn't yet expose the primitive and waiting blocks user work, 
 
 Without architectural triage at intake, "build it where the bug surfaced" becomes the default — and consumers accumulate slightly-different reimplementations of the same primitives. The Kermit PA April 26 2026 session shipped roughly 40% harness-shaped code in PA before the pattern was caught (recency intent detection, truncation heuristic, in-flight task registry, dedup helpers, cascade delete, async/sync wrap pattern). Every other consumer would have built each one slightly differently. Triage at intake stops the drift.
 
+## Derivation Sweep — Why One Rule In Three Scripts Keeps Breaking
+
+Three times now, one rule for deriving a value from the environment has been written separately in several scripts, fixed in one, and left broken in the rest. Each time a consumer project found the remainder.
+
+**v1.11 → v1.12 (Roadmap-version regex).** `claim_roadmap_version.py` and `check_version_collision.py` each carried a regex matching Roadmap Phase headers. Both matched only kermit-v3's heading form (`## v<N>.<M>:`), never dev-platform's list form (`- **v<N>.<M>:`), so the version-collision CI job v1.11 shipped silently passed on every dev-platform PR — zero real protection — until v1.12 fixed both.
+
+**v1.13 (`ROADMAP_PATH`).** [Issue #64](https://github.com/teelr/dev-platform/issues/64), filed by Keystone, named two scripts hardcoding a root `ROADMAP.md`. A third, `claim_roadmap_version.py`, had the identical bug and was not named. It was fixed alongside rather than left to be rediscovered — the first time this pattern was noticed as a pattern.
+
+**v1.21 (owner/repo derivation).** [Issue #77](https://github.com/teelr/dev-platform/issues/77), filed by SQRL, named `claim_roadmap_version.py` for hardcoding the host `github.com`, which breaks the SSH host-alias remotes this repo's own multi-account setup prescribes. Two other scripts had the same assumption: `check_version_collision.py` (near-identical `_repo_slug()`, differing only in `$` vs `\s*$` and raise vs. return-`None`) and `check-phase-milestones.sh` (a `sed` doing the same job). The three failed three different ways — hard error, honest SKIP, and a garbage slug handed to `gh api` whose 404 was then reported as an auth problem. A sweep found all three in one command before any code was written, and two projects were affected, not the one that filed.
+
+**Why "fix the one the issue names" keeps being insufficient:** the consumer reports where *they* hit it. Their remote, roadmap path, or filename convention exercises one code path; the others fail later, for someone else, in a way that looks unrelated. The duplication is the mechanism — two same-named functions with nearly the same body drift independently and are fixed independently.
+
+**The rule:** grep for the derivation before changing it, and prefer one shared helper (`scripts/lib/repo_slug.py` is the v1.21 example) over a coordinated multi-file edit that will need coordinating again. There is no mechanical checker for this — it is a judgment rule about where to look, and an unenforceable gate check would be worse than a documented rule.
+
 ## Duplicate Numbering Check — Handoff-Queue "Ask #" / Lessons "L#"
 
 Two Kermit-harness-consumer conventions have no live external arbiter the way a Roadmap Phase version does (`check_version_collision.py` can ask GitHub whether a milestone number is taken; these can't ask anything): `tasks/HARNESS_HANDOFF_QUEUE.md`'s "Ask #" row numbers, and `tasks/lessons.md`'s "L#" entry headers. Two Roadmap Phases in flight at once can each independently pick the next free number; git merges the text cleanly (different line positions — sometimes not even a real conflict), leaving a silent duplicate nothing catches until a human notices. Live incident: kermit-v3 PR #481 (2026-08-21) hit both — a queue row collision on Ask #51 that merged with zero text conflict, and an L60 collision that at least showed up as a real git conflict. [teelr/dev-platform#75](https://github.com/teelr/dev-platform/issues/75).

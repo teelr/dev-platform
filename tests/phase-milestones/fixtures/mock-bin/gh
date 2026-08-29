@@ -14,6 +14,10 @@
 
 set -uo pipefail
 
+# argv capture: when MOCK_ARGS_FILE is set, record the full invocation so a test
+# can assert WHICH repo slug the detector derived (v1.21, issue #77).
+[[ -n "${MOCK_ARGS_FILE:-}" ]] && printf '%s\n' "$*" >> "${MOCK_ARGS_FILE}"
+
 case "${1:-}" in
     api)
         if [[ -n "${MOCK_FAIL:-}" ]]; then

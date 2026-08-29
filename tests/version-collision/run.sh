@@ -9,9 +9,12 @@
 # ever made. VERSION_GUARD_REPO_SLUG (a test-only override added when these
 # scripts were promoted — see scripts/check_version_collision.py's
 # _repo_slug()) decouples "which repo git talks to" (a local path, for real
-# fetch/show) from "which repo gh is asked about" (a fake owner/repo, so the
-# mock gets invoked at all — a real local-path origin fails the github.com
-# URL regex and short-circuits before gh is ever called).
+# fetch/show) from "which repo gh is asked about" (a fixed fake owner/repo, so
+# assertions don't depend on the temp directory's name). v1.21 note: a
+# local-path origin now DOES parse — the derivation is host-agnostic, taking the
+# last two path segments — so "${TMP}/origin.git" resolves to a slug like
+# "version-collision.XXX/origin". The override is what keeps that out of the
+# assertions; it is no longer what makes gh reachable at all.
 #
 # Auto-discovered by scripts/gate_fast.sh (tests/<suite>/run.sh, excluding
 # fixtures/ — so the mock `gh` is never run as a test runner).
@@ -159,7 +162,16 @@ else
     record_fail "version-collision: Layer 2 collision missed — rc=${RC}, out=${OUT:0:200}"
 fi
 
-# Check 5: repo slug unresolvable (local-path origin, no override) -> degraded SKIP, exit 2
+# Check 5: repo slug unresolvable -> degraded SKIP, exit 2.
+# v1.21: an absolute local-path origin no longer qualifies. The parser is
+# host-agnostic (last two path segments), so "${TMP}/origin.git" now resolves to
+# "version-collision.XXX/origin". A RELATIVE origin is the case that still can't
+# yield owner/repo — "../origin.git" has no segment before the one slash — while
+# staying fetchable, so the run still reaches the slug layer instead of failing
+# earlier at "could not fetch origin/main". That ordering matters: a URL git
+# can't fetch tests nothing about slug resolution.
+_saved_origin="$(git -C "${WORK}" remote get-url origin)"
+git -C "${WORK}" remote set-url origin ../origin.git
 run_check '- **v0.1: Foundation** *(complete — 2026-01-01)* — initial phase.
 - **v0.2: Widgets** *(complete — 2026-01-02)* — new phase.
 ' "${WORK}"
@@ -168,6 +180,20 @@ if [[ ${RC} -eq 2 ]] && echo "${OUT}" | grep -q "SKIP: could not determine owner
 else
     record_fail "version-collision: degraded-coverage case wrong — rc=${RC}, out=${OUT:0:200}"
 fi
+
+# Check 5b (v1.21): an SSH host-alias origin must RESOLVE, not degrade. This is
+# the issue #77 regression — SQRL's remote shape, which the old github.com-only
+# regex rejected, costing that project its milestone cross-check entirely.
+git -C "${WORK}" remote set-url origin 'git@github-teelr129:Osigin-LLC/SQRL.git'
+run_check '- **v0.1: Foundation** *(complete — 2026-01-01)* — initial phase.
+- **v0.2: Widgets** *(complete — 2026-01-02)* — new phase.
+' "${WORK}"
+if ! echo "${OUT}" | grep -q "SKIP: could not determine owner/repo from origin remote"; then
+    record_pass "version-collision: SSH host-alias origin resolves (issue #77 regression)"
+else
+    record_fail "version-collision: alias origin still unresolvable — out=${OUT:0:200}"
+fi
+git -C "${WORK}" remote set-url origin "${_saved_origin}"
 
 # Check 6: git fetch failure (origin points nowhere) -> SKIP, exit 2
 run_check '- **v0.1: Foundation** *(complete — 2026-01-01)* — initial phase.

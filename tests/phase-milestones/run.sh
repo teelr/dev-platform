@@ -106,6 +106,40 @@ else
     record_fail "phase-milestones: --json clean wrong — rc=${RC}, out=${OUT:0:200}"
 fi
 
+# Check 5b (v1.21): with NO --repo, the slug is derived from origin. An SSH
+# host-alias remote must reach gh as owner/repo, not as the raw URL — the
+# issue #77 regression. Before the fix, sed left the URL intact and the shape
+# guard waved it through, because it happens to contain exactly one slash.
+alias_repo="${TMP}/aliasrepo"
+git init -q "${alias_repo}"
+git -C "${alias_repo}" remote add origin 'git@github-teelr129:Osigin-LLC/SQRL.git'
+args_file="${TMP}/gh-args.txt"
+: > "${args_file}"
+OUT="$(cd "${alias_repo}" && PATH="${MOCK_BIN}:${PATH}" \
+        MOCK_MILESTONES_FILE="${clean_json}" MOCK_ARGS_FILE="${args_file}" \
+        bash "${SCRIPT}" 2>&1)"
+RC=$?
+if [[ ${RC} -eq 0 ]] && grep -q "repos/Osigin-LLC/SQRL/milestones" "${args_file}" \
+        && ! grep -q "github-teelr129" "${args_file}"; then
+    record_pass "phase-milestones: SSH host-alias origin reaches gh as owner/repo"
+else
+    record_fail "phase-milestones: alias origin slug wrong (rc=${RC}, gh args: $(cat "${args_file}"), out: ${OUT:0:200})"
+fi
+
+# Check 5c (v1.21): an origin that cannot yield owner/repo must exit 2 naming the
+# URL — never hand a half-parsed value to gh.
+bad_repo="${TMP}/badrepo"
+git init -q "${bad_repo}"
+git -C "${bad_repo}" remote add origin 'garbage'
+OUT="$(cd "${bad_repo}" && PATH="${MOCK_BIN}:${PATH}" \
+        MOCK_MILESTONES_FILE="${clean_json}" bash "${SCRIPT}" 2>&1)"
+RC=$?
+if [[ ${RC} -eq 2 ]] && echo "${OUT}" | grep -q "could not parse owner/repo from origin URL 'garbage'"; then
+    record_pass "phase-milestones: unparseable origin exits 2 and names the URL"
+else
+    record_fail "phase-milestones: unparseable origin (rc=${RC}, out: ${OUT:0:200})"
+fi
+
 # Check 6: --help → exit 0, usage printed, no gh call (MOCK_MILESTONES_FILE unset)
 help_out="$(PATH="${MOCK_BIN}:${PATH}" bash "${SCRIPT}" --help 2>&1)"
 help_rc=$?
