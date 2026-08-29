@@ -44,6 +44,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Resolve off __file__, not the cwd: consumers' CI runs this by absolute path
+# against their own checkout (see .github/workflows/taxonomy-check.yml).
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from repo_slug import parse_repo_slug  # noqa: E402
+
 _VERSION_HEADER_HEADING_RE = re.compile(r"^## (v(\d+)\.(\d+)): (.+?)\s*(?:—.*)?$", re.MULTILINE)
 _VERSION_HEADER_LIST_RE = re.compile(r"^- \*\*(v(\d+)\.(\d+)): (.+?)\*\*", re.MULTILINE)
 _MILESTONE_TITLE_RE = re.compile(r"^(v(\d+)\.(\d+)):\s*(.+)$")
@@ -87,8 +92,7 @@ def _repo_slug() -> str | None:
     url = _run(["git", "remote", "get-url", "origin"])
     if url is None:
         return None
-    m = re.search(r"github\.com[:/]([^/]+)/([^/.]+?)(?:\.git)?\s*$", url)
-    return f"{m.group(1)}/{m.group(2)}" if m else None
+    return parse_repo_slug(url)
 
 
 def main(project_root: Path) -> int:

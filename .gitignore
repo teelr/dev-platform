@@ -68,6 +68,10 @@ deploy/**
 # file-pattern rule alone) — same shape as the extensions/**/ subdir re-include.
 !scripts/lib/
 !scripts/lib/*.sh
+# v1.21: repo_slug.py — first Python helper under scripts/lib/. The v1.6
+# !scripts/*.py rule does not reach subdirectories, so without this line the
+# file is silently untracked (the v1.18 defect, caught by check-ignore again).
+!scripts/lib/*.py
 !commands/*.md
 !skills/*.md
 !skills/**/*.md

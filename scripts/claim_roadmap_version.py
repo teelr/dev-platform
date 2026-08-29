@@ -28,6 +28,12 @@ import os
 import re
 import subprocess
 import sys
+from pathlib import Path
+
+# Resolve off __file__, not the cwd: /plan invokes this by absolute path from
+# whatever project it is planning in.
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from repo_slug import parse_repo_slug  # noqa: E402
 
 _ROADMAP_VERSION_RE = re.compile(r"^(?:## |- \*\*)v(\d+)\.(\d+):", re.MULTILINE)
 _MILESTONE_VERSION_RE = re.compile(r"^v(\d+)\.(\d+):")
@@ -51,12 +57,11 @@ def _repo_slug() -> str:
             file=sys.stderr,
         )
         return override
-    # git@github.com:owner/repo.git OR https://github.com/owner/repo.git
     url = _run(["git", "remote", "get-url", "origin"]).strip()
-    m = re.search(r"github\.com[:/]([^/]+)/([^/.]+?)(?:\.git)?$", url)
-    if not m:
+    slug = parse_repo_slug(url)
+    if slug is None:
         raise RuntimeError(f"could not parse owner/repo from origin URL: {url!r}")
-    return f"{m.group(1)}/{m.group(2)}"
+    return slug
 
 
 def _highest_minor_in_roadmap(major: int) -> int:

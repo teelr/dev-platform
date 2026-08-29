@@ -34,9 +34,13 @@
 #   1  one or more flagged milestones found (action needed: close them)
 #   2  error — bad args, missing gh/jq, unresolvable repo, or fetch failure
 #
-# Requires: gh CLI authenticated, jq.
+# Requires: gh CLI authenticated, jq, python3 (for scripts/lib/repo_slug.py).
 
 set -uo pipefail
+
+# Self-locate so the shared repo-slug parser is reachable no matter which
+# project's directory this is invoked from.
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 REPO=""
 JSON_OUT=0
@@ -82,26 +86,36 @@ command -v gh >/dev/null || { echo "ERROR: gh CLI required (https://cli.github.c
 command -v jq >/dev/null || { echo "ERROR: jq required" >&2; exit 2; }
 
 # Resolve target repo. Explicit --repo wins; otherwise derive owner/repo from
-# the current git checkout's origin (handles git@github.com:owner/repo.git and
-# https://github.com/owner/repo.git). Same origin lookup idiom as verify-remotes.sh.
+# the current git checkout's origin via the shared host-agnostic parser, which
+# also handles SSH host-alias remotes (git@github-<account>:owner/repo.git) —
+# the multi-account shape this repo's own docs prescribe. Do not re-derive the
+# slug with a local sed; scripts/lib/repo_slug.py is the single implementation.
 if [[ -z "${REPO}" ]]; then
     origin_url="$(git remote get-url origin 2>/dev/null || echo "")"
     if [[ -z "${origin_url}" ]]; then
         echo "ERROR: no repo given and no git origin found — pass --repo OWNER/REPO" >&2
         exit 2
     fi
-    REPO="$(echo "${origin_url}" | sed -E 's#(git@github.com:|https://github.com/)##; s#\.git$##')"
+    if ! REPO="$(python3 "${HERE}/lib/repo_slug.py" "${origin_url}" 2>/dev/null)"; then
+        echo "ERROR: could not parse owner/repo from origin URL '${origin_url}' — pass --repo OWNER/REPO" >&2
+        exit 2
+    fi
 fi
 
+# Reached with an explicit --repo, or a parsed one. Keep the generic message:
+# origin_url is out of scope in the --repo case, and naming it there would
+# report an empty origin URL for what is actually a bad argument.
 if [[ ! "${REPO}" =~ ^[^/]+/[^/]+$ ]]; then
     echo "ERROR: could not resolve a valid owner/repo (got '${REPO}')" >&2
     exit 2
 fi
 
 # Fetch open milestones (array of {number,title,open_issues,closed_issues,html_url}).
-# A fetch failure (auth/network) is an ERROR, not "clean".
+# A fetch failure is an ERROR, not "clean". Causes: gh auth, network, or a repo
+# that does not exist / is unreachable — the parser is host-agnostic, so a
+# well-formed slug is not proof the repo is real.
 if ! milestones="$(gh api "repos/${REPO}/milestones?state=open&per_page=100" 2>/dev/null)"; then
-    echo "ERROR: failed to fetch milestones for ${REPO} (gh auth/network?)" >&2
+    echo "ERROR: failed to fetch milestones for ${REPO} (gh auth/network, or no such repo?)" >&2
     exit 2
 fi
 
