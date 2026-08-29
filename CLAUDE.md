@@ -348,7 +348,7 @@ Every project CLAUDE.md follows `docs/PROJECT_CLAUDE_TEMPLATE.md`.
 
 ## Install / Deploy
 
-Repo is source of truth; `~/.claude/` is a *deployment*. `scripts/install.sh [category]` symlinks tracked files (`commands`, `skills`, `settings`, `hooks`, `vscode`, `managed`, `git-hooks`, `worktree`, `shell`, or `all`). The `vscode` category runs `code --install-extension` for every entry in `extensions/vscode/server-extensions.json` (skips gracefully when `code` CLI is absent). `scripts/uninstall.sh` removes symlinks (leaves `~/.claude/projects/` untouched). `scripts/verify.sh` reports drift. Edit in this repo and re-run install — never edit `~/.claude/` directly.
+Repo is source of truth; `~/.claude/` is a *deployment*. `scripts/install.sh [category]` symlinks tracked files (`commands`, `skills`, `settings`, `hooks`, `vscode`, `managed`, `git-hooks`, `worktree`, `shell`, or `all`). The `vscode` category runs `code --install-extension` for every entry in `extensions/vscode/server-extensions.json` (skips gracefully when the `code` CLI is absent, and when it is present but cannot reach a VSCode server — a shell that outlives a VSCode reconnect holds a stale `$VSCODE_IPC_HOOK_CLI`, which used to fail the whole install; see [issue #84](https://github.com/teelr/dev-platform/issues/84)). `scripts/uninstall.sh` removes symlinks (leaves `~/.claude/projects/` untouched). `scripts/verify.sh` reports drift. Edit in this repo and re-run install — never edit `~/.claude/` directly.
 
 ## Adding a New Workflow Artifact
 
