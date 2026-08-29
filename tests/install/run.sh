@@ -69,3 +69,52 @@ if [[ "$(cat "${FAKE}/.claude/CLAUDE.md" 2>/dev/null)" == "real content" ]]; the
 else
     record_fail "install: real file destroyed by refuse-to-clobber"
 fi
+
+# --- 8 + 9. vscode: unreachable server must skip, not fail the whole install ---
+# Regression (issue #84): `code` is the VSCode REMOTE CLI and talks to the
+# running server over $VSCODE_IPC_HOOK_CLI. A shell outliving a VSCode
+# reconnect holds a dead socket path, every extension call fails with ENOENT,
+# and install_vscode's all-failed branch turned that into a non-zero install —
+# failing checks 1, 2 and 5 above and, through them, the whole commit gate.
+# Driven by a stub `code` so the assertion never depends on the developer's
+# editor actually being connected, which is the entire point of the fix.
+STUB_BIN="${FAKE}/stubbin"
+mkdir -p "${STUB_BIN}"
+cat > "${STUB_BIN}/code" <<'STUB'
+#!/usr/bin/env bash
+# Stub VSCode CLI. STUB_CODE_REACHABLE=0 emulates a dead IPC socket: the
+# reachability probe fails exactly as the real CLI does with ENOENT.
+case "${1:-}" in
+    --list-extensions)
+        [[ "${STUB_CODE_REACHABLE:-1}" == "1" ]] || exit 1
+        echo "stub.extension"
+        ;;
+    --install-extension)
+        [[ "${STUB_CODE_REACHABLE:-1}" == "1" ]] || exit 1
+        ;;
+    *) exit 1 ;;
+esac
+STUB
+chmod +x "${STUB_BIN}/code"
+
+HOME="${FAKE}" bash "${REPO}/scripts/uninstall.sh" >/dev/null 2>&1
+rm -f "${FAKE}/.claude/CLAUDE.md"
+
+out="$(HOME="${FAKE}" PATH="${STUB_BIN}:${PATH}" STUB_CODE_REACHABLE=0 \
+        bash "${REPO}/scripts/install.sh" 2>&1)"
+rc=$?
+if [[ ${rc} -eq 0 ]] && grep -q "cannot reach a VSCode server" <<<"${out}"; then
+    record_pass "install: unreachable VSCode server skips instead of failing the install"
+else
+    record_fail "install: unreachable-server skip (rc=${rc}, out: $(tail -3 <<<"${out}"))"
+fi
+
+# The skip must be conditional — a reachable CLI still deploys extensions.
+out="$(HOME="${FAKE}" PATH="${STUB_BIN}:${PATH}" STUB_CODE_REACHABLE=1 \
+        bash "${REPO}/scripts/install.sh" 2>&1)"
+rc=$?
+if [[ ${rc} -eq 0 ]] && grep -q "extensions installed/verified" <<<"${out}"; then
+    record_pass "install: reachable VSCode server still installs extensions"
+else
+    record_fail "install: reachable-server path (rc=${rc}, out: $(tail -3 <<<"${out}"))"
+fi

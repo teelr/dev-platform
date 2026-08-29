@@ -191,6 +191,23 @@ install_vscode() {
         echo "  vscode: 'jq' not on PATH — skipping (install jq to deploy extensions)"
         return 0
     fi
+    if ! command -v timeout >/dev/null 2>&1; then
+        echo "  vscode: 'timeout' not on PATH — skipping (coreutils needed to bound the CLI calls)"
+        return 0
+    fi
+    # `code` here is the VSCode REMOTE CLI: it does nothing on its own, it asks
+    # the running server over $VSCODE_IPC_HOOK_CLI. A shell that outlives a
+    # VSCode reconnect still holds the old socket path, and every extension call
+    # then fails with ENOENT — which the all-failed branch below would report as
+    # a broken CLI and turn into a non-zero install. That is an operational
+    # transient, not a misconfiguration, so it gets the same graceful skip the
+    # missing-CLI case does. --list-extensions is the read-only reachability
+    # probe; the timeout covers a server caught mid-shutdown, where the connect
+    # succeeds and the request is simply never answered.
+    if ! timeout 15 code --list-extensions >/dev/null 2>&1; then
+        echo "  vscode: 'code' cannot reach a VSCode server (stale \$VSCODE_IPC_HOOK_CLI?) — skipping"
+        return 0
+    fi
     local count
     count="$(jq length "${file}")"
     echo "  vscode: installing/verifying ${count} extensions..."
@@ -202,7 +219,9 @@ install_vscode() {
     while read -r ext; do
         [[ -z "${ext}" ]] && continue
         attempted=$((attempted + 1))
-        if ! code --install-extension "${ext}" --force >/dev/null 2>&1; then
+        # Bounded: an unanswered request would otherwise hang install.sh — and
+        # with it gate_fast, via tests/install/run.sh — indefinitely.
+        if ! timeout 120 code --install-extension "${ext}" --force >/dev/null 2>&1; then
             failed=$((failed + 1))
             echo "    WARN failed to install ${ext}" >&2
         fi
