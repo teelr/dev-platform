@@ -66,6 +66,11 @@ deploy/**
 # below): a file-pattern rule alone cannot unignore a file in an ignored dir.
 !tasks/lessons/
 !tasks/lessons/*.md
+# v1.24: tasks/shipped/ — one file per shipped Roadmap Phase (and per migrated
+# chore), so /code never appends to a shared planning.md section. Same
+# subdirectory re-include ordering as tasks/lessons/ above.
+!tasks/shipped/
+!tasks/shipped/*.md
 !scripts/*.sh
 # v1.6: merge_settings.py — first Python helper under scripts/ (Local Settings Isolation)
 !scripts/*.py

@@ -1,0 +1,3 @@
+# /docs skill rewrite (2026-05-09): no longer self-references the not-yet-landed commit; staging-only (per…
+
+/docs skill rewrite (2026-05-09): no longer self-references the not-yet-landed commit; staging-only (per project bundling rule)

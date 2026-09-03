@@ -1,0 +1,3 @@
+# Workflow redesign chore (2026-05-11, same session): slimmed chain to `/plan → /code…
+
+Workflow redesign chore (2026-05-11, same session): slimmed chain to `/plan → /code → /gate fast → commit → push → /pr → CI → /merge`; `/code` absorbs branch creation + auto-fix + doc updates; `/review` optional; `/test` and `/docs` standalone-only. Commands updated in `commands/code.md`, `commands/review.md`, `commands/test.md`, `commands/docs.md`. Chain refs updated in `CLAUDE.md` + `settings/claude-global.md`.

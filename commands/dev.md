@@ -13,11 +13,12 @@ You are bootstrapping a development session for an in-progress project. The user
 Read these in a single batch — skip any that don't exist, don't error:
 
 1. `./CLAUDE.md` — project-specific rules
-2. `./planning.md` — current roadmap / development state
-3. `./README.md` — project overview
-4. `./tasks/lessons/` — accumulated gotchas and corrections, one file per lesson. Read the newest few:
+2. `./planning.md` — orientation (static where `tasks/shipped/` exists; per-phase state otherwise)
+3. The newest shipped files, where the directory exists: `ls -1 tasks/shipped/*.md 2>/dev/null | sort -r | head -2` — this is where "where work stands" lives on migrated projects
+4. `./README.md` — project overview
+5. `./tasks/lessons/` — accumulated gotchas and corrections, one file per lesson. Read the newest few:
    `ls -1 tasks/lessons/*.md 2>/dev/null | sort -r | head -5`. Sort by NAME, not `ls -t` — the filename leads with the date, whereas mtime is checkout order and reshuffles on every clone
-5. `./ROADMAP.md` — phase-level milestones (if present)
+6. `./ROADMAP.md` — phase-level milestones (if present)
 
 Also list `./tasks/` to see active spec files: `ls -1t tasks/*.md 2>/dev/null | head -10`
 
@@ -77,7 +78,7 @@ Use exactly these sections and this formatting (the template below is an illustr
 - <its isolation, shared, and gate lines, verbatim>
 
 ## Where work stands
-- <1-3 bullets summarizing the current Phase / Spec / Task from planning.md + most recent spec>
+- <1-3 bullets summarizing the latest shipped phase (newest tasks/shipped/ file, where the directory exists; planning.md otherwise) + most recent spec>
 - <next concrete Task if one is in progress, or "no spec in flight" if not>
 
 ## Recent activity (last 5 commits)

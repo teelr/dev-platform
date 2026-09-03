@@ -1,0 +1,3 @@
+# Boundary-contract chore — "Boundary Contract Changes Require Both-Sides Sweep" rule (2026-05-11, PR…
+
+Boundary-contract chore — "Boundary Contract Changes Require Both-Sides Sweep" rule (2026-05-11, PR #14 squash-merged as commit `d40dda0`): new section in `dev/CLAUDE.md` promoting kermit-harness lessons L46–L50 (five recurrences in 4 days: deprecated/renamed methods, tuple-vs-list shape mismatch, private-method extraction, `async def` body with sync CPU-bound code, ABC additive kwarg breaking subclass overrides). Shape: any change to a method name/signature/return type/call path/`async`-vs-sync at ANY boundary requires a `grep -rn` sweep of BOTH `src/` AND `tests/` in the same `/code` session.

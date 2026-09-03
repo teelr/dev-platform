@@ -30,7 +30,7 @@ Also read:
 
 Create a TodoWrite checklist covering every doc that may need updating:
 
-- `planning.md` — Ground Truth section, task entries, execution order
+- `tasks/shipped/` — a new per-phase file, where the directory exists; otherwise `planning.md` (Ground Truth section, task entries, execution order)
 - `ROADMAP.md` — completed phase table, remaining work table, success criteria checkboxes, version numbers
 - `README.md` — architecture section, feature list, Milvus/database counts
 - `tasks/lessons/` — a new file per pattern or mistake from this phase
@@ -40,7 +40,11 @@ Create a TodoWrite checklist covering every doc that may need updating:
 
 For EACH doc in the checklist:
 
-### planning.md
+### tasks/shipped/ (or planning.md where the convention is absent)
+
+If `tasks/shipped/` exists, write a NEW FILE `tasks/shipped/<YYYY-MM-DD>-v<X.Y>-<slug>.md` with the phase narrative and do NOT edit `planning.md` (static orientation doc — per-phase writes to it are the collision the convention removes). Otherwise:
+
+### planning.md (legacy projects only)
 
 - Update the **Ground Truth** date and bullet points to reflect current state
 - Mark the completed task as `✅ COMPLETE` with verification date
@@ -96,7 +100,8 @@ Cross-check:
 Per the project bundling rule (see `/home/rich/dev/CLAUDE.md` "Docs Before Commit"): feature code and doc updates go into ONE atomic commit, never separate. /docs stages the doc changes; the upcoming feature commit will bundle them.
 
 ```bash
-git add planning.md ROADMAP.md README.md tasks/lessons/
+git add ROADMAP.md README.md tasks/lessons/ tasks/shipped/
+# Legacy projects without tasks/shipped/: git add planning.md instead.
 # Add any docs/ files if changed
 ```
 

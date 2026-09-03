@@ -1,0 +1,3 @@
+# Consumer Audit rule promoted to `dev/CLAUDE.md` (2026-05-11, PR #5 squash-merged as commit…
+
+Consumer Audit rule promoted to `dev/CLAUDE.md` (2026-05-11, PR #5 squash-merged as commit `24e062f`): 5-point checklist for new file types in glob-managed directories. Promoted from 2 recurring 2026-05-11 lessons.md entries (Phase 2 hooks/*.py + Phase 4 tests/**/*.{py,jsonl}). Both original lessons marked `→ Rule in dev/CLAUDE.md`.
