@@ -8,7 +8,8 @@
 # and that pairing is why milestones have never drifted. Tagging had no such
 # backstop: it was documented only in docs/GLOSSARY.md, a reference doc nobody
 # executes from, and stopped after v1.13 — leaving v1.14 through v1.25
-# unpinnable while all seven consumer projects sat on @v0.7.
+# unpinnable — freezing every consumer at @v1.12 or @v1.13, the newest tags
+# that existed, because a tag nobody cut is one nobody can pin.
 #
 # WHY IT MATTERS: the tag is the only identifier a consumer can pin
 # (taxonomy-check.yml@v1.26). A phase with no tag is a phase no consumer can

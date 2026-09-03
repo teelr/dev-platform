@@ -89,6 +89,22 @@ HELP
 done
 
 command -v jq >/dev/null || { echo "ERROR: jq required" >&2; exit 2; }
+
+# Registry entries' relative paths (`projects/<name>`) resolve against the MAIN
+# checkout — `projects/` is gitignored, so it exists nowhere else. REPO stays the
+# worktree for this repo's own files. See scripts/lib/main_checkout.sh.
+#
+# After the required-tools gate on purpose: REPO is built with `dirname`, an
+# external command, so with an emptied PATH it comes out empty and sourcing from
+# it would fail first — masking the tool error the gate exists to report.
+# Fail loudly if the helper is missing: an empty FLEET_ROOT would silently
+# resolve every project to /projects/<name>.
+# shellcheck source=lib/main_checkout.sh
+source "${REPO}/scripts/lib/main_checkout.sh" || {
+    echo "ERROR: missing ${REPO}/scripts/lib/main_checkout.sh" >&2
+    exit 2
+}
+FLEET_ROOT="$(resolve_main_checkout "${REPO}")"
 [[ -f "${REGISTRY}" ]] || { echo "ERROR: registry not found at ${REGISTRY}" >&2; exit 2; }
 
 # Per-sweep log directory
@@ -139,7 +155,7 @@ run_one() {
     local log="${LOG_DIR}/${name}.log"
     local result_file="${results_dir}/${name}"
     local target_path
-    target_path="$([[ "${path}" == "." ]] && echo "${REPO}" || echo "${REPO}/${path}")"
+    target_path="$([[ "${path}" == "." ]] && echo "${REPO}" || echo "${FLEET_ROOT}/${path}")"
 
     local start end duration
     start=$(date +%s)

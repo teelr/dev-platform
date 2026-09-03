@@ -112,6 +112,39 @@ dev-platform ships a copy-paste Dependabot config at
 Copy it to `.github/dependabot.yml` in the consumer repo and keep the
 `package-ecosystem` blocks that match the stack. It is **opt-in per consumer**.
 
+### A repo `gh` cannot reach is unverifiable, not compliant
+
+`Osigin-LLC/SQRL` is on a different GitHub account, reached through the
+`github-teelr129` SSH host alias. `gh api repos/Osigin-LLC/SQRL` returns 404 under
+the account this machine authenticates as, so from here its pin cannot be read and
+any ask filed against it cannot be confirmed delivered.
+
+Note which failure that is. `scripts/lib/repo_slug.py` parses the alias remote
+correctly — the slug is right; the **access** is missing. Two consequences, both
+mandatory:
+
+- Any tool querying it must report `unverifiable` and must **never** fall back to
+  the local checkout and present that as the answer. `monitoring/fleet_pins.py`
+  probes the repo before the file for exactly this reason (v1.27): `gh` returns
+  the same 404 for "no such file" and "no access to this repo", and treating the
+  second as the first turns an unknown into a fact.
+- An unverifiable repo is not a compliant one. Verify from a session
+  authenticated to that account, or ask in that repo's own session — do not record
+  it as done.
+
+### Pin-bump asks specifically
+
+A dev-platform release does not need an issue per consumer. For a consumer running
+the Dependabot `github-actions` block, the **release tag is the notification** —
+that is the outbound half this document already prescribes, and it works: three
+consumers have had Dependabot bump PRs opened for them this way.
+
+File a pin-bump issue only for consumers without it, and put that consumer's
+**verified** current pin in the title. v1.26 filed seven issues titled
+`@v0.7 → @v1.26` when no consumer was on `@v0.7`; the number came from a stale doc
+example rather than from any repo. Read the pin first —
+`./scripts/fleet-pins.sh`, or `gh api repos/<slug>/contents/.github/workflows/dev-platform-gate.yml`.
+
 ### What dev-platform ships vs. what each repo does
 
 dev-platform owns the **standard** (this section), the **Dependabot template**,

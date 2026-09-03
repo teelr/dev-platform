@@ -22,6 +22,10 @@ set -uo pipefail
 # shell/worktree/gate-lock.sh — the common dir is shared by a repo and all its
 # worktrees, and may be returned relative, so resolve it before taking the
 # parent. Falls back to the script's own location outside a git repo.
+#
+# Stays INLINE rather than sourcing scripts/lib/main_checkout.sh (v1.27) for the
+# same reason install.sh does: tests/worktree-default copies this script into a
+# fixture worktree on its own, so a sourced sibling would not be there.
 _SELF_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO="${_SELF_REPO}"
 if _common="$(cd "${_SELF_REPO}" 2>/dev/null && git rev-parse --git-common-dir 2>/dev/null)"; then

@@ -30,6 +30,13 @@ set -euo pipefail
 # Swept together with scripts/verify.sh per the Derivation Sweep rule in
 # CLAUDE.md — both derived this same value the same wrong way, and fixing one
 # alone would leave install and verify disagreeing about the deployment source.
+#
+# This stays INLINE rather than sourcing scripts/lib/main_checkout.sh (v1.27,
+# which shares the identical rule with the fleet scripts): install.sh is the
+# bootstrap — it has to run standalone, and tests/worktree-default deliberately
+# copies it plus verify.sh and uninstall.sh into a fixture worktree by
+# themselves to test the working-tree versions. A sourced sibling breaks that.
+# Same reason shell/worktree/gate-lock.sh keeps its own copy.
 _SELF_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO="${_SELF_REPO}"
 if _common="$(cd "${_SELF_REPO}" 2>/dev/null && git rev-parse --git-common-dir 2>/dev/null)"; then

@@ -98,7 +98,7 @@ The `#92` in "PR #92" — assigned sequentially by GitHub, sharing one number sp
 
 ### Release tag
 
-A git tag at the merge commit closing a [Roadmap Phase](#roadmap-phase), named exactly as the phase version. It carries the same string as the phase but is a different object: **the phase is the work, the tag is the artifact** — and the tag is the only one of the three identifiers a consumer can pin (`taxonomy-check.yml@v1.26`). Cut mechanically at [Post-merge](#post-merge), verified by [scripts/check-phase-tags.sh](../scripts/check-phase-tags.sh). Tagging previously depended on remembering and stopped after v1.13, leaving twelve phases unpinnable while every consumer stayed on `@v0.7`.
+A git tag at the merge commit closing a [Roadmap Phase](#roadmap-phase), named exactly as the phase version. It carries the same string as the phase but is a different object: **the phase is the work, the tag is the artifact** — and the tag is the only one of the three identifiers a consumer can pin (`taxonomy-check.yml@v1.26`). Cut mechanically at [Post-merge](#post-merge), verified by [scripts/check-phase-tags.sh](../scripts/check-phase-tags.sh). Tagging previously depended on remembering and stopped after v1.13, leaving twelve phases unpinnable and freezing every consumer at `@v1.12` or `@v1.13` — a tag nobody cut is one nobody can pin, and Dependabot cannot bump to it either.
 
 ### Reusable workflow
 
