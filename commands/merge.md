@@ -66,31 +66,47 @@ gh pr view "${PR_NUM}" --json mergeable,mergeStateStatus
 
 ## Step 4: Squash-merge
 
-Before merging, detect whether this session is inside a worktree (the v1.4 worktree workflow — only opted-in projects). Record what you'll need for teardown in Step 5:
+Before merging, detect whether this session is inside a worktree (the v1.4 worktree workflow — only opted-in projects). Record what you'll need for teardown in Step 5.
+
+**Two plain commands, and read the answer yourself — do NOT wrap them in an `if`.** This step runs while the session is still *inside* the worktree, where the guard refuses any command that is both compound and variable-bearing (see the rule in `CLAUDE.md`). The single `if [[ ... && ... ]]` this step used to prescribe was refused outright, which left `IN_WORKTREE=0` and sent the merge down the branch-mode path — the one this very Step documents as failing the entire `gh pr merge` in worktree mode. A guard refusal that silently selects the wrong branch is worse than a loud error.
 
 ```bash
-IN_WORKTREE=0
-if [[ "$(git rev-parse --is-inside-work-tree 2>/dev/null)" == "true" && "$(git rev-parse --show-toplevel)" == *"/.claude/worktrees/"* ]]; then
-    IN_WORKTREE=1
-    WT="$(git rev-parse --show-toplevel)"   # worktree dir to remove later
-    BR="$(git branch --show-current)"        # branch the worktree holds
-fi
+git rev-parse --show-toplevel
 ```
+
+```bash
+git branch --show-current
+```
+
+If the first command's output contains `/.claude/worktrees/`, this session is in a worktree: treat `IN_WORKTREE` as 1, `WT` as that path, and `BR` as the second command's output. Otherwise `IN_WORKTREE` is 0 and neither value is needed. Substitute the literal values you just read into the commands below — do not re-derive them inside another command substitution, which trips the same guard.
 
 Then squash-merge:
 
+**Worktree mode** — four plain commands, run in order. Read the outputs of the middle two and type them literally into the last one; nesting them as `$(...)` trips the same guard the detection above already fell to.
+
 ```bash
-if [[ "${IN_WORKTREE}" == "1" ]]; then
-    gh pr merge "${PR_NUM}" --squash
-    REPO="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
-    MERGED_BRANCH="$(gh pr view "${PR_NUM}" --json headRefName --jq .headRefName)"
-    gh api -X DELETE "repos/${REPO}/git/refs/heads/${MERGED_BRANCH}"
-else
-    gh pr merge "${PR_NUM}" --squash --delete-branch
-fi
+gh pr merge <PR_NUM> --squash
 ```
 
-In branch mode, `--delete-branch` deletes the branch both remotely and locally in one call. In worktree mode, `--delete-branch` fails the entire `gh pr merge` command — not just a warning — because `gh` can't check out anything else locally while the worktree holds the branch and `main` is already checked out in the primary checkout. So in worktree mode the merge runs without `--delete-branch`, and the remote branch is deleted explicitly via the GitHub API instead, which touches no local checkout state. The branch to delete is looked up from the PR itself (`MERGED_BRANCH`, via `gh pr view`) rather than assumed to be `${BR}` — Step 1 allows an explicit PR-number argument that can target a different PR than the one the current worktree's branch is for, so the two aren't always the same branch. Local deletion in worktree mode is unaffected — it's still handled by Step 5's `git branch -D "${BR}"` (always the worktree's own branch, regardless of which PR was merged), which runs after `ExitWorktree` has returned the session to the main checkout.
+```bash
+gh repo view --json nameWithOwner --jq .nameWithOwner
+```
+
+```bash
+gh pr view <PR_NUM> --json headRefName --jq .headRefName
+```
+
+```bash
+gh api -X DELETE repos/<owner>/<repo>/git/refs/heads/<merged-branch>
+```
+
+**Branch mode** — one command, which handles the remote and local branch together:
+
+```bash
+gh pr merge <PR_NUM> --squash --delete-branch
+```
+
+In branch mode, `--delete-branch` deletes the branch both remotely and locally in one call. In worktree mode, `--delete-branch` fails the entire `gh pr merge` command — not just a warning — because `gh` can't check out anything else locally while the worktree holds the branch and `main` is already checked out in the primary checkout. So in worktree mode the merge runs without `--delete-branch`, and the remote branch is deleted explicitly via the GitHub API instead, which touches no local checkout state. The branch to delete comes from `gh pr view` — the PR's own head branch — rather than from the branch the worktree happens to hold: Step 1 allows an explicit PR-number argument that can target a different PR, so the two aren't always the same. Local deletion in worktree mode is unaffected — Step 5 deletes the worktree's own branch (the `git branch --show-current` value read above, always that one regardless of which PR was merged), after `ExitWorktree` has returned the session to the main checkout.
 
 If `gh pr merge` errors, report verbatim and STOP. Don't retry.
 
@@ -105,26 +121,43 @@ git checkout main && git pull --ff-only
 **Worktree mode** (`IN_WORKTREE=1`): the session is inside `.claude/worktrees/<branch>`, and git won't let you `checkout main` there (main is checked out in the main working tree). Return the session to the main checkout first, then sync and remove the now-merged worktree:
 
 1. Call the **`ExitWorktree` tool** with `action: "keep"`. Use `keep`, not `remove` — after a squash-merge the branch's commits aren't present as commits, so `remove` would hit the unmerged-changes refusal. `keep` returns the session to the main checkout cleanly.
-2. In the main checkout:
+2. In the main checkout. **Substitute the literal `WT` and `BR` values you read in Step 4 into these commands — do not rely on shell variables being set.** They are separate Bash calls, so nothing carries over between them, and an empty `WT` in the loop below turns the pattern `"${WT}"*` into `*`, which matches every process on the machine and kills all of them. The `[[ -n ... ]]` guard is there so a mistake fails loudly instead:
 
    ```bash
    git checkout main && git pull --ff-only
+   ```
+
+   ```bash
    # Before removing the worktree: stop any process whose cwd is INSIDE it. A
    # backend started from within .claude/worktrees/<branch>/ has its cwd deleted
    # when the worktree is removed, so every later `claude` subprocess fails with
    # "cwd was deleted" → ProcessError → red chat. Match by cwd (the actual
    # failure condition), NOT by a hardcoded port — this command is universal
    # across projects. The session itself is safe: ExitWorktree already moved it
-   # back to the main checkout, so its cwd is no longer under ${WT}.
-   for _cwd_link in /proc/[0-9]*/cwd; do
-       [[ "$(readlink "${_cwd_link}" 2>/dev/null)" == "${WT}"* ]] || continue
-       _pid="$(basename "$(dirname "${_cwd_link}")")"
-       echo "Stopping PID ${_pid} — its cwd is inside the worktree being removed"
-       kill "${_pid}" 2>/dev/null || true
-   done
-   sleep 1   # let any stopped process release the worktree before removal
-   git worktree remove --force "${WT}"        # drop the now-merged worktree
-   git branch -D "${BR}" 2>/dev/null || true  # drop the local branch (worktree mode never asks gh to do this)
+   # back to the main checkout, so its cwd is no longer under the worktree.
+   WT=/absolute/path/to/.claude/worktrees/<branch>   # literal, from Step 4
+   if [[ -z "${WT}" || "${WT}" != *"/.claude/worktrees/"* ]]; then
+       echo "REFUSING: WT is empty or not a worktree path — would match every process" >&2
+   else
+       for _cwd_link in /proc/[0-9]*/cwd; do
+           [[ "$(readlink "${_cwd_link}" 2>/dev/null)" == "${WT}"* ]] || continue
+           _pid="$(basename "$(dirname "${_cwd_link}")")"
+           echo "Stopping PID ${_pid} — its cwd is inside the worktree being removed"
+           kill "${_pid}" 2>/dev/null || true
+       done
+       sleep 1   # let any stopped process release the worktree before removal
+   fi
+   ```
+
+   ```bash
+   git worktree remove --force /absolute/path/to/.claude/worktrees/<branch>
+   ```
+
+   ```bash
+   git branch -D <branch-from-step-4>
+   ```
+
+   ```bash
    git worktree prune
    ```
 

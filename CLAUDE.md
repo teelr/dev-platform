@@ -102,6 +102,27 @@ The tell is two functions with the same name and nearly the same body in differe
 
 This has cost three Roadmap Phases: **v1.12** (the Roadmap-version regex matched only one `ROADMAP.md` form, in two scripts), **v1.13** (`ROADMAP_PATH` needed adding to a third script the issue never mentioned, with the identical bug), **v1.21** (owner/repo derivation hardcoded `github.com` in three scripts). Every one was found by a consumer hitting it in production, never by the change that had just edited a sibling script. One `grep` before writing code finds all of them — that is the entire cost of the rule. Rationale and incident lineage: `docs/RULE_RATIONALE.md`.
 
+## Commands a Worktree Session Runs Must Be Plain Single Commands
+
+**A command that is BOTH compound and variable-bearing is refused by a worktree-isolated session's guard.** Either alone is fine. The guard analyses commands statically, and a refusal is silent in the worst way: the step just doesn't happen, and whatever it was meant to establish keeps its default value.
+
+The boundary, established by probe rather than assumption (v1.27):
+
+| Command | Verdict |
+| ------- | ------- |
+| `echo a && echo b` | allowed — compound, no variables |
+| `test -f .claude/worktree-deps && echo A \|\| echo B` | allowed — compound, literal relative path |
+| `echo "TMUX=${TMUX:-unset}"` | allowed — variable, single command |
+| `[[ -n "${TMUX:-}" ]] && echo hi` | **refused** — compound + variable |
+| `if [[ "$(git rev-parse --show-toplevel)" == *x* ]]` | **refused** — compound + substitution |
+| `cat > f <<EOF` whose body contains `git ...` | **refused** — heredoc bodies are scanned |
+
+So when writing a command block in `commands/*.md`: keep variables and substitutions out of compound commands. Where a step needs a derived value, prescribe a plain command, have the agent read the output, and type the literal into the next command — do not nest the derivation. Write `~/...`, never `"${HOME}/..."`. Prefer `gh ... --body-file` over `--body "$(cat <<EOF ...)"`.
+
+Three instances, all one-liners that looked too small to check: **v1.26** (`link-deps.sh` invoked with `"${HOME}"` and `"$(pwd)"` — dependency linking silently never ran; fixed by making the script derive its own paths), **v1.27** (`/plan`'s `[[ -n "${TMUX:-}" ]] && tmux rename-window` — window rename silently never ran), and **v1.27** again (`/merge`'s `if [[ ... && ... ]]` worktree detection — refused, leaving `IN_WORKTREE=0`, which sends the merge down the branch-mode path `commands/merge.md` itself documents as failing the entire `gh pr merge`). The first fix was local to its own script and left every other command file unexamined, which is why the other two survived to be found by hand.
+
+The sweep is one command — `grep -n '&&\|||\|\${\|\$(' commands/*.md` — then check each hit for the *combination*, since most hits are one or the other and fine. Run it whenever a guard refuses anything, and when adding a command block to a command file. Incident detail: `tasks/lessons/2026-09-03-worktree-guard-refuses-variable-paths.md`.
+
 ## Development Workflow
 
 **CRITICAL — DO NOT ADVANCE STEPS WITHOUT EXPLICIT USER INVOCATION.**
