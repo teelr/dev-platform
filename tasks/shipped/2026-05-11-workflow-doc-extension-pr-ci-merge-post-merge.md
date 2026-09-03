@@ -1,0 +1,3 @@
+# Workflow doc extension — PR → CI → merge → post-merge locked…
+
+Workflow doc extension — PR → CI → merge → post-merge locked into the canonical chain (2026-05-11, PR #9 squash-merged as commit `11d381a`): extends `/home/rich/dev/CLAUDE.md` Development Workflow + `settings/claude-global.md` Workflow Step Discipline to cover the post-`push` steps that v0.7 Phase 2's CI introduced. Adds the "NEVER merge a PR before CI green" rule alongside the existing NEVER-commit-before-{gate,docs} rules. Discovered while shipping Phase 2 — Rich caught the gap.

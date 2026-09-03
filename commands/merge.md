@@ -148,8 +148,8 @@ Print:
 
 1. **Find the spec.** Look at `tasks/*-spec.md` files added/modified in `git diff HEAD~1 --name-only` for the just-merged commit.
 2. **Generate the Change Summary — runs every time, unconditionally, before anything else below.** Produce a short **Problem/Opportunity → What shipped** summary using this fallback order (stop at the first tier that yields content):
-   - **Tier 1 (preferred):** `git diff HEAD~1 HEAD -- planning.md`. If this shows added lines under a "Recently shipped" (or equivalently-named changelog) section, use that prose directly — lightly trimmed if needed, not rewritten. This is the text `/code` already wrote pre-commit, already reviewed by `/review`.
-   - **Tier 2:** If `planning.md` wasn't touched by this merge but Step 1 found a spec, use the spec's Problem statement / Design Philosophy opening + its Change titles from the Overview section.
+   - **Tier 1 (preferred):** the shipped file this merge added. Run `git diff HEAD~1 --name-only -- tasks/shipped/`; if the merge added a file there, use its content directly — lightly trimmed if needed, not rewritten. This is the narrative `/code` already wrote pre-commit, already reviewed by `/review`. **Legacy fallback** (projects without `tasks/shipped/`): `git diff HEAD~1 HEAD -- planning.md` — if it shows added lines under a "Recently shipped" (or equivalently-named changelog) section, use that prose the same way.
+   - **Tier 2:** If Tier 1 yielded nothing (no shipped file added, and no legacy `planning.md` changelog lines) but Step 1 found a spec, use the spec's Problem statement / Design Philosophy opening + its Change titles from the Overview section.
    - **Tier 3:** If no spec was touched either, use `gh pr view "${PR_NUM}" --json title,body` — the PR title as "What shipped", and the first line of the body (or the title itself if the body is empty) as "Problem/Opportunity".
    - Print it in the final report (sub-step 7 below) as:
 

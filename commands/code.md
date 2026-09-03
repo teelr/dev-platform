@@ -133,12 +133,13 @@ Update all project docs to reflect the completed work. This is mandatory — doc
 
 Read the current state of each doc before editing:
 
-### planning.md
+### tasks/shipped/ (or planning.md where the convention is absent)
 
-- Update the **Ground Truth** section: date, status bullets, entity counts
-- Mark the completed work with `✅ COMPLETE` and today's date
-- Add the phase to the **Execution Order** block if present
-- **Do NOT write commit hashes** — the commit hasn't landed yet. Use descriptive entries.
+Check `test -d tasks/shipped` — the opt-in marker, like `.claude/worktree-deps`:
+
+- **`tasks/shipped/` exists** (dev-platform, and any project that has migrated): write a NEW FILE `tasks/shipped/<YYYY-MM-DD>-v<X.Y>-<slug>.md` — a `#` title, then the phase narrative: the problem, what shipped, and the key findings. Do NOT edit `planning.md` — it is a static orientation doc, and per-phase writes to it are exactly the collision this convention removes. One file per phase; phase filenames cannot collide because versions are claimed atomically.
+- **No `tasks/shipped/`** (legacy — projects that have not migrated): update `planning.md` as before — Ground Truth section (date, status bullets, entity counts), mark the completed work `✅ COMPLETE` with today's date, add the phase to the Execution Order block if present.
+- **Either way, do NOT write commit hashes** — the commit hasn't landed yet. Use descriptive entries.
 
 ### ROADMAP.md
 
@@ -165,10 +166,11 @@ Read the current state of each doc before editing:
 After updating, stage the doc changes:
 
 ```bash
-git add planning.md ROADMAP.md README.md tasks/lessons/
-# Add any docs/ files if changed
-# tasks/lessons/ is the directory: a NEW lesson file needs staging by path,
-# and naming the directory is how you do that without `git add -A`.
+git add ROADMAP.md README.md tasks/lessons/ tasks/shipped/
+# Legacy projects without tasks/shipped/: git add planning.md instead.
+# Add any docs/ files if changed.
+# The directories are named because NEW files need staging by path — that is
+# how you stage them without `git add -A`.
 ```
 
 **Do NOT commit** — the user runs `git commit` explicitly after `/gate fast` passes.
@@ -193,7 +195,7 @@ If YES to any of the above, include this line in your end-of-step report:
 
 Run the review procedure exactly as documented in `commands/review.md` Steps 1-5, unchanged:
 
-1. **Stage everything this spec touched before diffing.** Step 7 only staged the doc files (`planning.md`, `ROADMAP.md`, `README.md`, `tasks/lessons/`) — it does not stage the implementation files from Steps 1-6. Explicitly `git add` every file this spec's Changes created or modified (use the spec's File Change Summary as the checklist), in addition to what Step 7 already staged. Do NOT use `git add -A` or `git add .` — name each file. Only once everything is staged, gather the diff (`git diff --cached`) per `commands/review.md` Step 1.
+1. **Stage everything this spec touched before diffing.** Step 7 only staged the doc files (`ROADMAP.md`, `README.md`, `tasks/lessons/`, `tasks/shipped/` — or `planning.md` on a legacy project) — it does not stage the implementation files from Steps 1-6. Explicitly `git add` every file this spec's Changes created or modified (use the spec's File Change Summary as the checklist), in addition to what Step 7 already staged. Do NOT use `git add -A` or `git add .` — name each file. Only once everything is staged, gather the diff (`git diff --cached`) per `commands/review.md` Step 1.
 2. Load `./CLAUDE.md` and `~/.claude/CLAUDE.md`.
 3. Review every changed file across SECURITY, BUG, COMPLIANCE, QUALITY, and ARCHITECTURE (Language Architecture Decision Matrix compliance).
 4. Fix SECURITY, BUG, COMPLIANCE, and QUALITY issues immediately — do not wait for approval. Re-read each fixed file to confirm the fix is correct. Surface ARCHITECTURE issues for the user's decision; do NOT fix them.
