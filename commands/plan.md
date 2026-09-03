@@ -56,13 +56,24 @@ Do this now, before exploring the codebase — this is the moment you've decided
    and the linking step silently never runs. The script derives both paths itself
    for this reason (`shell/worktree/link-deps.sh`).
 
-5. If `$TMUX` is set (running inside a tmux session), rename the current window to the slug so the tab tracks the work:
+5. Rename the current tmux window to the slug so the tab tracks the work. **Two
+   separate commands, not one** — the guard described in sub-step 4 refuses a
+   compound command (`&&`, `||`, `;`) just as it refuses a variable-built path,
+   so the one-liner this step used to prescribe was refused outright and the
+   rename silently never happened. First check:
 
    ```bash
-   [[ -n "${TMUX:-}" ]] && tmux rename-window "<slug>"
+   echo "TMUX=${TMUX:-unset}"
    ```
 
-   If `$TMUX` is unset, skip silently — no error, no tab rename.
+   Then, only if that printed a value other than `unset`, rename:
+
+   ```bash
+   tmux rename-window <slug>
+   ```
+
+   If it printed `unset`, you are not inside tmux — skip the rename silently. No
+   error, no tab rename.
 
 Report the branch/worktree path and (if renamed) the new tmux window name, then continue.
 
