@@ -155,17 +155,22 @@ else
     record_fail "fleet-install: --force didn't overwrite — rc=${rc}"
 fi
 
-# ─── Check 10: --pin v0.6 rewrites the default @v1.10 tag ─────────
-# Write to clean-1 again — it already has the default pin (@v1.10) from check 7.
-# Use --force + --pin v0.6 to get a v0.6-pinned file. The sed rewrite uses
+# ─── Check 10: --pin v0.6 rewrites the template's default tag ─────────
+# Write to clean-1 again — it already has the default pin from check 7. Use
+# --force + --pin v0.6 to get a v0.6-pinned file. The sed rewrite uses a
 # word-boundary anchor so it touches the `uses:` directive but intentionally
 # leaves any in-comment examples untouched — that's a feature, not a bug.
-# The assertion checks the `uses:` line specifically, and that the real default
-# pin (@v1.10) was actually replaced (not a phantom old value).
+#
+# The default is READ FROM THE TEMPLATE, never hardcoded here. It was pinned to
+# a literal "@v1.10" until v1.26, which went stale at the v1.12 bump and made
+# the second half of this assertion vacuously true — it asserted the absence of
+# a version that was no longer the default anyway.
+TEMPLATE_PIN="$(sed -n 's|.*taxonomy-check\.yml@\(v[0-9][0-9.]*\).*|\1|p' \
+    "${REPO}/extensions/github-actions/dev-platform-gate.yml" | head -1)"
 out="$(HOME="${APPLY_HOME}" "${SCRIPT}" --project clean-1 --apply --force --pin v0.6 --registry "${MOCK_REGISTRY}" 2>&1)"; rc=$?
 uses_line="$(grep "uses:" "${target_clean}" || true)"
-if [[ ${rc} -eq 0 ]] && [[ "${uses_line}" == *"@v0.6"* ]] && [[ "${uses_line}" != *"@v1.10"* ]]; then
-    record_pass "fleet-install: --pin v0.6 rewrites default @v1.10 → @v0.6 in target's uses: directive"
+if [[ ${rc} -eq 0 ]] && [[ "${uses_line}" == *"@v0.6"* ]] && [[ "${uses_line}" != *"@${TEMPLATE_PIN}"* ]]; then
+    record_pass "fleet-install: --pin v0.6 rewrites the template default (@${TEMPLATE_PIN}) → @v0.6"
 else
     record_fail "fleet-install: --pin rewrite broken — rc=${rc}, uses_line='${uses_line}'"
 fi

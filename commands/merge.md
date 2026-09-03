@@ -165,7 +165,13 @@ Print:
 5. **Detect Roadmap-Phase completion**, whether or not the spec had its own Post-merge section. Determine whether this merge shipped the *last Change of a Roadmap Phase*:
    - Read the just-merged spec. If its Overview lists Changes across Phases and this PR merged the final Phase's last Change, the phase is complete. A single-PR-per-spec change completing the spec also completes its Roadmap Phase.
    - A phase can also be complete by an explicit **scope decision** recorded in the spec or PR (a planned item dropped) — treat that the same as code-complete.
-   - If complete, **execute the standard Roadmap-Phase-completion actions**: mark the phase complete in `ROADMAP.md` + `planning.md` (today's date + status), close the GitHub milestone (`gh api -X PATCH repos/:owner/:repo/milestones/<n> -f state=closed`, or `./scripts/sync-milestones.sh --apply` where the project ships it), and verify with `./scripts/check-phase-milestones.sh`.
+   - If complete, **execute the standard Roadmap-Phase-completion actions**: mark the phase complete in `ROADMAP.md` + `planning.md` (today's date + status), close the GitHub milestone (`gh api -X PATCH repos/:owner/:repo/milestones/<n> -f state=closed`, or `./scripts/sync-milestones.sh --apply` where the project ships it), and **cut the release tag** at this merge's squash commit, named exactly as the phase version:
+
+     ```bash
+     gh release create "v<X.Y>" --target "$(git rev-parse HEAD)" --title "v<X.Y>: <Title>" --notes "See tasks/shipped/ for the phase record."
+     ```
+
+     The tag is the only identifier a consumer can pin (`taxonomy-check.yml@v<X.Y>`), so skipping it leaves the phase unreachable to every consumer — that is how tagging stopped at v1.13 and left twelve phases unpinnable. Then verify with `./scripts/check-phase-milestones.sh` and `./scripts/check-phase-tags.sh`.
    - If this merge did NOT complete a phase (a mid-phase Change), say so explicitly: "mid-phase merge — no phase-completion step." and continue to sub-step 6 (nothing further to commit from this sub-step).
 6. **Land any file changes from steps 4-5.** If the project's rules forbid direct commits to `main` (check its CLAUDE.md), run the SAME mini-cycle this skill already knows how to do — reuse Steps 1-5 above on a fresh branch:
    - **Cut the branch worktree-aware, same as feature work.** Check `test -f .claude/worktree-deps` from the current directory (by this point in Step 7 the session is always back in the project's main checkout — Step 5 already returned it there, whether the feature branch itself used branch mode or worktree mode):

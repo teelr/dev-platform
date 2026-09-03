@@ -28,7 +28,27 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REGISTRY="${REPO_ROOT}/monitoring/projects.json"
 SOURCE_TEMPLATE="${REPO_ROOT}/extensions/github-actions/dev-platform-gate.yml"
-DEFAULT_PIN="v1.12"
+# Derived from the template rather than hardcoded (v1.26). The template's uses:
+# line is the single source of truth for the default pin; a second copy here
+# went stale at every bump and turned --pin into an rc=2 error whose own message
+# said "Update DEFAULT_PIN in this script" — a maintenance step nobody
+# remembered. Derivation Sweep rule: one definition, everything else reads it.
+# Pure bash, no sed: this runs before the required-tools gate below, and the
+# tools-gate test invokes the script with PATH=/tmp to prove that gate fires —
+# any external command here would fail first and mask it.
+#
+# Guarded with -r: this read happens before the source-template existence check
+# further down, which stays authoritative. Without the guard a missing template
+# emits a raw bash redirect error here before that clean message ever prints.
+DEFAULT_PIN=""
+if [[ -r "${SOURCE_TEMPLATE}" ]]; then
+    while IFS= read -r _tpl_line; do
+        if [[ "${_tpl_line}" =~ taxonomy-check\.yml@(v[0-9]+\.[0-9]+[a-z]?) ]]; then
+            DEFAULT_PIN="${BASH_REMATCH[1]}"
+            break
+        fi
+    done < "${SOURCE_TEMPLATE}"
+fi
 
 PROJECT=""
 APPLY=0
@@ -70,7 +90,8 @@ Modes:
 Options:
   --project <name>      Required. Project name from monitoring/projects.json.
   --force               Overwrite existing target (default: refuse-to-clobber).
-  --pin <vX.Y>          Pin tag to rewrite into the template (default: v1.12).
+  --pin <vX.Y>          Pin tag to rewrite into the template.
+                        Default is read from the template's own uses: line.
   --registry <path>     Override registry path (for tests).
   --help, -h            Show this help.
 
@@ -131,11 +152,16 @@ target_path="${target_dir}/dev-platform-gate.yml"
 # actually changed — catches a regression where the source template stops
 # using `@${DEFAULT_PIN}` and the rewrite becomes a no-op.
 template_content="$(cat "${SOURCE_TEMPLATE}")"
+if [[ -z "${DEFAULT_PIN}" ]]; then
+    echo "ERROR: no pinned taxonomy-check.yml@<tag> found in the source template" >&2
+    echo "       (source: ${SOURCE_TEMPLATE}). The uses: line must carry a tag." >&2
+    exit 2
+fi
 if [[ "${PIN}" != "${DEFAULT_PIN}" ]]; then
     rewritten="$(echo "${template_content}" | sed "s|@${DEFAULT_PIN}\b|@${PIN}|g")"
     if [[ "${rewritten}" == "${template_content}" ]]; then
         echo "ERROR: --pin ${PIN} requested but source template contains no @${DEFAULT_PIN} reference" >&2
-        echo "       (source: ${SOURCE_TEMPLATE}). Update DEFAULT_PIN in this script." >&2
+        echo "       (source: ${SOURCE_TEMPLATE}) — unexpected, since the default is read from it." >&2
         exit 2
     fi
     template_content="${rewritten}"
