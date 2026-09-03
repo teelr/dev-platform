@@ -51,8 +51,12 @@ git checkout -b v<X.Y>/phase-<N>-<slug>
 3. Link the project's heavy git-ignored files (`.env`, `node_modules`, ...) into the worktree so the app can run:
 
    ```bash
-   bash "${HOME}/.claude/worktree/link-deps.sh" "${MAIN}" "$(pwd)"
+   bash ~/.claude/worktree/link-deps.sh "${MAIN}" "$(pwd)"
    ```
+
+   Use `~` rather than `"${HOME}"`: a worktree-isolated session's command guard
+   cannot statically verify a path built from a variable, so the `${HOME}` form is
+   refused outright ("too complex to verify") and the linking step never runs.
 
 4. Report the worktree path, the branch name, and what got linked.
 

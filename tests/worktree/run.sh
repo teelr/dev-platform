@@ -16,6 +16,14 @@ GATE_LOCK="${REPO}/shell/worktree/gate-lock.sh"
 # shellcheck disable=SC1091
 source "${REPO}/tests/helpers/assert.sh"
 
+# Must come AFTER the source above — deploy_source_repo lives in assert.sh.
+# Files under test stay at ${REPO} (this checkout's copies); the DEPLOYED
+# symlink targets are main's paths, since v1.25 install.sh always deploys from
+# the main checkout whichever worktree invokes it.
+_DEPLOY_SRC="$(deploy_source_repo "${REPO}")"
+LINK_DEPS_DEPLOYED="${_DEPLOY_SRC}/shell/worktree/link-deps.sh"
+GATE_LOCK_DEPLOYED="${_DEPLOY_SRC}/shell/worktree/gate-lock.sh"
+
 # --- syntax (these scripts live under shell/, which the gate's syntax loop
 #     does not walk, so cover them here) ---
 if bash -n "${LINK_DEPS}" 2>/dev/null; then
@@ -217,8 +225,8 @@ tmp7="$(mktemp -d)"; trap 'rm -rf "${tmp1}" "${tmp2}" "${tmp3}" "${tmp4}" "${tmp
 HOME="${tmp7}" bash "${REPO}/scripts/install.sh" worktree >/dev/null 2>&1
 ld="${tmp7}/.claude/worktree/link-deps.sh"
 gl="${tmp7}/.claude/worktree/gate-lock.sh"
-if [[ -L "${ld}" && "$(readlink "${ld}")" == "${LINK_DEPS}" \
-   && -L "${gl}" && "$(readlink "${gl}")" == "${GATE_LOCK}" ]]; then
+if [[ -L "${ld}" && "$(readlink "${ld}")" == "${LINK_DEPS_DEPLOYED}" \
+   && -L "${gl}" && "$(readlink "${gl}")" == "${GATE_LOCK_DEPLOYED}" ]]; then
     record_pass "worktree: install deploys link-deps.sh + gate-lock.sh as symlinks"
 else
     record_fail "worktree: install integration (ld=$(readlink "${ld}" 2>/dev/null), gl=$(readlink "${gl}" 2>/dev/null))"

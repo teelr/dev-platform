@@ -25,6 +25,13 @@ REPO="$(cd "${HERE}/../.." && pwd)"
 # shellcheck disable=SC1091
 source "${REPO}/tests/helpers/assert.sh"
 
+# The "main checkout" half of every comparison below must be the REAL main
+# checkout, not ${REPO}. When the gate itself runs from a worktree, ${REPO} IS a
+# worktree — so comparing a worktree run against ${REPO} compares two worktree
+# runs, both print the notice, and the conditional assertions fail against
+# correct behavior. Identical from the main checkout; different from a worktree.
+MAIN_REPO="$(deploy_source_repo "${REPO}")"
+
 # --- 1. syntax ----------------------------------------------------------------
 for s in install verify; do
     if bash -n "${REPO}/scripts/${s}.sh" 2>/dev/null; then
@@ -63,7 +70,7 @@ else
     # Zero ORPHAN lines is the actual regression guard: orphans are what a
     # worktree-derived REPO produced, and they were 21 before this phase.
     vout="$(bash "${WT}/scripts/verify.sh" 2>&1)"; vrc=$?
-    mout="$(bash "${REPO}/scripts/verify.sh" 2>&1)"; mrc=$?
+    mout="$(bash "${MAIN_REPO}/scripts/verify.sh" 2>&1)"; mrc=$?
     orphans="$(grep -c "orphan symlink" <<<"${vout}")"
     if [[ ${vrc} -eq ${mrc} && "${orphans}" -eq 0 ]]; then
         record_pass "worktree-default: verify.sh from a worktree agrees with main, no orphan symlinks"
@@ -82,7 +89,7 @@ else
     FAKE="$(mktemp -d /tmp/r3-wtd-home.XXX)"
     iout="$(HOME="${FAKE}" bash "${WT}/scripts/install.sh" 2>&1)"; irc=$?
     target="$(readlink -f "${FAKE}/.claude/commands/code.md" 2>/dev/null)"
-    if [[ ${irc} -eq 0 && "${target}" == "${REPO}/commands/code.md" ]]; then
+    if [[ ${irc} -eq 0 && "${target}" == "${MAIN_REPO}/commands/code.md" ]]; then
         record_pass "worktree-default: install.sh from a worktree symlinks into the main checkout"
     else
         record_fail "worktree-default: install target (rc=${irc}, target=${target})"
@@ -90,7 +97,7 @@ else
 
     # --- 5. install's after-merge notice is conditional -----------------------
     FAKE2="$(mktemp -d /tmp/r3-wtd-home2.XXX)"
-    iout_main="$(HOME="${FAKE2}" bash "${REPO}/scripts/install.sh" 2>&1)"
+    iout_main="$(HOME="${FAKE2}" bash "${MAIN_REPO}/scripts/install.sh" 2>&1)"
     if grep -q "after merge" <<<"${iout}" && ! grep -q "after merge" <<<"${iout_main}"; then
         record_pass "worktree-default: install's after-merge notice fires only from a worktree"
     else
