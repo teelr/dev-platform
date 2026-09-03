@@ -54,17 +54,24 @@ else
     cp "${REPO}/scripts/install.sh" "${REPO}/scripts/verify.sh" \
        "${REPO}/scripts/uninstall.sh" "${WT}/scripts/"
 
-    # --- 2. verify from the worktree exits 0 with ZERO orphan lines -----------
+    # --- 2. a worktree-invoked verify AGREES with a main-invoked one ----------
+    # The invariant, stated environment-independently: both resolve to the same
+    # main checkout, so both must reach the same verdict. Do NOT assert rc == 0
+    # here — on a CI runner there is no ~/.claude at all, so verify legitimately
+    # exits 1 with "NOT deployed" for every tracked file (gate_fast.sh guards
+    # its own live-verify with a -d "${HOME}/.claude" skip for exactly this).
+    # Zero ORPHAN lines is the actual regression guard: orphans are what a
+    # worktree-derived REPO produced, and they were 21 before this phase.
     vout="$(bash "${WT}/scripts/verify.sh" 2>&1)"; vrc=$?
+    mout="$(bash "${REPO}/scripts/verify.sh" 2>&1)"; mrc=$?
     orphans="$(grep -c "orphan symlink" <<<"${vout}")"
-    if [[ ${vrc} -eq 0 && "${orphans}" -eq 0 ]]; then
-        record_pass "worktree-default: verify.sh from a worktree exits 0 with no orphan symlinks"
+    if [[ ${vrc} -eq ${mrc} && "${orphans}" -eq 0 ]]; then
+        record_pass "worktree-default: verify.sh from a worktree agrees with main, no orphan symlinks"
     else
-        record_fail "worktree-default: verify from worktree (rc=${vrc}, orphans=${orphans})"
+        record_fail "worktree-default: verify from worktree (worktree rc=${vrc}, main rc=${mrc}, orphans=${orphans})"
     fi
 
     # --- 3. the notice is actually conditional --------------------------------
-    mout="$(bash "${REPO}/scripts/verify.sh" 2>&1)"
     if grep -q "main checkout" <<<"${vout}" && ! grep -q "main checkout" <<<"${mout}"; then
         record_pass "worktree-default: verify's main-checkout notice fires only from a worktree"
     else
