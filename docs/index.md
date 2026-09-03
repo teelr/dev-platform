@@ -11,6 +11,8 @@ Source of truth for Rich's developer environment: rules, slash commands, skills,
 - **[CI Integration](CI-INTEGRATION.md)** — how to plug your repo into dev-platform's taxonomy gate
 - **[New Project](NEW-PROJECT.md)** — conversational Q&A for scaffolding new projects
 - **[Project CLAUDE.md template](PROJECT_CLAUDE_TEMPLATE.md)** — what every project's CLAUDE.md should contain
+- **[Multi-Session](MULTI-SESSION.md)** — running several sessions on one project: why the setup is shaped this way and what it costs
+- **[Concurrent Dev](CONCURRENT-DEV.md)** — the how-to: worktree isolation, the take-turns gate lock, seeing what is running
 - **[Cross-Repo Comms](CROSS-REPO-COMMS.md)** — how a consumer (PA/Keystone/ATLAS) files asks against a dependency (GitHub issues, not file-relay)
 
 ## Latest release
