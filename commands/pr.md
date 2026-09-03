@@ -89,16 +89,21 @@ Keep the body terse — under 40 lines for typical Phase PRs. The Summary's bull
 
 ## Step 5: Open the PR
 
-Run:
+Write the body from Step 4 to a file with the Write tool, then pass it with `--body-file`:
 
 ```bash
-gh pr create --title "<derived title>" --milestone "<derived milestone>" --body "$(cat <<'EOF'
-{body from Step 4}
-EOF
-)"
+gh pr create --title "<derived title>" --milestone "<derived milestone>" --body-file .pr-body.md
 ```
 
-Use a HEREDOC for the body to preserve markdown formatting.
+Then delete the temp file:
+
+```bash
+rm -f .pr-body.md
+```
+
+**Use `--body-file`, not `--body "$(cat <<'EOF' ... EOF)"`.** The substituted-heredoc form works for ordinary prose bodies, but a PR body is markdown that may contain a fenced `bash` block, and a worktree-isolated session's command guard analyses the whole command text statically — a body carrying real shell syntax (a subshell, `cd ... && git ...`) can push it over the "too complex to verify" line and get the entire `gh pr create` refused. `--body-file` keeps the body out of the command text entirely, so no PR body can ever make the command unrunnable. It also sidesteps quoting hazards in bodies containing backticks or `$`.
+
+`.pr-body.md` is a scratch file in the repo root — write it, use it, delete it. dev-platform's allow-list `.gitignore` already hides it (it never shows in `git status`), so it cannot be committed by accident; a project with a permissive `.gitignore` should add it.
 
 If `gh pr create` errors (e.g., milestone doesn't exist, branch protection rejects), report the error verbatim and STOP. Don't retry blindly.
 
