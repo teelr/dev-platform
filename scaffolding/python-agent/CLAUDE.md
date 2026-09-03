@@ -62,6 +62,7 @@ This template ships as a CLI/agent (no HTTP surface). If your agent grows an HTT
 ├── docs/            # Architecture, API docs, guides
 ├── scripts/         # start_dev.sh, gate_fast.sh
 ├── tasks/           # Spec files (output of /plan), lessons/
+├── .claude/         # worktree-mode marker (worktree-deps); worktrees/ is git-ignored
 ├── tests/           # pytest tests
 ├── main.py          # Entry point
 ├── pyproject.toml

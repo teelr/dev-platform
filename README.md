@@ -33,7 +33,7 @@ Each directory has a `README.md` documenting its contract — read that before a
 
 ## Editing artifacts
 
-The tracked file is the source of truth. Edit it in this repo, run `./scripts/install.sh` (or `./scripts/install.sh <category>` for a single category), restart Claude Code. Most artifacts deploy as symlinks, so editing under `~/.claude/` directly is overwritten on next install — don't edit there.
+Symlinks always target the **main checkout**, whichever worktree you install from (v1.25) — so they cannot dangle when a worktree is removed, and a worktree's own command edits go live only after merge. The tracked file is the source of truth. Edit it in this repo, run `./scripts/install.sh` (or `./scripts/install.sh <category>` for a single category), restart Claude Code. Most artifacts deploy as symlinks, so editing under `~/.claude/` directly is overwritten on next install — don't edit there.
 
 **Exception — `settings.json` (v1.6):** because Claude Code writes "always allow" grants into the user settings file at runtime, `settings.json` is deployed as a real local file (via `scripts/merge_settings.py`), not a symlink — so those grants accumulate in `~/.claude/settings.json` and never pollute this repo. Install **merges** the tracked baseline into the live file (preserving local grants). `settings.local.json` is seeded once from `settings.local.json.example`. See `settings/README.md`.
 

@@ -186,6 +186,22 @@ projects/
 # those ship as part of the scaffolding contract for new projects.
 !scaffolding/**/.claude/
 !scaffolding/**/.claude/*.json
+# v1.25: the templates also ship .claude/worktree-deps (not JSON, so the rule
+# above does not reach it) — new projects start in worktree mode.
+!scaffolding/**/.claude/worktree-deps
+
+# v1.25: dev-platform opts itself into worktree mode, so .claude/worktree-deps
+# must be tracked — but NOTHING else under .claude/ may be (worktrees/,
+# settings.local.json, projects/). The `.claude/` rule above is a DIRECTORY
+# ignore, so a single `!` re-include would start tracking every worktree:
+# re-include the directory, re-ignore its contents, then allow just the marker.
+# Root-anchored — projects/*/.claude/ are other repos' business.
+# Verify per file with `git check-ignore -q`, never a bare `git status`: that
+# collapses an untracked directory to `?? .claude/` and hides which files are
+# actually tracked.
+!/.claude/
+/.claude/*
+!/.claude/worktree-deps
 .mypy_cache/
 __pycache__/
 *.pyc

@@ -91,7 +91,8 @@ find "${PROJECT_DIR}" -type f \
        -o -name "*.sh" -o -name "*.go" -o -name "*.py" -o -name "*.ts" \
        -o -name "*.tsx" -o -name "*.mjs" -o -name "*.css" -o -name "*.yml" \
        -o -name "*.yaml" -o -name "*.example" -o -name "Dockerfile*" \
-       -o -name ".gitignore" -o -name ".env.example" \) \
+       -o -name ".gitignore" -o -name ".env.example" \
+       -o -name "worktree-deps" \) \
     -print0 | xargs -0 sed -i "s/{{PROJECT_NAME}}/${PROJECT_NAME}/g"
 
 # Language-specific post-substitute setup. Runs BEFORE git init so generated

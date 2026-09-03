@@ -11,9 +11,34 @@
 
 set -uo pipefail
 
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# The live ~/.claude deployment always tracks the MAIN checkout, never a branch:
+# install.sh symlinks repo paths, and a worktree path would dangle the moment
+# /merge removes that worktree. So verify what main deployed, no matter where
+# this script is invoked from. A worktree-derived REPO reports every symlink as
+# an "orphan" against a deployment that is actually correct (21 false failures
+# in dev-platform, and gate_fast.sh runs this check on every gate).
+#
+# Same git-common-dir derivation as scripts/check-concurrent-sessions.sh and
+# shell/worktree/gate-lock.sh — the common dir is shared by a repo and all its
+# worktrees, and may be returned relative, so resolve it before taking the
+# parent. Falls back to the script's own location outside a git repo.
+_SELF_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO="${_SELF_REPO}"
+if _common="$(cd "${_SELF_REPO}" 2>/dev/null && git rev-parse --git-common-dir 2>/dev/null)"; then
+    if _common_abs="$(cd "${_SELF_REPO}" && cd "${_common}" 2>/dev/null && pwd -P)"; then
+        REPO="$(dirname "${_common_abs}")"
+    fi
+fi
+
 HOME_CLAUDE="${HOME}/.claude"
 ERRORS=0
+
+# Only surprising when it differs — say so rather than silently checking a
+# different tree than the one the caller is standing in.
+if [[ "${REPO}" != "${_SELF_REPO}" ]]; then
+    echo "verify: invoked from a worktree — verifying the main checkout's deployment (${REPO})"
+    echo ""
+fi
 
 check_symlink() {
     local tracked="$1"

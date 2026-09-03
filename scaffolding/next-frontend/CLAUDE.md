@@ -73,6 +73,7 @@ Register this port in `/home/rich/dev/CLAUDE.md` Port Allocation Registry — se
 ├── docs/            # Architecture, UI design, guides
 ├── scripts/         # start_dev.sh, gate_fast.sh
 ├── tasks/           # Spec files (output of /plan), lessons/
+├── .claude/         # worktree-mode marker (worktree-deps); worktrees/ is git-ignored
 ├── tests/           # Tests (framework choice deferred to project-time)
 ├── package.json
 ├── tsconfig.json

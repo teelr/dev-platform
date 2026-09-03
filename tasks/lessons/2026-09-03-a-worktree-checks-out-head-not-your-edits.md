@@ -1,0 +1,3 @@
+# A git worktree checks out HEAD, so it cannot test uncommitted changes
+
+Testing v1.25's `verify.sh` fix from a worktree, I ran `git worktree add` and then invoked `/tmp/wt/scripts/verify.sh` — which reported all 21 failures unchanged, exactly as if the fix had not worked. The fix was fine; the worktree had checked out HEAD, so it was running the *old* script while my edit sat uncommitted in the main working tree. Any test that exercises a worktree against changes-in-progress must copy the files under test into the worktree after creating it, and say so, or it silently validates whatever HEAD contains and passes or fails for the wrong reason. The tell is a fix that appears to change nothing at all.
