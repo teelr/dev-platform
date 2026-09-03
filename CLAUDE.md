@@ -115,9 +115,10 @@ The boundary, established by probe rather than assumption (v1.27):
 | `echo "TMUX=${TMUX:-unset}"` | allowed — variable, single command |
 | `[[ -n "${TMUX:-}" ]] && echo hi` | **refused** — compound + variable |
 | `if [[ "$(git rev-parse --show-toplevel)" == *x* ]]` | **refused** — compound + substitution |
-| `cat > f <<EOF` whose body contains `git ...` | **refused** — heredoc bodies are scanned |
+| `cat > f <<'EOF'` whose body is prose, or holds `${VAR}`, or is followed by `&& test -f f` | allowed |
+| `cat > f <<'EOF'` whose body holds real shell syntax — a subshell doing `(cd "${D}" && git ...)` | **refused** — body complexity, not the word `git` |
 
-So when writing a command block in `commands/*.md`: keep variables and substitutions out of compound commands. Where a step needs a derived value, prescribe a plain command, have the agent read the output, and type the literal into the next command — do not nest the derivation. Write `~/...`, never `"${HOME}/..."`. Prefer `gh ... --body-file` over `--body "$(cat <<EOF ...)"`.
+So when writing a command block in `commands/*.md`: keep variables and substitutions out of compound commands. Where a step needs a derived value, prescribe a plain command, have the agent read the output, and type the literal into the next command — do not nest the derivation. Write `~/...`, never `"${HOME}/..."`. Pass long text with `gh ... --body-file`, never `--body "$(cat <<EOF ...)"` — the substituted form works for ordinary prose, but it puts the whole body inside the command text, so a body carrying a fenced shell block can push the command over the complexity line and get it refused outright.
 
 Three instances, all one-liners that looked too small to check: **v1.26** (`link-deps.sh` invoked with `"${HOME}"` and `"$(pwd)"` — dependency linking silently never ran; fixed by making the script derive its own paths), **v1.27** (`/plan`'s `[[ -n "${TMUX:-}" ]] && tmux rename-window` — window rename silently never ran), and **v1.27** again (`/merge`'s `if [[ ... && ... ]]` worktree detection — refused, leaving `IN_WORKTREE=0`, which sends the merge down the branch-mode path `commands/merge.md` itself documents as failing the entire `gh pr merge`). The first fix was local to its own script and left every other command file unexamined, which is why the other two survived to be found by hand.
 
