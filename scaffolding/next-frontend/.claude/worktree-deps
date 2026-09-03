@@ -1,0 +1,20 @@
+# .claude/worktree-deps — worktree-mode marker for {{PROJECT_NAME}}.
+#
+# Its presence puts this project in worktree mode: /plan and /code give each
+# concurrent session its own copy of the repo under .claude/worktrees/<branch>,
+# so two sessions can never share a working tree or switch each other's branch.
+# /merge tears the worktree down after the PR lands.
+#
+# Listed below are this stack's heavy git-ignored runtime paths. link-deps.sh
+# SYMLINKS each one from the main checkout into every new worktree, so the app
+# runs there without a second install and .env copies cannot drift. A path that
+# does not exist yet (before a first install) is a warning, not an error.
+#
+# One path per line; blank lines and # comments are ignored.
+# node_modules is linked, never copied — one install serves every worktree.
+# .next is linked so a worktree does not rebuild the whole cache cold.
+
+.env
+.env.local
+node_modules
+.next

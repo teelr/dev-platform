@@ -348,7 +348,7 @@ Every project CLAUDE.md follows `docs/PROJECT_CLAUDE_TEMPLATE.md`.
 | `extensions/` | IDE config (`vscode/server-extensions.json` is the tracked extension list; `scripts/install.sh vscode` reinstalls them all; `scripts/sync-vscode.sh` is the capture/deploy/diff helper) |
 | `scaffolding/` | New-project templates |
 | `monitoring/` | Workflow telemetry |
-| `shell/` | Shell helpers, git-hook templates, worktree-isolation tooling (`shell/worktree/`), sourced shell functions (`shell/profile.d/` — `cc`) |
+| `shell/` | Shell helpers, git-hook templates, worktree-isolation tooling (`shell/worktree/`; dev-platform is worktree-mode as of v1.25, and new projects scaffold with the marker — existing projects opt in per project), sourced shell functions (`shell/profile.d/` — `cc`) |
 | `scripts/` | Install / uninstall / verify; `gate_fast.sh` orchestrator; spec-taxonomy checker |
 | `tests/` | Constitutional gate-fast fixtures + per-suite runners |
 | `tasks/` | Spec files |
@@ -356,7 +356,7 @@ Every project CLAUDE.md follows `docs/PROJECT_CLAUDE_TEMPLATE.md`.
 
 ## Install / Deploy
 
-Repo is source of truth; `~/.claude/` is a *deployment*. `scripts/install.sh [category]` symlinks tracked files (`commands`, `skills`, `settings`, `hooks`, `vscode`, `managed`, `git-hooks`, `worktree`, `shell`, or `all`). The `vscode` category runs `code --install-extension` for every entry in `extensions/vscode/server-extensions.json` (skips gracefully when the `code` CLI is absent, and when it is present but cannot reach a VSCode server — a shell that outlives a VSCode reconnect holds a stale `$VSCODE_IPC_HOOK_CLI`, which used to fail the whole install; see [issue #84](https://github.com/teelr/dev-platform/issues/84)). `scripts/uninstall.sh` removes symlinks (leaves `~/.claude/projects/` untouched). `scripts/verify.sh` reports drift. Edit in this repo and re-run install — never edit `~/.claude/` directly.
+Repo is source of truth; `~/.claude/` is a *deployment* that always tracks the **main checkout** — `install.sh` and `verify.sh` resolve there via `git-common-dir` regardless of which worktree runs them (v1.25), so symlinks never dangle after `/merge` removes a worktree; the trade-off is that worktree edits to `commands/`/`skills/` go live only after merge. `scripts/install.sh [category]` symlinks tracked files (`commands`, `skills`, `settings`, `hooks`, `vscode`, `managed`, `git-hooks`, `worktree`, `shell`, or `all`). The `vscode` category runs `code --install-extension` for every entry in `extensions/vscode/server-extensions.json` (skips gracefully when the `code` CLI is absent, and when it is present but cannot reach a VSCode server — a shell that outlives a VSCode reconnect holds a stale `$VSCODE_IPC_HOOK_CLI`, which used to fail the whole install; see [issue #84](https://github.com/teelr/dev-platform/issues/84)). `scripts/uninstall.sh` removes symlinks (leaves `~/.claude/projects/` untouched). `scripts/verify.sh` reports drift. Edit in this repo and re-run install — never edit `~/.claude/` directly.
 
 ## Adding a New Workflow Artifact
 

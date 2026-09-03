@@ -15,9 +15,19 @@ v1.4 fixes the file-and-branch collision for any project that opts in, and makes
 
 This does NOT let two chats run the app live at the same time. They still share one backend and one database; the lock just makes them take turns. If you ever need two apps running live at once, that's a bigger change — per-chat ports and per-chat databases — and it's out of scope here.
 
+Two smaller limits worth knowing: a worktree session's `commands/`/`skills/` edits are not live in `~/.claude` until merged (see below), and existing projects are not migrated for you — each adds its own `.claude/worktree-deps`.
+
+## The deployment always tracks main
+
+`scripts/install.sh` symlinks `~/.claude/*` at repo paths, so a worktree path there would dangle the moment `/merge` removes that worktree. Both `install.sh` and `verify.sh` therefore resolve to the **main checkout**, whichever copy of the repo you run them from (v1.25). Symlinks cannot dangle, and `verify.sh` cannot false-fail — before this, a worktree-invoked verify reported all 21 symlinks as orphans against a deployment that was perfectly correct, which reddened `gate fast` on every worktree run. Both scripts print a one-line notice when they resolve somewhere other than where you invoked them.
+
+**The consequence, stated plainly: a worktree session's edits to `commands/` or `skills/` are not live in `~/.claude` until they merge.** That is the safe direction — deployed means shipped, never mid-phase — but it does end live dogfooding of command edits from inside the worktree that made them. If you need to exercise a command change before merge, read the tracked file directly or run it from the main checkout after merging.
+
 ## Turning it on for a project
 
-Worktree mode is **opt-in**. A project without the marker keeps the current `git checkout -b` behavior, unchanged. To turn it on, do this from the project's own repo (each project owns its own config — dev-platform does not write these files for you):
+New projects start with worktree mode already on: all three scaffolding templates ship `.claude/worktree-deps` (v1.25), so a project scaffolded from them is in worktree mode from its first commit. dev-platform itself is in too.
+
+For an **existing** project it stays opt-in, and that is a deliberate scope decision rather than unfinished work: a deps manifest names the heavy git-ignored paths *that project* needs symlinked, and nothing outside the project can know them — an empty manifest on a Node project produces worktrees with no `node_modules`, which is worse than branch mode. So each existing project adds the one file below from its own session. A project without the marker keeps the current `git checkout -b` behavior, unchanged. To turn it on, do this from the project's own repo (each project owns its own config — dev-platform does not write these files for you):
 
 ### 1. Add `.claude/worktree-deps`
 

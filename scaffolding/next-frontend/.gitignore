@@ -44,3 +44,8 @@ pnpm-debug.log*
 # TypeScript build info
 *.tsbuildinfo
 next-env.d.ts
+
+# Claude Code local state: runtime worktrees and local settings stay out of git,
+# but the worktree-mode marker is tracked — it is what enables the mode.
+.claude/*
+!.claude/worktree-deps

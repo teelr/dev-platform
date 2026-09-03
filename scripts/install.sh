@@ -22,9 +22,32 @@
 
 set -euo pipefail
 
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# The live ~/.claude deployment always tracks the MAIN checkout, never a branch.
+# These symlinks point at repo paths, so deploying from a worktree would leave
+# every one of them dangling the moment /merge removes that worktree. Resolving
+# to main here makes that impossible.
+#
+# Swept together with scripts/verify.sh per the Derivation Sweep rule in
+# CLAUDE.md — both derived this same value the same wrong way, and fixing one
+# alone would leave install and verify disagreeing about the deployment source.
+_SELF_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO="${_SELF_REPO}"
+if _common="$(cd "${_SELF_REPO}" 2>/dev/null && git rev-parse --git-common-dir 2>/dev/null)"; then
+    if _common_abs="$(cd "${_SELF_REPO}" && cd "${_common}" 2>/dev/null && pwd -P)"; then
+        REPO="$(dirname "${_common_abs}")"
+    fi
+fi
+
 HOME_CLAUDE="${HOME}/.claude"
 CATEGORY="${1:-all}"
+
+# This is where a worktree session meets the behavior change, so say it plainly
+# rather than resolving to main in silence.
+if [[ "${REPO}" != "${_SELF_REPO}" ]]; then
+    echo "install: invoked from a worktree — deploying from the main checkout (${REPO})."
+    echo "install: edits in this worktree go live in ~/.claude only after merge."
+    echo ""
+fi
 
 # Refuse to overwrite a real directory or file with a symlink. The user must
 # back up and remove the existing target first; never silently destroy data.

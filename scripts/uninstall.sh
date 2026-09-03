@@ -15,7 +15,24 @@
 
 set -euo pipefail
 
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Third script in the same derivation family as install.sh and verify.sh, swept
+# with them per the Derivation Sweep rule in CLAUDE.md. This one fails SILENTLY
+# without the fix: line ~28 only removes a symlink whose target resolves under
+# ${REPO}, so a worktree-derived REPO matches none of main's symlinks — 21 links
+# survive and the script still prints "Uninstall complete." (It also broke
+# tests/install/run.sh's verify-after-uninstall assertion from a worktree.)
+_SELF_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO="${_SELF_REPO}"
+if _common="$(cd "${_SELF_REPO}" 2>/dev/null && git rev-parse --git-common-dir 2>/dev/null)"; then
+    if _common_abs="$(cd "${_SELF_REPO}" && cd "${_common}" 2>/dev/null && pwd -P)"; then
+        REPO="$(dirname "${_common_abs}")"
+    fi
+fi
+
+if [[ "${REPO}" != "${_SELF_REPO}" ]]; then
+    echo "uninstall: invoked from a worktree — removing the main checkout's deployment (${REPO})"
+    echo ""
+fi
 HOME_CLAUDE="${HOME}/.claude"
 
 remove_repo_symlinks() {
