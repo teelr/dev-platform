@@ -38,15 +38,34 @@ Make sure `.claude/` (or at least `.claude/worktrees/`) is in the project's `.gi
 
 ### 3. Make the gate take turns
 
-If the project's `scripts/gate_fast.sh` (or equivalent) stops and restarts a backend, wrap that part in the lock so two gates don't fight over the port:
+If the project's `scripts/gate_fast.sh` (or equivalent) stops and restarts a backend, take the lock so two gates don't fight over the port. There are two shapes — use whichever matches how long you need it:
 
 ```bash
 source ~/.claude/worktree/gate-lock.sh
-# ... then, around the backend stop/restart:
-with_gate_lock restart_backend     # or: with_gate_lock bash -c '...'
+
+# One command:
+with_gate_lock restart_backend
+
+# Or across a whole region — stop the backend, run the tests, restart it:
+gate_lock_acquire "gate-fast"
+# ... stop backend, run pytest against its ports, restart ...
+gate_lock_release
 ```
 
 The lockfile lives in the repo's shared git directory, so all of the project's worktrees contend on the same lock. `flock` waits its turn; it does not fail fast.
+
+**A gate that stops the backend must hold the lock across the whole test run.** That looks like over-locking and it isn't: the gate frees the port so its own tests can bind it, so the port is exclusive from the stop until the restart. Shrinking the lock to just the stop/restart lets two test runs bind the same port, which fails far more confusingly than waiting does. Don't optimise it away.
+
+The way to spend less time waiting is ordering, not scope: run the parts that need nothing shared — syntax, taxonomy, offline fixture suites — *before* acquiring, so concurrent sessions overlap on those and only queue for the part that truly needs the port. Genuinely parallel gates would need per-session ports and databases, which stays out of scope (see The honest limit above).
+
+Waiting is announced. A gate queued behind another prints who it's waiting for and how long it waited, so a queued gate is distinguishable from a hung one:
+
+```text
+[gate-lock] waiting for another session's gate — held by pid 1694042 (since 2026-09-03T06:47:29)
+[gate-lock] acquired after 2s
+```
+
+An uncontended run says nothing.
 
 ### 4. Check it works
 

@@ -110,6 +110,108 @@ else
     record_skip "worktree: gate-lock serialization (flock not installed)"
 fi
 
+# --- Tests 6b-6i: v1.22 acquire/release API + contention visibility ---
+# The lock used to block in total silence, which made a queued gate look hung.
+# These cover the messaging as well as the locking, because "silent when
+# uncontended" is a property a later change breaks without anyone noticing.
+if command -v flock >/dev/null 2>&1; then
+    tmp6b="$(mktemp -d)"
+    trap 'rm -rf "${tmp1}" "${tmp2}" "${tmp3}" "${tmp4}" "${tmp5}" "${tmp6:-}" "${tmp6b}"' EXIT
+    git init -q "${tmp6b}"
+    HOLDER_FILE="${tmp6b}/.git/gate.lock.holder"
+
+    # 6b. Uncontended acquire/release is silent. A message on every gate run is
+    #     noise, and noise on the common path is how a real warning gets ignored.
+    out="$( { cd "${tmp6b}" && source "${GATE_LOCK}" && gate_lock_acquire quiet \
+              && gate_lock_release; } 2>&1 )"
+    if [[ -z "${out}" ]]; then
+        record_pass "worktree: gate_lock_acquire is silent when uncontended"
+    else
+        record_fail "worktree: uncontended acquire printed '${out}'"
+    fi
+
+    # Hold the lock in the background for the contention checks below.
+    ( cd "${tmp6b}" && source "${GATE_LOCK}" && gate_lock_acquire holder \
+        && sleep 3 && gate_lock_release ) >/dev/null 2>&1 &
+    _holder_job=$!
+    sleep 1
+
+    # 6c. The holder file names the live holder while the lock is held.
+    if [[ -r "${HOLDER_FILE}" ]] && grep -q "^pid=[0-9]" "${HOLDER_FILE}"; then
+        record_pass "worktree: holder file records the lock holder's pid"
+    else
+        record_fail "worktree: holder file missing/malformed ($(cat "${HOLDER_FILE}" 2>&1))"
+    fi
+
+    # 6d + 6e. A contended acquire announces the wait naming the holder, and
+    #     reports how long it waited once it gets in.
+    wout="$( { cd "${tmp6b}" && source "${GATE_LOCK}" && gate_lock_acquire waiter \
+               && gate_lock_release; } 2>&1 )"
+    if grep -q "waiting for another session" <<<"${wout}" \
+        && grep -qE "held by pid [0-9]+" <<<"${wout}"; then
+        record_pass "worktree: contended acquire announces the wait and names the holder"
+    else
+        record_fail "worktree: contention announcement (out: ${wout})"
+    fi
+    if grep -qE "acquired after [0-9]+s" <<<"${wout}"; then
+        record_pass "worktree: acquiring after a wait reports how long it waited"
+    else
+        record_fail "worktree: acquired-after line (out: ${wout})"
+    fi
+    wait "${_holder_job}" 2>/dev/null || true
+
+    # 6f. Release clears the holder file.
+    if [[ ! -e "${HOLDER_FILE}" ]]; then
+        record_pass "worktree: gate_lock_release clears the holder file"
+    else
+        record_fail "worktree: holder file survived release"
+    fi
+
+    # 6g. Release without a prior acquire exits 0, and repeats are no-ops.
+    #     Consumers call release from early-exit paths that never took the lock.
+    if ( cd "${tmp6b}" && source "${GATE_LOCK}" && gate_lock_release \
+         && gate_lock_release && gate_lock_acquire x && gate_lock_release \
+         && gate_lock_release ) >/dev/null 2>&1; then
+        record_pass "worktree: gate_lock_release is safe without acquire and when repeated"
+    else
+        record_fail "worktree: gate_lock_release on an unheld lock did not exit 0"
+    fi
+
+    # 6h. A stale holder file — a pid that is gone — must not block acquisition,
+    #     and must not be reported as a live holder. flock releases on death, so
+    #     the file routinely outlives its process.
+    printf 'pid=999999 started=2020-01-01T00:00:00 label=stale\n' > "${HOLDER_FILE}"
+    sout="$( { cd "${tmp6b}" && source "${GATE_LOCK}" && gate_lock_acquire fresh \
+               && gate_lock_release; } 2>&1 )"
+    if [[ -z "${sout}" ]] && ! grep -q "999999" <<<"${sout}"; then
+        record_pass "worktree: a stale holder file neither blocks nor is reported as live"
+    else
+        record_fail "worktree: stale holder handling (out: ${sout})"
+    fi
+
+    # 6i. The new API serializes, same no-interleave technique as Test 6.
+    (
+        cd "${tmp6b}" || exit 1
+        # shellcheck disable=SC1090
+        source "${GATE_LOCK}"
+        order="${tmp6b}/order"; : > "${order}"
+        ( gate_lock_acquire A; echo A-start >> "${order}"; sleep 0.3
+          echo A-end >> "${order}"; gate_lock_release ) &
+        sleep 0.1
+        ( gate_lock_acquire B; echo B-start >> "${order}"; echo B-end >> "${order}"
+          gate_lock_release ) &
+        wait
+        l1="$(sed -n 1p "${order}" | cut -d- -f1)"
+        l2="$(sed -n 2p "${order}" | cut -d- -f1)"
+        l3="$(sed -n 3p "${order}" | cut -d- -f1)"
+        l4="$(sed -n 4p "${order}" | cut -d- -f1)"
+        [[ "${l1}" == "${l2}" && "${l3}" == "${l4}" && "${l1}" != "${l3}" ]]
+    ) && record_pass "worktree: gate_lock_acquire/release serializes (no interleave)" \
+      || record_fail "worktree: gate_lock_acquire/release did NOT serialize"
+else
+    record_skip "worktree: gate_lock_acquire/release contention tests (flock not installed)"
+fi
+
 # --- Test 7: install integration (tmpdir HOME) ---
 tmp7="$(mktemp -d)"; trap 'rm -rf "${tmp1}" "${tmp2}" "${tmp3}" "${tmp4}" "${tmp5}" "${tmp6:-}" "${tmp7}"' EXIT
 HOME="${tmp7}" bash "${REPO}/scripts/install.sh" worktree >/dev/null 2>&1
