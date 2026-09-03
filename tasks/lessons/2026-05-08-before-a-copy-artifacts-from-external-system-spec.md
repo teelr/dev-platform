@@ -1,0 +1,3 @@
+# Before a "copy artifacts from external system" spec, audit the source. Foundation…
+
+Before a "copy artifacts from external system" spec, audit the source. Foundation Spec assumed `~/.claude/keybindings.json` existed (it didn't), assumed `skills/<name>/` subdirs were populated (they were empty), and treated settings.json as commit-ready (it had 3 plaintext DB passwords + 11 junk one-off entries). Reality only surfaces by reading the source path before /code starts. Three deviations approved at /code intake; would have been three commits to fix if caught later.

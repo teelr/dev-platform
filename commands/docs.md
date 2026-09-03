@@ -33,7 +33,7 @@ Create a TodoWrite checklist covering every doc that may need updating:
 - `planning.md` — Ground Truth section, task entries, execution order
 - `ROADMAP.md` — completed phase table, remaining work table, success criteria checkboxes, version numbers
 - `README.md` — architecture section, feature list, Milvus/database counts
-- `tasks/lessons.md` — new patterns or mistakes from this phase
+- `tasks/lessons/` — a new file per pattern or mistake from this phase
 - Any feature-specific docs in `docs/` that reference changed systems
 
 ## Step 3: Update Each Doc
@@ -62,12 +62,13 @@ For EACH doc in the checklist:
 - Update Milvus collection tables, agent tables, or port listings if changed
 - Keep it factual and brief — no marketing language
 
-### tasks/lessons.md
+### tasks/lessons/
 
-- Add a new entry for any non-obvious mistake or pattern from this phase
-- Format: `## LNN — {Short title}` followed by 2-4 sentences explaining the root cause and the rule going forward
-- Consolidate if 2-3 entries point to the same root cause (add to CLAUDE.md instead)
-- Cap at ~30 entries total
+- Add a NEW FILE for any non-obvious mistake or pattern from this phase: `tasks/lessons/<YYYY-MM-DD>-<short-slug>.md`
+- Format: a `#` heading with a short title, then 2-4 sentences explaining the root cause and the rule going forward
+- One file per lesson, never appended to a shared file — that is what stops two sessions colliding here
+- Consolidate if 2-3 entries point to the same root cause (promote to a CLAUDE.md rule instead, and delete the specifics)
+- No cap on file count; session start reads the newest handful
 
 ### docs/ feature files
 
@@ -95,7 +96,7 @@ Cross-check:
 Per the project bundling rule (see `/home/rich/dev/CLAUDE.md` "Docs Before Commit"): feature code and doc updates go into ONE atomic commit, never separate. /docs stages the doc changes; the upcoming feature commit will bundle them.
 
 ```bash
-git add planning.md ROADMAP.md README.md tasks/lessons.md
+git add planning.md ROADMAP.md README.md tasks/lessons/
 # Add any docs/ files if changed
 ```
 

@@ -1,0 +1,3 @@
+# Bash helpers that maintain state across subshells need a shared file or…
+
+Bash helpers that maintain state across subshells need a shared file or env-var mechanism. R3's first `gate_fast.sh` ran each test suite via `bash "${runner}"` (subshell), and each runner's `PASS_COUNT` / `FAIL_COUNT` lived in its own subshell scope — the orchestrator's totals were ALWAYS the 5 lift checks alone, never the 37 suite results underneath. Caught only because /code re-ran gate_fast.sh and saw "5 PASS" when 42 was expected. Fix: shared `_GATE_COUNTS_FILE` (mktemp), exported env var, assert.sh appends to it, orchestrator reads at end. Pattern: anything maintained "across subshells" via in-memory counters silently breaks; use a shared sink.

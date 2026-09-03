@@ -1,0 +1,3 @@
+# `git check-ignore -v <path>` exits 0 when the last matching pattern is…
+
+`git check-ignore -v <path>` exits 0 when the last matching pattern is a NEGATION (`!shell/profile.d/*`), so "expect exit 1" is the wrong assertion for "this file is trackable" — v1.18's spec shipped that test and it would have passed identically whether or not the gitignore fix worked. `git check-ignore -q` (no `-v`) has the intuitive semantics (exit 1 = not ignored); `git add -n <path>` is unambiguous. Pattern: when a test's pass condition is an exit code, confirm the exit-code contract for the exact flag combination being used — `-v` changed it here. Cross-check against a known-good path in the same repo (`shell/worktree/*`, already tracked) before trusting the result either way.

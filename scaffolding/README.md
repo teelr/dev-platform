@@ -1,6 +1,6 @@
 # scaffolding/
 
-New-project starter templates. Each subdirectory is one template (`go-service/`, `python-service/`, `next-frontend/`) containing the minimum file set a new project under `projects/` should start with — `CLAUDE.md` template, `.markdownlint.json`, `.gitignore`, `tasks/lessons.md` stub, etc.
+New-project starter templates. Each subdirectory is one template (`go-service/`, `python-service/`, `next-frontend/`) containing the minimum file set a new project under `projects/` should start with — `CLAUDE.md` template, `.markdownlint.json`, `.gitignore`, `tasks/lessons/` stub, etc.
 
 **What goes here:** `<template-name>/` directories with the files a new project should start with. A `<template-name>/MANIFEST.md` documents what the template provides and how to instantiate it.
 

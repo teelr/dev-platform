@@ -72,7 +72,7 @@ Register this port in `/home/rich/dev/CLAUDE.md` Port Allocation Registry — se
 ├── public/          # Static assets
 ├── docs/            # Architecture, UI design, guides
 ├── scripts/         # start_dev.sh, gate_fast.sh
-├── tasks/           # Spec files (output of /plan), lessons.md
+├── tasks/           # Spec files (output of /plan), lessons/
 ├── tests/           # Tests (framework choice deferred to project-time)
 ├── package.json
 ├── tsconfig.json

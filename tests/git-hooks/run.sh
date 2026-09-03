@@ -3,9 +3,9 @@
 # Five tests covering the cross-product of (no-gate / passing / failing) ×
 # (default env / SKIP_GATE_FAST=1), plus install integration.
 #
-# Per tasks/lessons.md (2026-05-16): exit-code capture uses two-line pattern,
+# Per tasks/lessons/ (2026-05-16): exit-code capture uses two-line pattern,
 # never `cmd || true; check $?` (always yields $? = 0).
-# Per tasks/lessons.md (2026-05-11 negative-test rule): assertions check both
+# Per tasks/lessons/ (2026-05-11 negative-test rule): assertions check both
 # exit code AND specific stderr substring — not exit-code-only.
 
 set -uo pipefail

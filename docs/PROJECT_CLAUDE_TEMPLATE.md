@@ -66,7 +66,7 @@ project-name/
 ├── config/          # Configuration files
 ├── docs/            # Documentation (API docs, architecture, guides)
 ├── scripts/         # Dev/deploy scripts
-├── tasks/           # Spec files, lessons.md
+├── tasks/           # Spec files, lessons/
 ├── tests/           # Test files
 └── logs/            # Application logs
 ```

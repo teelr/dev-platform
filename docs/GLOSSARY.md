@@ -80,7 +80,7 @@ Testability pattern: an extension-less executable script under `tests/<suite>/fi
 
 ### Per-Spec-Phase strategy
 
-Branching convention adopted v0.5+: each [Spec Phase](#spec-phase) → one feature branch (`v0.7/phase-2-github-actions`) → one [PR](#pr-pull-request) assigned to the [Roadmap Phase](#roadmap-phase)'s [Milestone](#github-milestone) → squash-merge to `main`. Small Spec Phases (~250 LOC total) can ship as a single combined PR per the v0.6 small-Phase carve-out documented in [tasks/lessons.md](../tasks/lessons.md).
+Branching convention adopted v0.5+: each [Spec Phase](#spec-phase) → one feature branch (`v0.7/phase-2-github-actions`) → one [PR](#pr-pull-request) assigned to the [Roadmap Phase](#roadmap-phase)'s [Milestone](#github-milestone) → squash-merge to `main`. Small Spec Phases (~250 LOC total) can ship as a single combined PR per the v0.6 small-Phase carve-out documented in [tasks/lessons/](../tasks/lessons/).
 
 ### Post-merge
 
@@ -144,7 +144,7 @@ A feature is "wired in" when its full data path (UI → API → backend → stor
 
 ### `workflow_call` / `workflow_sha`
 
-GitHub Actions context primitives. `workflow_call` is a [reusable workflow](#reusable-workflow) trigger (the only way another workflow can `uses:` your workflow). `github.workflow_sha` is the commit SHA of the running workflow — used in `.github/workflows/taxonomy-check.yml` to check out dev-platform at the consumer's pinned ref. Do **NOT** use `github.workflow_ref` for the same purpose — it returns the full ref-path string (`owner/repo/.github/...@refs/tags/v0.7`), which `actions/checkout`'s `ref:` cannot resolve. See [tasks/lessons.md](../tasks/lessons.md) 2026-05-11.
+GitHub Actions context primitives. `workflow_call` is a [reusable workflow](#reusable-workflow) trigger (the only way another workflow can `uses:` your workflow). `github.workflow_sha` is the commit SHA of the running workflow — used in `.github/workflows/taxonomy-check.yml` to check out dev-platform at the consumer's pinned ref. Do **NOT** use `github.workflow_ref` for the same purpose — it returns the full ref-path string (`owner/repo/.github/...@refs/tags/v0.7`), which `actions/checkout`'s `ref:` cannot resolve. See [tasks/lessons/](../tasks/lessons/), the 2026-05-11 entry.
 
 ---
 
@@ -153,4 +153,4 @@ GitHub Actions context primitives. `workflow_call` is a [reusable workflow](#reu
 - [CLAUDE.md](../CLAUDE.md) — full development standards (workflow, taxonomy, language matrix, port registry, project structure)
 - [ROADMAP.md](../ROADMAP.md) — Roadmap Phase sequence v0.1 → v1.0
 - [CI Integration Guide](CI-INTEGRATION.md) — how to plug your repo into dev-platform's taxonomy gate
-- [tasks/lessons.md](../tasks/lessons.md) — accumulated gotchas and corrections
+- [tasks/lessons/](../tasks/lessons/) — accumulated gotchas and corrections, one file per lesson

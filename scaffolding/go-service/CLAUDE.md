@@ -69,7 +69,7 @@ Register this port in `/home/rich/dev/CLAUDE.md` Port Allocation Registry — se
 ├── backend/         # Go source — split main.go here as it grows
 ├── docs/            # Architecture, API docs, guides
 ├── scripts/         # start_dev.sh, gate_fast.sh
-├── tasks/           # Spec files (output of /plan), lessons.md
+├── tasks/           # Spec files (output of /plan), lessons/
 ├── tests/           # Go tests
 ├── main.go          # Entry point — minimal HTTP server
 ├── go.mod

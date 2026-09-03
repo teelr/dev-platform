@@ -61,7 +61,7 @@ This template ships as a CLI/agent (no HTTP surface). If your agent grows an HTT
 │   └── agent.py     # Agent logic
 ├── docs/            # Architecture, API docs, guides
 ├── scripts/         # start_dev.sh, gate_fast.sh
-├── tasks/           # Spec files (output of /plan), lessons.md
+├── tasks/           # Spec files (output of /plan), lessons/
 ├── tests/           # pytest tests
 ├── main.py          # Entry point
 ├── pyproject.toml
