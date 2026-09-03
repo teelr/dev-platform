@@ -15,7 +15,8 @@ Read these in a single batch — skip any that don't exist, don't error:
 1. `./CLAUDE.md` — project-specific rules
 2. `./planning.md` — current roadmap / development state
 3. `./README.md` — project overview
-4. `./tasks/lessons.md` — accumulated gotchas and corrections
+4. `./tasks/lessons/` — accumulated gotchas and corrections, one file per lesson. Read the newest few:
+   `ls -1 tasks/lessons/*.md 2>/dev/null | sort -r | head -5`. Sort by NAME, not `ls -t` — the filename leads with the date, whereas mtime is checkout order and reshuffles on every clone
 5. `./ROADMAP.md` — phase-level milestones (if present)
 
 Also list `./tasks/` to see active spec files: `ls -1t tasks/*.md 2>/dev/null | head -10`
@@ -31,7 +32,7 @@ Run these in parallel:
 
 ## Step 3: Identify the most recent active spec
 
-From the `tasks/` listing, identify the most recently modified spec file (excluding `lessons.md` and `HARNESS_HANDOFF_QUEUE.md`). Read its progress table or task list to determine which Task is next.
+From the `tasks/` listing, identify the most recently modified spec file (excluding `HARNESS_HANDOFF_QUEUE.md`; lessons live in the `tasks/lessons/` subdirectory and are handled in Step 1). Read its progress table or task list to determine which Task is next.
 
 ## Step 4: Check the running stack (best-effort, don't block)
 
@@ -94,7 +95,7 @@ Verify with: `<smoke command>`
 <if another session is live: one sentence noting the app and database are shared, so starting or restarting the stack affects that session too>
 
 ## Recent lessons to keep in mind
-- <2-3 most relevant items from tasks/lessons.md, if any stand out>
+- <2-3 most relevant items from the newest tasks/lessons/ files, if any stand out>
 
 ## Suggested entry point
 <one sentence: continue current Task with /code, start new feature with /plan, or fix the dirty working tree first>

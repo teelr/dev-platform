@@ -1,0 +1,3 @@
+# install/deploy scripts MUST refuse to clobber real files. install.sh's `link_file` errors when…
+
+install/deploy scripts MUST refuse to clobber real files. install.sh's `link_file` errors when the target is a real (non-symlink) file, forcing the user to back up + remove first. Without this guardrail, the first install of a symlink-based deploy silently destroys user data — the exact failure mode of every "rename your config dir before installing" tool.

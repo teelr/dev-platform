@@ -151,11 +151,12 @@ Read the current state of each doc before editing:
 - Update architecture tables, feature lists, port listings, or counts if changed
 - Keep it factual and brief
 
-### tasks/lessons.md
+### tasks/lessons/
 
-- Add an entry for any non-obvious mistake or pattern from this implementation
-- Format: `## LNN — {Short title}` followed by 2-4 sentences
-- Cap at ~30 entries total; consolidate if entries share a root cause
+- Add a NEW FILE for any non-obvious mistake or pattern from this implementation: `tasks/lessons/<YYYY-MM-DD>-<short-slug>.md`
+- Format: a `#` heading with a short title, then 2-4 sentences. Say what to do differently, not just what went wrong
+- One file per lesson, never appended to a shared file — that is what stops two sessions colliding here
+- No cap on how many files exist; session start reads the newest handful. Still consolidate when 2-3 lessons share a root cause: promote them into a `CLAUDE.md` rule and delete the specifics
 
 ### docs/ feature files
 
@@ -164,8 +165,10 @@ Read the current state of each doc before editing:
 After updating, stage the doc changes:
 
 ```bash
-git add planning.md ROADMAP.md README.md tasks/lessons.md
+git add planning.md ROADMAP.md README.md tasks/lessons/
 # Add any docs/ files if changed
+# tasks/lessons/ is the directory: a NEW lesson file needs staging by path,
+# and naming the directory is how you do that without `git add -A`.
 ```
 
 **Do NOT commit** — the user runs `git commit` explicitly after `/gate fast` passes.
@@ -190,7 +193,7 @@ If YES to any of the above, include this line in your end-of-step report:
 
 Run the review procedure exactly as documented in `commands/review.md` Steps 1-5, unchanged:
 
-1. **Stage everything this spec touched before diffing.** Step 7 only staged the doc files (`planning.md`, `ROADMAP.md`, `README.md`, `tasks/lessons.md`) — it does not stage the implementation files from Steps 1-6. Explicitly `git add` every file this spec's Changes created or modified (use the spec's File Change Summary as the checklist), in addition to what Step 7 already staged. Do NOT use `git add -A` or `git add .` — name each file. Only once everything is staged, gather the diff (`git diff --cached`) per `commands/review.md` Step 1.
+1. **Stage everything this spec touched before diffing.** Step 7 only staged the doc files (`planning.md`, `ROADMAP.md`, `README.md`, `tasks/lessons/`) — it does not stage the implementation files from Steps 1-6. Explicitly `git add` every file this spec's Changes created or modified (use the spec's File Change Summary as the checklist), in addition to what Step 7 already staged. Do NOT use `git add -A` or `git add .` — name each file. Only once everything is staged, gather the diff (`git diff --cached`) per `commands/review.md` Step 1.
 2. Load `./CLAUDE.md` and `~/.claude/CLAUDE.md`.
 3. Review every changed file across SECURITY, BUG, COMPLIANCE, QUALITY, and ARCHITECTURE (Language Architecture Decision Matrix compliance).
 4. Fix SECURITY, BUG, COMPLIANCE, and QUALITY issues immediately — do not wait for approval. Re-read each fixed file to confirm the fix is correct. Surface ARCHITECTURE issues for the user's decision; do NOT fix them.

@@ -60,6 +60,12 @@ deploy/**
 !docs/*.yml
 !tasks/*.md
 !tasks/*.sh
+# v1.23: tasks/lessons/ — one file per lesson, so concurrent sessions never
+# append to the same file. !tasks/*.md does not reach subdirectories, so the
+# directory must be re-included FIRST (same shape as the scripts/lib/ rule
+# below): a file-pattern rule alone cannot unignore a file in an ignored dir.
+!tasks/lessons/
+!tasks/lessons/*.md
 !scripts/*.sh
 # v1.6: merge_settings.py — first Python helper under scripts/ (Local Settings Isolation)
 !scripts/*.py

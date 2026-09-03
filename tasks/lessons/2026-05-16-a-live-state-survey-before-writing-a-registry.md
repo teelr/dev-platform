@@ -1,0 +1,3 @@
+# A live state survey before writing a registry will surface redundant per-repo…
+
+A live state survey before writing a registry will surface redundant per-repo git config that would cause the verify script to FAIL on first run. v1.1's `verify-remotes.sh` live run caught 3 projects (`aRKa`, `aws_controller`, `meeting_analyzer`) with `user.email = teelr@users.noreply.github.com` set per-repo — identical to the global but still flagged as an unexpected override. Required the same cleanup as Part 1's keystone fix. Pattern: before writing a "expected state" registry, run the actual checker (or equivalent `git config --local` survey) against ALL target projects to discover stale overrides. Don't assume only the projects you explicitly configured have per-repo state.

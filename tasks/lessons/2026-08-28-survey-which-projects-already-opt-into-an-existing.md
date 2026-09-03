@@ -1,0 +1,3 @@
+# Survey which projects already opt into an existing mechanism before designing a…
+
+Survey which projects already opt into an existing mechanism before designing a new one that overlaps it. v1.19 was scoped as "`cc` creates a worktree per session" until a one-line sweep showed the five projects the user actually codes in (kermit, kermit-pa, kermit-v3, keystone, SQRL) all already commit `.claude/worktree-deps`, so `/plan` already gives each session its own copy of the repo and `/merge` already tears it down. The correct change was for `cc` to do NO git work at all — just pick a free tmux session name. The sweep took one command and cut the spec roughly in half.

@@ -1,0 +1,3 @@
+# Run a new detector against the REAL environment before writing its fixtures…
+
+Run a new detector against the REAL environment before writing its fixtures — fixtures encode the assumptions you already have. v1.20's session detector used a path-prefix test against `git worktree list` roots, which every planned fixture would have passed. Its first live run in dev-platform reported 4 sessions in dev-platform when 3 were in kermit-v3 and SQRL: those repos live UNDER `/home/rich/dev/projects/`, so they prefix-match dev-platform's own root. The fix was `git rev-parse --git-common-dir` as the membership test (it also unifies a repo with its worktrees, which is the grouping wanted). The nested-repo fixture only exists in the suite because the live run found the bug first.

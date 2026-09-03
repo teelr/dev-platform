@@ -1,0 +1,3 @@
+# `.gitignore` subdir re-includes don't inherit from top-level ones — 4th recurrence of…
+
+`.gitignore` subdir re-includes don't inherit from top-level ones — 4th recurrence of the Consumer Audit pattern. `!shell/*.sh` matches `shell/foo.sh` but NOT `shell/worktree/foo.sh`; there is no `!shell/**/*.sh`. New files under a NEW `shell/` subdir are silently ignored until you add `!shell/<subdir>/*` (mirroring the existing `!shell/git-hooks/*`). Caught at /code via `git check-ignore -q` (exit 1 = tracked). Note `check-ignore -v` prints the matching rule even for negations, so read the `!` prefix or use `-q`'s exit code, not the printed line, to decide.

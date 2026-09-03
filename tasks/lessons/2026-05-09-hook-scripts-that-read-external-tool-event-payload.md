@@ -1,0 +1,3 @@
+# Hook scripts that read external-tool event payloads MUST degrade gracefully on shape…
+
+Hook scripts that read external-tool event payloads MUST degrade gracefully on shape change. The R1.5 heartbeat hook reads Claude Code's PostToolUse JSON via `python3 -c '...try/except...'` and falls back to `tool=?` if the payload schema differs from expectation. The schema is unverified at spec time — Claude Code may evolve its event format. Without try/except, a schema bump would break every tool call's hook silently. Pattern: hooks consuming third-party payloads always use defensive parsing, never assume keys exist.

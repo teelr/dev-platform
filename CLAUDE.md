@@ -35,7 +35,7 @@ All development standards for projects in `/home/rich/dev/projects/`. This is th
 - **Skills + settings baseline + hooks** — tracked in `skills/`, `settings/`, `hooks/`.
 - **Standard project structure** — described below. New projects MUST start from `docs/PROJECT_CLAUDE_TEMPLATE.md`.
 - **Quality-gate contract** — constitutional checks, taxonomy enforcement, gate-fast semantics. Projects extend; they do not replace.
-- **Lessons promotion path** — recurring `tasks/lessons.md` entries (2-3 of the same shape) consolidate into rules in THIS file; per-project specifics get deleted.
+- **Lessons promotion path** — recurring `tasks/lessons/` entries (2-3 of the same shape) consolidate into rules in THIS file; per-project specifics get deleted.
 
 **What projects MAY customize:** Domain logic, data model, agents, frontend components, deployment topology. Project-specific permissions and hook scripts (additive, must not shadow canonical). Project-internal taxonomies that legitimately use "Phase" (e.g., Keystone's lifecycle Lead → Pursuit → ...) — qualify with project name (`Keystone Phase`). Project-specific lessons until they promote.
 
@@ -88,7 +88,7 @@ If you catch yourself writing "supports", "delivers", "provides", "guarantees" �
 
 When you add `<dir>/<newfile>.<newext>` in a glob-managed directory (`hooks/`, `tests/`, `commands/`, `skills/`, `scaffolding/`, `monitoring/`, `settings/`, etc.), audit:
 
-1. **`.gitignore` allow-list** — `git check-ignore -v <newfile>` to verify it's not silently ignored.
+1. **`.gitignore` allow-list** — verify the file is actually tracked, with a probe: `touch <dir>/probe.md && git status --porcelain <dir>/`. It must print the file. Do NOT rely on `git check-ignore -v` for this: it exits 0 when the last matching pattern is a NEGATION, so its status cannot distinguish "ignored" from "explicitly re-included". A new SUBDIRECTORY under a `**`-ignored tracked dir needs two rules — the directory re-include first, then the file pattern — because a file-pattern rule alone cannot unignore a file inside an ignored directory. This trap has fired three times: v1.18 (`shell/profile.d/`), v1.21 (`scripts/lib/*.py`), v1.23 (`tasks/lessons/`).
 2. **install / deploy scripts** — does `scripts/install.sh` glob `<newext>`?
 3. **verify / check scripts** — does `scripts/verify.sh` glob `<newext>`?
 4. **Directory README** — mention `<newext>` in its contract.

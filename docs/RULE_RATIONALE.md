@@ -29,7 +29,7 @@ Supersedes L23, L31, L36 from PA's `tasks/lessons.md` (deleted in the consolidat
 
 ## Consumer Audit — Why the rule exists
 
-Two instances of the same omission within 24 hours of dev-platform work (v0.5 Phase 2 and v0.5 Phase 4). Both surfaced eventually — Phase 2 at /test gate-fail, Phase 4 at /review's `git check-ignore` probe — but both could have caused gate-fast to fail on a fresh clone if the omission persisted to commit. The audit is mechanical: five greps takes 30 seconds and eliminates the bug class. Consolidated from two `tasks/lessons.md` entries dated 2026-05-11.
+Two instances of the same omission within 24 hours of dev-platform work (v0.5 Phase 2 and v0.5 Phase 4), and the subdirectory variant has since fired three more times — v1.18 (`shell/profile.d/`), v1.21 (`scripts/lib/*.py`), v1.23 (`tasks/lessons/`). A new subdirectory under a `**`-ignored tracked directory needs TWO rules, the directory re-include before the file pattern, because a file-pattern rule alone cannot unignore a file inside an ignored directory. Note also that `git check-ignore -v` is the wrong probe for this: it exits 0 when the last matching pattern is a negation, so it cannot distinguish "ignored" from "explicitly re-included" — use a probe file plus `git status --porcelain`. Both surfaced eventually — Phase 2 at /test gate-fail, Phase 4 at /review's `git check-ignore` probe — but both could have caused gate-fast to fail on a fresh clone if the omission persisted to commit. The audit is mechanical: five greps takes 30 seconds and eliminates the bug class. Consolidated from two `tasks/lessons.md` entries dated 2026-05-11.
 
 ## Gate-Fast Docs-Only Diff Skip
 

@@ -1,0 +1,3 @@
+# Test scripts that capture exit codes from commands that can fail MUST…
+
+Test scripts that capture exit codes from commands that can fail MUST NOT use `|| true` in the assignment line. `wrong_exit="$(cmd)" || true; check $?` always yields `$? = 0` because `|| true` swallows the failure. The correct pattern is `output="$(cmd)"; exit_code=$?` — with `set -uo pipefail` (not `-e`), this works safely in assignments. The bug caused 4 negative-test assertions (Checks 4–7) to report `exit=0` even when the script correctly exited 1. Pattern: when verifying a script's exit code in a test, never chain `|| true` onto the assignment — capture output and exit code as two separate lines.

@@ -49,13 +49,13 @@ The gate runs constitutional checks + unit tests + smoke_fast. Committing before
 
 **Doc updates are part of `/code`, not a separate step. The commit bundles feature code + doc updates atomically.**
 
-`/code` updates planning.md, ROADMAP.md, README.md, and tasks/lessons.md as its final step and stages them. If commit time arrives with stale docs (e.g. `/code` was interrupted), run `/docs` to recover — exception, not the norm.
+`/code` updates planning.md, ROADMAP.md, README.md, and tasks/lessons/ as its final step and stages them. If commit time arrives with stale docs (e.g. `/code` was interrupted), run `/docs` to recover — exception, not the norm.
 
 ## Boris Cherny Feedback Loop
 
 When corrected on a mistake, fix the SOURCE — not just the symptom.
 
-- Specific bugs → project `tasks/lessons.md` (capped at ~30 entries).
+- Specific bugs → a new file per lesson under the project's `tasks/lessons/` (`<YYYY-MM-DD>-<slug>.md`). One file per lesson so two sessions never append to the same place. No cap on how many exist — they cannot conflict, so there is nothing to prune for; session start reads the newest handful.
 - 2-3 similar entries pointing to the same root cause → consolidate into a CLAUDE.md rule; delete the specifics.
 - After ANY correction: update the relevant instruction file IMMEDIATELY, before continuing work.
 - **Write rules for yourself that prevent the same mistake.**
