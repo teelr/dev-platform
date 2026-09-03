@@ -82,6 +82,96 @@ else
     record_fail "worktree: link-deps no-manifest (rc=${rc}, out: ${out})"
 fi
 
+# --- Tests 4b-4g: link-deps derives its own paths (no-argument form) ---
+# /plan and /code invoke link-deps.sh with NO arguments, because a
+# worktree-isolated session's command guard refuses any command containing a
+# variable or substitution — "${MAIN}", "$(pwd)", "${PWD}" all trip it, so the
+# old two-argument invocation was refused outright and the linking step silently
+# never ran. These assertions pin the derivation that makes the literal form
+# possible. The two-argument form stays supported (Tests 1-4 above use it).
+tmp4b="$(mktemp -d)"
+trap 'rm -rf "${tmp1}" "${tmp2}" "${tmp3}" "${tmp4}" "${tmp4b}"' EXIT
+
+PROJ="${tmp4b}/proj"
+mkdir -p "${PROJ}/.claude" "${PROJ}/node_modules/pkg"
+git init -q "${PROJ}"
+git -C "${PROJ}" config user.email t@t
+git -C "${PROJ}" config user.name t
+printf '.env\nnode_modules\n' > "${PROJ}/.claude/worktree-deps"
+printf 'SECRET=1\n' > "${PROJ}/.env"
+: > "${PROJ}/README.md"
+git -C "${PROJ}" add -A >/dev/null 2>&1
+git -C "${PROJ}" commit -qm init >/dev/null 2>&1
+
+if git -C "${PROJ}" worktree add -q "${PROJ}/.claude/worktrees/feat" -b feat 2>/dev/null; then
+    WTDIR="${PROJ}/.claude/worktrees/feat"
+
+    # 4b. No arguments, run from inside the worktree: derives both paths and
+    #     links the manifest's entries into the worktree.
+    out="$( cd "${WTDIR}" && bash "${LINK_DEPS}" 2>&1 )"; rc=$?
+    if [[ ${rc} -eq 0 ]] && grep -q "2 linked, 0 missing" <<<"${out}"; then
+        record_pass "worktree: link-deps with NO arguments derives both paths and links"
+    else
+        record_fail "worktree: link-deps no-arg derivation (rc=${rc}, out: ${out})"
+    fi
+
+    # 4c. The links point at the MAIN checkout, not anywhere else — the
+    #     derivation being right, not merely non-crashing.
+    if [[ -L "${WTDIR}/.env" && "$(readlink "${WTDIR}/.env")" == "${PROJ}/.env" ]] \
+        && [[ -L "${WTDIR}/node_modules" ]]; then
+        record_pass "worktree: no-arg links resolve to the main checkout"
+    else
+        record_fail "worktree: no-arg link targets (.env -> $(readlink "${WTDIR}/.env" 2>&1))"
+    fi
+
+    # 4d. SELF-LINK GUARD. Run from the MAIN checkout, toplevel and common-dir
+    #     parent are the same path, so an unguarded run would do
+    #     `ln -sfn "${PROJ}/.env" "${PROJ}/.env"` — replacing a real file with a
+    #     symlink to itself. Destructive and silent until the app cannot read
+    #     its own config. Assert the refusal AND that .env survived intact.
+    out="$( cd "${PROJ}" && bash "${LINK_DEPS}" 2>&1 )"; rc=$?
+    if [[ ${rc} -eq 2 ]] && grep -q "same directory" <<<"${out}" \
+        && [[ ! -L "${PROJ}/.env" && "$(cat "${PROJ}/.env")" == "SECRET=1" ]]; then
+        record_pass "worktree: link-deps refuses to link a checkout to itself (real file intact)"
+    else
+        record_fail "worktree: self-link guard (rc=${rc}, .env is $( [[ -L ${PROJ}/.env ]] && echo SYMLINK || echo file), out: ${out})"
+    fi
+else
+    record_skip "worktree: link-deps no-arg derivation (git worktree add failed)"
+fi
+
+# 4e. One argument is ambiguous — reject rather than guess the other path.
+out="$(bash "${LINK_DEPS}" "${tmp4b}" 2>&1)"; rc=$?
+if [[ ${rc} -eq 2 ]] && grep -q "expected 0 or 2 arguments" <<<"${out}"; then
+    record_pass "worktree: link-deps rejects a single argument"
+else
+    record_fail "worktree: single-arg rejection (rc=${rc}, out: ${out})"
+fi
+
+# 4f. No arguments outside a git repo: a clean error, never a silent link into
+#     whatever directory happens to be current.
+nogit="${tmp4b}/nogit"; mkdir -p "${nogit}"
+out="$( cd "${nogit}" && GIT_CEILING_DIRECTORIES="${tmp4b}" bash "${LINK_DEPS}" 2>&1 )"; rc=$?
+if [[ ${rc} -eq 2 ]] && grep -q "not inside a git repository" <<<"${out}"; then
+    record_pass "worktree: link-deps outside a git repo exits 2 with a clear error"
+else
+    record_fail "worktree: non-repo case (rc=${rc}, out: ${out})"
+fi
+
+# 4g. --help exits 0 and documents both forms.
+out="$(bash "${LINK_DEPS}" --help 2>&1)"; rc=$?
+if [[ ${rc} -eq 0 ]] && grep -q "derives both paths itself" <<<"${out}"; then
+    record_pass "worktree: link-deps --help documents the no-argument form"
+else
+    record_fail "worktree: --help (rc=${rc})"
+fi
+
+# Clean tmp4b explicitly: the traps set by Tests 5+ below replace this one and
+# do NOT list tmp4b, so relying on the trap alone would leak a directory — and
+# this one holds a registered git worktree, not just files. The trap above still
+# covers a hard crash mid-block.
+rm -rf "${tmp4b}"
+
 # --- Test 5: gate-lock runs the wrapped command ---
 tmp5="$(mktemp -d)"; trap 'rm -rf "${tmp1}" "${tmp2}" "${tmp3}" "${tmp4}" "${tmp5}"' EXIT
 (
@@ -216,6 +306,13 @@ if command -v flock >/dev/null 2>&1; then
         [[ "${l1}" == "${l2}" && "${l3}" == "${l4}" && "${l1}" != "${l3}" ]]
     ) && record_pass "worktree: gate_lock_acquire/release serializes (no interleave)" \
       || record_fail "worktree: gate_lock_acquire/release did NOT serialize"
+
+    # Clean tmp6b explicitly: the Test 7 trap below replaces this block's trap
+    # and does not list tmp6b, so it leaked one directory per gate run from
+    # v1.22 until this was noticed (43 had accumulated in /tmp). Same shape as
+    # the tmp4b cleanup above — when a suite chains traps, a block that adds a
+    # temp dir must remove it before the next trap drops it.
+    rm -rf "${tmp6b}"
 else
     record_skip "worktree: gate_lock_acquire/release contention tests (flock not installed)"
 fi

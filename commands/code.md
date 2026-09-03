@@ -46,19 +46,21 @@ git checkout -b v<X.Y>/phase-<N>-<slug>
 
 **Worktree mode** (`.claude/worktree-deps` exists — opted-in projects that run more than one chat at once, e.g. Kermit, Kermit PA, Keystone, SQRL): each chat works in its own copy of the repo so two chats never share a working tree. Do this:
 
-1. Record the main checkout path first: `MAIN=$(git rev-parse --show-toplevel)`.
-2. Call the **`EnterWorktree` tool** with `name` set to the branch name (e.g. `v1.4/phase-1-foo`). It creates `.claude/worktrees/v1.4/phase-1-foo` on a fresh branch off `origin/<default>` and switches this session into it. Do NOT run `git worktree add` by hand — the tool also re-roots the session, so your later edits land in the worktree automatically.
-3. Link the project's heavy git-ignored files (`.env`, `node_modules`, ...) into the worktree so the app can run:
+1. Call the **`EnterWorktree` tool** with `name` set to the branch name (e.g. `v1.4/phase-1-foo`). It creates `.claude/worktrees/v1.4/phase-1-foo` on a fresh branch off `origin/<default>` and switches this session into it. Do NOT run `git worktree add` by hand — the tool also re-roots the session, so your later edits land in the worktree automatically.
+2. Link the project's heavy git-ignored files (`.env`, `node_modules`, ...) into the worktree so the app can run:
 
    ```bash
-   bash ~/.claude/worktree/link-deps.sh "${MAIN}" "$(pwd)"
+   bash ~/.claude/worktree/link-deps.sh
    ```
 
-   Use `~` rather than `"${HOME}"`: a worktree-isolated session's command guard
-   cannot statically verify a path built from a variable, so the `${HOME}` form is
-   refused outright ("too complex to verify") and the linking step never runs.
+   **Run it exactly as written — no arguments, no variables.** A worktree-isolated
+   session's command guard analyses commands statically and refuses any it cannot
+   verify stays inside the worktree; `"${HOME}"`, `"${MAIN}"`, `"$(pwd)"` and
+   `"${PWD}"` all trip it. Adding arguments back gets the command refused outright
+   and the linking step silently never runs. The script derives both paths itself
+   for this reason (`shell/worktree/link-deps.sh`).
 
-4. Report the worktree path, the branch name, and what got linked.
+3. Report the worktree path, the branch name, and what got linked.
 
 Worktree mode is opt-in via the project's committed `.claude/worktree-deps` file (see `shell/worktree/README.md`). `/merge` tears the worktree down after the PR lands.
 
