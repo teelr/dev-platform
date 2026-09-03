@@ -15,10 +15,10 @@
 #
 # Pin to a specific tag (e.g., @v1.26) for stability — floating tags
 # like @main break reproducibility. Bump the tag when dev-platform
-# cuts a new release. Worth bumping rather than leaving: @v0.7 runs
-# only check_spec_taxonomy.sh, so a project left on it never gets the
-# version-collision guard at all. See docs/CI-INTEGRATION.md in dev-platform
-# for the full adoption guide.
+# cuts a new release. Worth bumping rather than leaving: the
+# version-collision guard was added to this workflow in v1.11, so any pin
+# older than @v1.11 runs check_spec_taxonomy.sh alone and never gets it.
+# See docs/CI-INTEGRATION.md in dev-platform for the full adoption guide.
 #
 # The permissions: block below is REQUIRED, not optional. This calls a
 # reusable workflow in a DIFFERENT repo (and usually a different GitHub

@@ -8,7 +8,7 @@
 #
 #   jobs:
 #     taxonomy:
-#       uses: teelr/dev-platform/.github/workflows/taxonomy-check.yml@v0.7
+#       uses: teelr/dev-platform/.github/workflows/taxonomy-check.yml@v1.26
 #
 # See extensions/github-actions/dev-platform-gate.yml for the
 # copy-paste consumer template, and docs/CI-INTEGRATION.md for

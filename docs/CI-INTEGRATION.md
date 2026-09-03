@@ -23,9 +23,11 @@ From `dev-platform/extensions/github-actions/dev-platform-gate.yml`, copy the fi
 ```bash
 mkdir -p .github/workflows
 curl -fsSL \
-  https://raw.githubusercontent.com/teelr/dev-platform/v0.7/extensions/github-actions/dev-platform-gate.yml \
+  https://raw.githubusercontent.com/teelr/dev-platform/main/extensions/github-actions/dev-platform-gate.yml \
   -o .github/workflows/dev-platform-gate.yml
 ```
+
+Fetching the *template* from `main` is deliberate — it hands you the file with dev-platform's current default pin already in it. (That is separate from the `uses:` pin inside the file, which must be a release tag; see the next step.) This example used to name a fixed tag, went stale at `v0.7`, and became the source of a wrong claim that every consumer was pinned there.
 
 ### 2. Pin to a dev-platform release tag
 
@@ -37,7 +39,7 @@ jobs:
     uses: teelr/dev-platform/.github/workflows/taxonomy-check.yml@v1.26   # bump as needed
 ```
 
-**Staying on an old pin costs you checks, silently.** `@v0.7`'s workflow runs only `check_spec_taxonomy.sh` — it does not include `check_version_collision.py`, which was added in v1.11 and fixed in v1.12 and v1.13. A repo pinned to `@v0.7` has never had version-collision detection on any PR, however long the guard has existed upstream.
+**Staying on an old pin costs you checks, silently.** `check_version_collision.py` was added to the reusable workflow in v1.11 (fixed in v1.12 and v1.13). Any pin older than `@v1.11` runs `check_spec_taxonomy.sh` alone, so that repo has never had version-collision detection on a single PR, however long the guard has existed upstream. Verify yours rather than assuming — `git show <your-pin>:.github/workflows/taxonomy-check.yml` in a dev-platform checkout shows exactly which checks your tag runs.
 
 Available tags: see [dev-platform releases](https://github.com/teelr/dev-platform/releases). **Do not use `@main`** — floating tags break reproducibility (a future dev-platform change could break your gate without you ever editing your repo).
 
@@ -62,7 +64,7 @@ If your project is in dev-platform's [project registry](../monitoring/projects.j
 # From the dev-platform repo root
 ./scripts/fleet-install-template.sh --project <name>           # dry-run (default)
 ./scripts/fleet-install-template.sh --project <name> --apply   # write
-./scripts/fleet-install-template.sh --project <name> --apply --pin v0.7
+./scripts/fleet-install-template.sh --project <name> --apply --pin v1.26
 ```
 
 Functionally identical to the manual `curl` flow — same file, same target path. The helper just walks the registry so you don't repeat the project path each time. Per the v0.8 Scope-rule carve-out (see [CLAUDE.md](../CLAUDE.md) → "Exception — v0.8 fleet orchestration"), this is the ONLY write the fleet helper performs against your project; everything else in this guide stays manual.
@@ -89,6 +91,24 @@ When dev-platform cuts a new release (e.g., `v1.27`):
 dev-platform cuts a tag at every Roadmap Phase completion as a standard post-merge step (v1.26), so there is a pinnable release per phase.
 
 The release notes in dev-platform call out any changes to the taxonomy or check behavior — read them before bumping.
+
+## Keeping the pin current
+
+Doing the upgrade by hand every time is how pins go stale. Set it up once instead.
+
+**Let Dependabot open the PR.** Copy the `github-actions` block from [`extensions/github-actions/dependabot-consumer-template.yml`](../extensions/github-actions/dependabot-consumer-template.yml) into your repo's `.github/dependabot.yml`. That one block is what bumps the `uses:` pin; the pip / npm / gomod blocks in the template are independent and optional. Dependabot then opens a bump PR whenever dev-platform publishes a release.
+
+Of Rich's consumers, `kermit-pa`, `keystone` and `kermit-v3` have it. `kermit-harness`, `OPIE`, `SQRL` and `keystone_prototype` do not, and bump by hand (as of 2026-09-03).
+
+**A Dependabot PR still needs merging.** It opens the PR; nothing merges it. A repo can sit stale with the bump already waiting.
+
+**Dependabot can only move you to a tag that exists.** This is why every consumer stalled at `@v1.12`/`@v1.13` for twelve phases — tagging had stopped at v1.13, so there was nothing newer to bump to. Fixed in v1.26 by making the tag cut a mechanical post-merge step with `scripts/check-phase-tags.sh` as the backstop.
+
+**Bumping by hand** is the one-line `uses:` edit above, committed on a branch with a PR — see `kermit-harness` PR #380 for the shape.
+
+**Checking where you stand:** from a dev-platform checkout, `./scripts/fleet-pins.sh` reports every registered consumer's live pin, read from your repo's default branch, against the latest release. A row marked `⚠ local ≠ live` means the copy on that machine's disk is not the copy CI runs — almost always an uncommitted local edit to the workflow file. Trust the live column; that is the file GitHub Actions executes.
+
+**Do not bump a pin with `fleet-install-template.sh --force`.** It rewrites the whole template file, and consumer copies have diverged from it. That helper is for first-time adoption. Bumping is a one-line edit in your own repo.
 
 ## Local pre-flight
 

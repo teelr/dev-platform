@@ -8,7 +8,13 @@
 #   ./scripts/fleet-pins.sh --project atlas
 #   ./scripts/fleet-pins.sh --latest v0.8         # override latest-release lookup (tests)
 #   ./scripts/fleet-pins.sh --registry <path>     # override registry path (tests)
+#   ./scripts/fleet-pins.sh --source local        # local working copies only (offline)
+#   ./scripts/fleet-pins.sh --source github       # default-branch copies only
 #   ./scripts/fleet-pins.sh --help
+#
+# --source defaults to `both`: the live default-branch pin is what CI runs,
+# the local one is what's on this disk, and a mismatch between them is
+# reported as drift rather than quietly resolved (v1.27).
 
 set -euo pipefail
 

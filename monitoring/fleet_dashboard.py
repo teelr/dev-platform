@@ -37,6 +37,15 @@ TAXONOMY_CHECKER = REPO / "scripts" / "check_spec_taxonomy.sh"
 QUERY_TIMEOUT_S = 10
 BRANCH_TRUNCATE_LEN = 20
 
+# Registry entries' relative paths (`projects/<name>`) are written against the
+# MAIN checkout — `projects/` is gitignored, so it exists nowhere else. REPO is
+# the worktree when run from one, which is right for this repo's own files and
+# wrong for those. See scripts/lib/main_checkout.sh.
+sys.path.insert(0, str(REPO / "scripts" / "lib"))
+from main_checkout import main_checkout  # noqa: E402
+
+FLEET_ROOT = main_checkout(REPO)
+
 
 @dataclass
 class ProjectState:
@@ -74,7 +83,7 @@ def query_project(entry: dict) -> ProjectState:
     """Run all per-project queries against one registry entry."""
     name = entry["name"]
     path_raw = entry["path"]
-    target = (REPO if path_raw == "." else REPO / path_raw).resolve()
+    target = (REPO if path_raw == "." else FLEET_ROOT / path_raw).resolve()
 
     branch = "?"
     last_iso = None

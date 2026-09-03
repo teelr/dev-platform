@@ -117,6 +117,24 @@ command -v jq >/dev/null || { echo "ERROR: jq required" >&2; exit 2; }
 [[ -f "${SOURCE_TEMPLATE}" ]] || { echo "ERROR: source template not found at ${SOURCE_TEMPLATE}" >&2; exit 2; }
 [[ -n "${PROJECT}" ]] || { echo "ERROR: --project <name> is required" >&2; exit 2; }
 
+# Registry entries' relative paths (`projects/<name>`) resolve against the MAIN
+# checkout — `projects/` is gitignored, so it exists nowhere else. Without this
+# a worktree run would CREATE projects/<name>/.github/workflows/ inside the
+# worktree and write a template nobody's CI reads. REPO_ROOT stays the worktree
+# for this repo's own files. See scripts/lib/main_checkout.sh.
+#
+# Deliberately placed AFTER the required-tools gate above, not with the other
+# path assignments at the top. REPO_ROOT is built with `dirname`, an external
+# command, so under the tools-gate test's PATH=/tmp it comes out empty — and
+# sourcing from an empty REPO_ROOT then fails first and masks the jq error the
+# gate is there to report. Same trap the DEFAULT_PIN derivation documents below.
+# shellcheck source=lib/main_checkout.sh
+source "${REPO_ROOT}/scripts/lib/main_checkout.sh" || {
+    echo "ERROR: missing ${REPO_ROOT}/scripts/lib/main_checkout.sh" >&2
+    exit 2
+}
+FLEET_ROOT="$(resolve_main_checkout "${REPO_ROOT}")"
+
 # Resolve the project from the registry.
 match="$(jq --arg n "${PROJECT}" '.[] | select(.name == $n)' "${REGISTRY}")"
 if [[ -z "${match}" ]]; then
@@ -135,12 +153,12 @@ fi
 # Compute the target path. HARD-CODED to enforce the Scope-rule carve-out:
 # ONE filename in ONE directory, nowhere else. No flag, env var, or branch
 # can change this format. Registry entries may use either absolute paths
-# (used by tests via mktemp) or paths relative to REPO_ROOT (the
-# production convention — see monitoring/projects.json).
+# (used by tests via mktemp) or paths relative to FLEET_ROOT, the main
+# checkout (the production convention — see monitoring/projects.json).
 if [[ "${project_path}" == /* ]]; then
     target_dir="${project_path}/.github/workflows"
 else
-    target_dir="${REPO_ROOT}/${project_path}/.github/workflows"
+    target_dir="${FLEET_ROOT}/${project_path}/.github/workflows"
 fi
 target_path="${target_dir}/dev-platform-gate.yml"
 

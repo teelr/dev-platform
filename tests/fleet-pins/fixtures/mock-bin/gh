@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# tests/fleet-pins/fixtures/mock-bin/gh — mock `gh` for the fleet-pins live-read
+# assertions. Lives under fixtures/ so gate_fast.sh's suite auto-discovery never
+# runs it as a test (same contract as tests/phase-milestones/fixtures/mock-bin/gh).
+#
+# Driven by two env vars:
+#   MOCK_GH_FIXTURE    directory holding one file per mocked repo:
+#                        <owner>__<repo>.yml           → repo reachable, template
+#                                                        present with this content
+#                        <owner>__<repo>.absent        → repo reachable, no template
+#                        (neither present)             → repo unreachable (404)
+#   MOCK_GH_ARGS_FILE  optional; every invocation appends its argv here, so a
+#                      test can prove `--source local` made zero gh calls.
+#
+# Only the two call shapes fleet_pins.py makes are handled; anything else exits
+# 2 loudly rather than pretending to succeed, so a changed call site shows up as
+# a test failure instead of a silent pass.
+
+set -uo pipefail
+
+if [[ -n "${MOCK_GH_ARGS_FILE:-}" ]]; then
+    echo "$*" >> "${MOCK_GH_ARGS_FILE}"
+fi
+
+if [[ "${1:-}" != "api" ]]; then
+    echo "mock gh: unexpected subcommand: ${1:-<none>}" >&2
+    exit 2
+fi
+
+endpoint="${2:-}"
+fixture_dir="${MOCK_GH_FIXTURE:-}"
+
+# repos/<owner>/<repo>[/contents/<path>]
+if [[ "${endpoint}" =~ ^repos/([^/]+)/([^/]+)(/contents/.*)?$ ]]; then
+    owner="${BASH_REMATCH[1]}"
+    repo="${BASH_REMATCH[2]}"
+    contents="${BASH_REMATCH[3]:-}"
+else
+    echo "mock gh: unexpected endpoint: ${endpoint}" >&2
+    exit 2
+fi
+
+base="${fixture_dir}/${owner}__${repo}"
+
+# The repo probe: reachable when either fixture form exists.
+if [[ -z "${contents}" ]]; then
+    if [[ -f "${base}.yml" || -f "${base}.absent" ]]; then
+        echo "${owner}/${repo}"
+        exit 0
+    fi
+    echo "mock gh: Not Found (HTTP 404)" >&2
+    exit 1
+fi
+
+# The contents call: only the .yml form has a template to return.
+if [[ -f "${base}.yml" ]]; then
+    base64 -w 0 < "${base}.yml"
+    echo
+    exit 0
+fi
+
+echo "mock gh: Not Found (HTTP 404)" >&2
+exit 1
