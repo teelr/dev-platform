@@ -13,9 +13,11 @@
 # (best-effort: degrades to a non-blocking warning, never a false
 # failure, if gh/network access is unavailable).
 #
-# Pin to a specific tag (e.g., @v0.7) for stability — floating tags
+# Pin to a specific tag (e.g., @v1.26) for stability — floating tags
 # like @main break reproducibility. Bump the tag when dev-platform
-# cuts a new release. See docs/CI-INTEGRATION.md in dev-platform
+# cuts a new release. Worth bumping rather than leaving: @v0.7 runs
+# only check_spec_taxonomy.sh, so a project left on it never gets the
+# version-collision guard at all. See docs/CI-INTEGRATION.md in dev-platform
 # for the full adoption guide.
 #
 # The permissions: block below is REQUIRED, not optional. This calls a
@@ -41,4 +43,4 @@ permissions:
 
 jobs:
   taxonomy:
-    uses: teelr/dev-platform/.github/workflows/taxonomy-check.yml@v1.12
+    uses: teelr/dev-platform/.github/workflows/taxonomy-check.yml@v1.26

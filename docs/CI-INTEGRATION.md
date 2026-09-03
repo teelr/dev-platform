@@ -29,13 +29,15 @@ curl -fsSL \
 
 ### 2. Pin to a dev-platform release tag
 
-Open the file you just copied. The `uses:` line points at `@v0.7` — the dev-platform release the template was authored against. Bump to the latest dev-platform release tag at adoption time:
+Open the file you just copied. The `uses:` line points at the release the template currently defaults to. Bump to the latest dev-platform release tag at adoption time:
 
 ```yaml
 jobs:
   taxonomy:
-    uses: teelr/dev-platform/.github/workflows/taxonomy-check.yml@v0.7   # bump as needed
+    uses: teelr/dev-platform/.github/workflows/taxonomy-check.yml@v1.26   # bump as needed
 ```
+
+**Staying on an old pin costs you checks, silently.** `@v0.7`'s workflow runs only `check_spec_taxonomy.sh` — it does not include `check_version_collision.py`, which was added in v1.11 and fixed in v1.12 and v1.13. A repo pinned to `@v0.7` has never had version-collision detection on any PR, however long the guard has existed upstream.
 
 Available tags: see [dev-platform releases](https://github.com/teelr/dev-platform/releases). **Do not use `@main`** — floating tags break reproducibility (a future dev-platform change could break your gate without you ever editing your repo).
 
@@ -78,11 +80,13 @@ If red on adoption: read the failure output. The script prints the offending hea
 
 ## Upgrading
 
-When dev-platform cuts a new release (e.g., `v0.8`):
+When dev-platform cuts a new release (e.g., `v1.27`):
 
 1. Edit `.github/workflows/dev-platform-gate.yml` in your repo.
-2. Bump `@v0.7` → `@v0.8`.
+2. Bump the tag in the `uses:` line to the new release.
 3. Commit and push.
+
+dev-platform cuts a tag at every Roadmap Phase completion as a standard post-merge step (v1.26), so there is a pinnable release per phase.
 
 The release notes in dev-platform call out any changes to the taxonomy or check behavior — read them before bumping.
 

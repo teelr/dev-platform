@@ -30,6 +30,8 @@ Five-point checklist run when introducing a new file type in a glob-managed dire
 
 Tag a GitHub Release (`v0.6`, `v0.7`, etc.) at the merge commit that closes a [Roadmap Phase](#roadmap-phase). Done via `gh release create` with `--target` set to the merge commit SHA. v0.7's release tag cuts at Phase 4 completion (the last Spec Phase in the v0.7 Roadmap Phase).
 
+**This is automatic, not discretionary** (v1.26): it is a standard [Post-merge](#post-merge) sub-step alongside closing the milestone, with [scripts/check-phase-tags.sh](../scripts/check-phase-tags.sh) as the backstop. It was documented only here — a reference doc nobody executes from — and consequently stopped happening after v1.13. See [Release tag](#release-tag).
+
 ### Deploy
 
 Running `scripts/install.sh` to symlink tracked files from this repo into `~/.claude/`. The tracked file in the repo is the source of truth; `~/.claude/` is the deployment. Compare [Live cutover](#live-cutover) (the first deploy of a new artifact) and [Symlink deploy](#symlink-deploy) (the underlying mechanism).
@@ -89,6 +91,14 @@ The workflow step running deferred actions a Spec called out: branch-protection 
 ### PR (Pull Request)
 
 GitHub primitive that bundles a feature branch into a merge proposal against `main`. Opened with `gh pr create`. The PR boundary is where CI runs (via the [`gate-fast`](#gate-fast) workflow on every PR ref). Required for all merges to `main` under the branch protection live since v0.7 Phase 2's [Post-merge](#post-merge) Change 6.
+
+### PR number
+
+The `#92` in "PR #92" — assigned sequentially by GitHub, sharing one number space with issues, carrying no meaning about what shipped. It is **provenance, not a reference**: cite the [Roadmap Phase](#roadmap-phase) version and put the PR number in parentheses when the exact commit matters. `#325` on its own does not even say whether it is a PR or an issue. See the "Which Identifier To Cite" rule in [CLAUDE.md](../CLAUDE.md).
+
+### Release tag
+
+A git tag at the merge commit closing a [Roadmap Phase](#roadmap-phase), named exactly as the phase version. It carries the same string as the phase but is a different object: **the phase is the work, the tag is the artifact** — and the tag is the only one of the three identifiers a consumer can pin (`taxonomy-check.yml@v1.26`). Cut mechanically at [Post-merge](#post-merge), verified by [scripts/check-phase-tags.sh](../scripts/check-phase-tags.sh). Tagging previously depended on remembering and stopped after v1.13, leaving twelve phases unpinnable while every consumer stayed on `@v0.7`.
 
 ### Reusable workflow
 
