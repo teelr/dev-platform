@@ -33,6 +33,29 @@ record_skip() {
     _gate_log "SKIP"
 }
 
+# deploy_source_repo <this-suite's-REPO> — the repo path install.sh deploys FROM.
+#
+# Since v1.25 the live ~/.claude deployment always tracks the MAIN checkout:
+# install.sh, verify.sh and uninstall.sh all resolve there via git-common-dir,
+# whichever worktree invokes them. So a suite asserting on a symlink target must
+# compare against the main checkout, NOT against its own ${REPO}. Those are the
+# same path from the main checkout and different paths from a worktree — which
+# is why four suites passed on main and failed the first time the gate ran from
+# a worktree against a non-docs diff.
+#
+# One shared helper rather than four inline copies, per the Derivation Sweep
+# rule in CLAUDE.md. Falls back to the argument outside a git repo.
+deploy_source_repo() {
+    local self="$1" common common_abs
+    if common="$(cd "${self}" 2>/dev/null && git rev-parse --git-common-dir 2>/dev/null)"; then
+        if common_abs="$(cd "${self}" && cd "${common}" 2>/dev/null && pwd -P)"; then
+            dirname "${common_abs}"
+            return 0
+        fi
+    fi
+    printf '%s' "${self}"
+}
+
 # Assert command exits non-zero (for negative tests).
 assert_fails() {
     local description="$1"

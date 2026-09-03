@@ -15,6 +15,10 @@ REPO="$(cd "${HERE}/../.." && pwd)"
 source "${REPO}/tests/helpers/assert.sh"
 
 HOOK="${REPO}/shell/git-hooks/pre-commit"
+# The file under test stays at ${REPO} (this checkout's copy). The DEPLOYED
+# symlink target is different: since v1.25 install.sh always deploys from the
+# main checkout, so from a worktree the target is main's path, not ours.
+HOOK_DEPLOYED="$(deploy_source_repo "${REPO}")/shell/git-hooks/pre-commit"
 PASSING_FIXTURE="${HERE}/fixtures/passing-gate.sh"
 FAILING_FIXTURE="${HERE}/fixtures/failing-gate.sh"
 
@@ -116,8 +120,8 @@ test_install_integration() {
         return
     fi
     local resolved; resolved="$(readlink -f "${deployed}")"
-    if [[ "${resolved}" != "${HOOK}" ]]; then
-        record_fail "install git-hooks: symlink resolves to ${resolved}, expected ${HOOK}"
+    if [[ "${resolved}" != "${HOOK_DEPLOYED}" ]]; then
+        record_fail "install git-hooks: symlink resolves to ${resolved}, expected ${HOOK_DEPLOYED}"
         return
     fi
     record_pass "install git-hooks: symlink at ${deployed#${tmp}} → tracked source"

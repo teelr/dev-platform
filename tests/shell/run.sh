@@ -21,6 +21,12 @@ CC_SH="${REPO}/shell/profile.d/claude-tmux.sh"
 # shellcheck disable=SC1091
 source "${REPO}/tests/helpers/assert.sh"
 
+# Must come AFTER the source above — deploy_source_repo lives in assert.sh.
+# The file under test stays at ${REPO} (this checkout's copy); the DEPLOYED
+# symlink target is main's path, since v1.25 install.sh always deploys from the
+# main checkout whichever worktree invokes it.
+CC_SH_DEPLOYED="$(deploy_source_repo "${REPO}")/shell/profile.d/claude-tmux.sh"
+
 TMP="$(mktemp -d /tmp/r3-shell.XXX)"
 cleanup() {
     if [[ -d "${TMP}/tmux" ]]; then
@@ -353,7 +359,7 @@ FAKE="${TMP}/fakehome"
 mkdir -p "${FAKE}"
 if HOME="${FAKE}" bash "${REPO}/scripts/install.sh" shell >/dev/null 2>&1 \
     && [[ -L "${FAKE}/.claude/profile.d/claude-tmux.sh" ]] \
-    && [[ "$(readlink -f "${FAKE}/.claude/profile.d/claude-tmux.sh")" == "$(readlink -f "${CC_SH}")" ]]; then
+    && [[ "$(readlink -f "${FAKE}/.claude/profile.d/claude-tmux.sh")" == "$(readlink -f "${CC_SH_DEPLOYED}")" ]]; then
     record_pass "shell: install.sh shell symlinks into ~/.claude/profile.d/"
 else
     record_fail "shell: install.sh shell did not deploy the symlink"

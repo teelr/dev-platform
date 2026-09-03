@@ -52,8 +52,12 @@ Do this now, before exploring the codebase — this is the moment you've decided
      Then call the **`EnterWorktree`** tool with `name` set to `v<X.Y>/phase-1-<slug>`. It creates `.claude/worktrees/v<X.Y>/phase-1-<slug>` off `origin/<default>` and re-roots this session into it — do NOT run `git worktree add` by hand. Then link the project's heavy git-ignored deps:
 
      ```bash
-     bash "${HOME}/.claude/worktree/link-deps.sh" "${MAIN}" "$(pwd)"
+     bash ~/.claude/worktree/link-deps.sh "${MAIN}" "$(pwd)"
      ```
+
+   Use `~` rather than `"${HOME}"`: a worktree-isolated session's command guard
+   cannot statically verify a path built from a variable, so the `${HOME}` form is
+   refused outright ("too complex to verify") and the linking step never runs.
 
 5. If `$TMUX` is set (running inside a tmux session), rename the current window to the slug so the tab tracks the work:
 
