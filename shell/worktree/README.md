@@ -35,7 +35,21 @@ frontend/.next
 ## Files
 
 - **`link-deps.sh`** — `link-deps.sh <main-checkout-dir> <worktree-dir>` reads `<main>/.claude/worktree-deps` and symlinks each listed path into the worktree. `/code` runs this right after `EnterWorktree`.
-- **`gate-lock.sh`** — sourceable take-turns lock. A project's `scripts/gate_fast.sh` does `source ~/.claude/worktree/gate-lock.sh`, then wraps its backend stop/restart in `with_gate_lock <command>`. The lockfile lives in the shared git common dir, so all worktrees of one repo contend on the same lock. `flock` blocks (waits its turn); it does not fail fast.
+- **`gate-lock.sh`** — sourceable take-turns lock. A project's `scripts/gate_fast.sh` does `source ~/.claude/worktree/gate-lock.sh`, then takes the lock. The lockfile lives in the shared git common dir, so all worktrees of one repo contend on the same lock. `flock` blocks (waits its turn); it does not fail fast.
+
+  Three public functions:
+
+  | Function | Use |
+  | -------- | --- |
+  | `with_gate_lock <cmd> [args...]` | Wrap a single command. Runs in a subshell. |
+  | `gate_lock_acquire [label]` | Hold across a region — what a gate that stops a backend and runs tests against its ports needs. |
+  | `gate_lock_release` | Release. Safe to call without a prior acquire, and safe to repeat. |
+
+  **`fd 9` is reserved by this helper** — `gate_lock_acquire` uses `exec 9>` so the descriptor outlives the function, which is why it can't be a subshell like `with_gate_lock`. Callers must not use fd 9 for anything else.
+
+  Contention is announced on stderr, naming the holding pid and the wait duration; an uncontended acquire is silent, so the common single-session case adds no noise.
+
+  Two traps worth knowing before editing this file. Holder metadata lives in a **sibling** `gate.lock.holder` file, never in the lockfile: `9>` truncates at open, *before* `flock` runs, so a waiter opening the lockfile would erase the holder's stamp before it ever blocked. And that holder file is **advisory** — `flock` releases automatically when a holder dies, so the file can outlive its process; a recorded pid is a hint, never proof. Separately, never write `exec 9>"${lf}" 2>/dev/null`: `exec` with no command applies *every* redirection to the shell permanently, so that `2>/dev/null` silences the shell's stderr for the rest of the run.
 
 ## What does NOT go here
 
