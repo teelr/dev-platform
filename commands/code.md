@@ -137,6 +137,8 @@ Fix everything you find here before proceeding — do NOT defer it to `/review`.
 
 Update all project docs to reflect the completed work. This is mandatory — docs ship in the same commit as the code.
 
+**Same rule as `/plan` Step 5: every factual claim about external state names the command that verified it, or is written as an assumption.** This is where it matters most — the shipped record and the ROADMAP entry are the permanent record, and a spec's unverified claim becomes fleet-wide fact by being copied here. Numbers especially: re-run the command and paste what it prints; do not carry a count over from the spec, which may have been measured before the code changed.
+
 Read the current state of each doc before editing:
 
 ### tasks/shipped/ (or planning.md where the convention is absent)
