@@ -41,7 +41,8 @@
     "path": "projects/OPIE",
     "gate_cmd": "./scripts/gate_fast.sh",
     "primary_language": "typescript",
-    "enabled": true
+    "enabled": false,
+    "notes": "dormant since 2026-07-04, revivable — NOT deprecated (cf. atlas). Re-enable here before any fleet operation: fleet-pins/fleet-gate/check-migration-coverage skip disabled entries, and fleet-install-template refuses them outright. On revival, expect CI and disk to disagree: the default branch pins @v1.2 while the working tree holds an uncommitted @v1.12 template overwrite from a past `fleet-install-template.sh --force`. Tracking: teelr/OPIE#9 (pin bump, also needs dependabot.yml) and teelr/OPIE#10 (lessons migration, 5 entries)."
   },
   {
     "name": "SQRL",
