@@ -111,6 +111,8 @@ If `gh pr create` errors (e.g., milestone doesn't exist, branch protection rejec
 
 Print the PR URL returned by `gh pr create`. Tell the user the next step is `CI` (wait for green) → `merge` (or invoke `/merge`).
 
+Name the milestone by its title — you already have it from Step 3, which queried by title — and label the PR number with its type word: "opened `PR #98` against milestone `v1.28: Consumer Migration Formats`". Never a bare `#98`; issues and PRs share one number space. See "Which Identifier To Cite" in `CLAUDE.md`.
+
 **DO NOT** auto-trigger `/merge` or any CI monitoring. The user explicitly invokes the next step per the Workflow Step Discipline rule in `settings/claude-global.md`.
 
 ## Rules

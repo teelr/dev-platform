@@ -36,6 +36,8 @@ Do this now, before exploring the codebase — this is the moment you've decided
    ```
 
    This fetches `origin/main`'s `ROADMAP.md` AND every GitHub milestone (open + closed) to find the true highest-claimed minor version, creates the milestone for the next one, and retries forward if another session's milestone appears mid-claim. On success it prints `Claimed v<X.Y> — milestone #<N>: <title>` — parse `v<X.Y>` from that line and use it for the rest of this Step, the branch name, and the spec. **If the script exits non-zero** (no `gh` auth, repo detection failed, or 5 consecutive collisions), STOP and report the error verbatim — do NOT fall back to guessing a version number; that defeats the entire point of claiming it here. A brand-new spec always starts at Phase 1, so the branch name is `v<X.Y>/phase-1-<slug>` using the claimed version.
+
+   **When reporting the claim to the user, name the milestone by title** — "claimed v1.29: Identifier Descriptors" — rather than echoing the raw `milestone #<N>`, which is a sequential counter unrelated to the version and means nothing to a reader. Keep the number only if a later `gh api .../milestones/<N>` call in the same turn needs it. (The script prints the number because that is what the API returned; its output is not what changes here.)
 4. Pick the mode the same way `/code` does:
 
    ```bash
