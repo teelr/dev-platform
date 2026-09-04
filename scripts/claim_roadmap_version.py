@@ -34,6 +34,7 @@ from pathlib import Path
 # whatever project it is planning in.
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from repo_slug import parse_repo_slug  # noqa: E402
+from roadmap_path import roadmap_path as _roadmap_path  # noqa: E402
 
 _ROADMAP_VERSION_RE = re.compile(r"^(?:## |- \*\*)v(\d+)\.(\d+):", re.MULTILINE)
 _MILESTONE_VERSION_RE = re.compile(r"^v(\d+)\.(\d+):")
@@ -65,7 +66,7 @@ def _repo_slug() -> str:
 
 
 def _highest_minor_in_roadmap(major: int) -> int:
-    roadmap_path = os.environ.get("ROADMAP_PATH", "ROADMAP.md")
+    roadmap_path = _roadmap_path()
     _run(["git", "fetch", "origin", "main", "--quiet"])
     roadmap_text = _run(["git", "show", f"origin/main:{roadmap_path}"])
     highest = 0

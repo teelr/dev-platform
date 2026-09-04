@@ -136,7 +136,54 @@ while IFS= read -r -d '' f; do
         record_fail "JSON validity: ${f#${REPO}/}"
     fi
 done < <(find "${REPO}/settings" "${REPO}/scaffolding" -type f -name "*.json" -print0 2>/dev/null)
-[[ ${json_fail} -eq 0 ]] && record_pass "JSON validity (${json_pass} files)"
+if [[ ${json_fail} -eq 0 ]]; then
+    # Zero matches is a broken glob, not a clean repo — reporting PASS on it
+    # would be a check that validated nothing. Same guard as the YAML block
+    # below; added here in v1.31 after writing that one made the gap obvious.
+    if [[ ${json_pass} -eq 0 ]]; then
+        record_fail "JSON validity: 0 files matched — the glob is broken, not the JSON"
+    else
+        record_pass "JSON validity (${json_pass} files)"
+    fi
+fi
+
+# YAML validity — workflows + the consumer templates.
+# The gate validated every tracked .json and no .yml at all until v1.31, while
+# .github/workflows/taxonomy-check.yml is the highest-blast-radius file here:
+# every consumer's CI calls it, so a malformed edit breaks the whole fleet at
+# once. The file count is reported, like the JSON check's, so a glob that stops
+# matching is visible instead of passing silently on zero files.
+#
+# scaffolding/ is deliberately NOT scanned. Its docker-compose.yml files are
+# TEMPLATES carrying {{PROJECT_NAME}} placeholders, and `{{` opens a flow
+# mapping in YAML — so they are not parseable until new-project.sh substitutes
+# them, by design. Scanning them reported two failures against files that are
+# correct as written. Validating what they render to is a different check than
+# this one, and would need the substitution step to run first.
+if python3 -c "import yaml" 2>/dev/null; then
+    yaml_pass=0
+    yaml_fail=0
+    while IFS= read -r -d '' f; do
+        if python3 -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" "${f}" 2>/dev/null; then
+            yaml_pass=$((yaml_pass + 1))
+        else
+            yaml_fail=$((yaml_fail + 1))
+            record_fail "YAML validity: ${f#${REPO}/}"
+        fi
+    done < <(find \
+        "${REPO}/.github/workflows" \
+        "${REPO}/extensions/github-actions" \
+        -type f \( -name "*.yml" -o -name "*.yaml" \) -print0 2>/dev/null)
+    if [[ ${yaml_fail} -eq 0 ]]; then
+        if [[ ${yaml_pass} -eq 0 ]]; then
+            record_fail "YAML validity: 0 files matched — the glob is broken, not the YAML"
+        else
+            record_pass "YAML validity (${yaml_pass} files)"
+        fi
+    fi
+else
+    record_skip "YAML validity (pyyaml not installed)"
+fi
 
 # Secrets scan — literal passwords in tracked settings.json
 if grep -qE 'PGPASSWORD=[a-z]' "${REPO}/settings/settings.json" 2>/dev/null; then

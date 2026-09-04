@@ -48,6 +48,7 @@ from pathlib import Path
 # against their own checkout (see .github/workflows/taxonomy-check.yml).
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from repo_slug import parse_repo_slug  # noqa: E402
+from roadmap_path import roadmap_path as _roadmap_path  # noqa: E402
 
 _VERSION_HEADER_HEADING_RE = re.compile(r"^## (v(\d+)\.(\d+)): (.+?)\s*(?:—.*)?$", re.MULTILINE)
 _VERSION_HEADER_LIST_RE = re.compile(r"^- \*\*(v(\d+)\.(\d+)): (.+?)\*\*", re.MULTILINE)
@@ -96,7 +97,7 @@ def _repo_slug() -> str | None:
 
 
 def main(project_root: Path) -> int:
-    roadmap_path = os.environ.get("ROADMAP_PATH", "ROADMAP.md")
+    roadmap_path = _roadmap_path()
     roadmap = project_root / roadmap_path
     if not roadmap.exists():
         print(f"no {roadmap_path} — nothing to check")
