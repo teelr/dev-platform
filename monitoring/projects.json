@@ -66,6 +66,7 @@
     "gate_cmd": "./scripts/gate_fast.sh",
     "primary_language": "python",
     "enabled": true,
-    "notes": "consumer since v1.0; added to the registry in v1.27 — was pinning @v1.0, which predates check_version_collision.py"
+    "frozen": true,
+    "notes": "Deployed as a static nginx site (prod container keystone-prototype-web, /home/rich/prod/keystone_prototype); superseded by keystone. Last commit 2026-06-20, and it was the CI adoption itself, not feature work. Consumer since v1.0; added to the registry in v1.27 — was pinning @v1.0, which predates check_version_collision.py, and now will not move."
   }
 ]
