@@ -13,7 +13,7 @@
 # (best-effort: degrades to a non-blocking warning, never a false
 # failure, if gh/network access is unavailable).
 #
-# Pin to a specific tag (e.g., @v1.26) for stability — floating tags
+# Pin to a specific tag (e.g., @v1.31) for stability — floating tags
 # like @main break reproducibility. Bump the tag when dev-platform
 # cuts a new release. Worth bumping rather than leaving: the
 # version-collision guard was added to this workflow in v1.11, so any pin
@@ -43,4 +43,15 @@ permissions:
 
 jobs:
   taxonomy:
-    uses: teelr/dev-platform/.github/workflows/taxonomy-check.yml@v1.26
+    uses: teelr/dev-platform/.github/workflows/taxonomy-check.yml@v1.31
+    # Only needed if your Roadmap Phase entries are NOT at the repo root
+    # ROADMAP.md — point both checks at the real file. Requires @v1.31 or
+    # newer: passing this to an older pin makes the whole call fail at
+    # startup with an invalid-input error, before any check runs.
+    #
+    # Do NOT try to set ROADMAP_PATH as an `env:` entry on this job instead.
+    # A job that calls a reusable workflow does not accept `env:`, and
+    # caller-level env does not reach the called workflow. `with:` is the
+    # only channel.
+    # with:
+    #   roadmap_path: docs/roadmap.md

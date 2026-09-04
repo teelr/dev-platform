@@ -124,12 +124,52 @@ Exit 0 = clean. Exit 1 = at least one violation; the offending lines print to st
 ## Non-default roadmap location
 
 If your project's Roadmap Phase entries don't live at the repo-root
-`ROADMAP.md` (e.g. Keystone's live at `docs/roadmap.md`), set `ROADMAP_PATH`
-(relative to the repo root) — `check_version_collision.py`,
-`check_spec_taxonomy.sh`, and `claim_roadmap_version.py` all read it, falling
-back to `ROADMAP.md` when unset. Set it as a `env:` entry on the calling
-step/job in your `dev-platform-gate.yml`, or export it before running
-`/plan`/`gate_fast.sh` locally.
+`ROADMAP.md` (e.g. Keystone's live at `docs/roadmap.md`), tell the checks where
+the real file is. **The mechanism differs between CI and local runs**, and
+conflating the two is what made earlier versions of this section unfollowable.
+
+### In CI — the `roadmap_path` input
+
+Pass it to the reusable workflow. **Requires `@v1.31` or newer.**
+
+```yaml
+jobs:
+  taxonomy:
+    uses: teelr/dev-platform/.github/workflows/taxonomy-check.yml@v1.31
+    with:
+      roadmap_path: docs/roadmap.md
+```
+
+Both jobs receive it — `check_spec_taxonomy.sh` and `check_version_collision.py`
+are pointed at the same file, so they cannot disagree about which document is
+your roadmap.
+
+Two failure modes worth recognising, both probed against live GitHub:
+
+- **`with: roadmap_path:` on a pin older than `@v1.31`** — the input doesn't
+  exist there, so the call is rejected as a `startup_failure` before any check
+  runs. Bump the pin and the input together.
+- **`env: ROADMAP_PATH:` on the calling job** — *this does not work, and earlier
+  versions of this page wrongly recommended it.* A job that calls a reusable
+  workflow accepts only a restricted key set (`uses`, `with`, `secrets`,
+  `permissions`, `needs`, `if`, `name`, `strategy`, `concurrency`); `env` is not
+  among them, and caller-level `env` does not propagate into the called
+  workflow. GitHub rejects the file at workflow-validation time — the run
+  cannot even resolve its own `name:` and is reported by file path instead.
+  Use `with:`.
+
+### Locally — the `ROADMAP_PATH` env var
+
+For `/plan`, `gate_fast.sh`, and `check-phase-tags.sh` run from your own shell,
+export it:
+
+```bash
+export ROADMAP_PATH=docs/roadmap.md
+```
+
+`check_version_collision.py`, `check_spec_taxonomy.sh`,
+`claim_roadmap_version.py` and `check-phase-tags.sh` all read it, falling back
+to `ROADMAP.md` when unset or empty.
 
 **Do not symlink a root `ROADMAP.md` to your real file as a substitute.**
 `check_version_collision.py` and `claim_roadmap_version.py` both compare
@@ -156,7 +196,8 @@ Permanently: delete the file. If the check was a required status check in branch
 | Required check stuck in "Expected" state | Workflow ran on a prior commit but not the latest PR commit | Push an empty commit (`git commit --allow-empty -m "trigger CI"`) to re-trigger |
 | `version-collision` check fails with "COLLISION" | Your branch's `ROADMAP.md` claims a `v<X.Y>` that `origin/main` or a live GitHub milestone already uses under a different title | Renumber to a free version (see the check's own output for the specific collision), or if you're intentionally updating an existing Phase's title, make sure `ROADMAP.md` and the milestone agree |
 | `version-collision` check never appears at all — not even a red X, no run in the Actions tab | Missing `permissions:` block in your `dev-platform-gate.yml`. This is a cross-repo (often cross-org) reusable-workflow call — GitHub silently rejects it (`startup_failure`) unless the caller explicitly grants at least `contents: read` + `issues: read` | Add a top-level `permissions: { contents: read, issues: read }` block to your `dev-platform-gate.yml` (present in the template since 2026-08-12 — re-copy the template if yours predates that) |
-| Check reports "no ROADMAP.md — nothing to check" but you DO have a roadmap doc | It's not at the repo-root `ROADMAP.md` path the checks default to | Set `ROADMAP_PATH` (see "Non-default roadmap location" above) — do not symlink |
+| Check reports "no ROADMAP.md — nothing to check" but you DO have a roadmap doc | It's not at the repo-root `ROADMAP.md` path the checks default to | In CI, pass `with: roadmap_path:` (needs `@v1.31`+); locally, export `ROADMAP_PATH`. See "Non-default roadmap location" — do not symlink, and `env:` on the calling job does not work |
+| Whole call fails as `startup_failure` right after adding `with: roadmap_path:` | Your pin predates the input | Bump the pin to `@v1.31` or newer in the same commit that adds the input |
 
 ## See also
 

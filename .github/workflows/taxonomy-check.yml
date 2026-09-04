@@ -8,7 +8,22 @@
 #
 #   jobs:
 #     taxonomy:
-#       uses: teelr/dev-platform/.github/workflows/taxonomy-check.yml@v1.26
+#       uses: teelr/dev-platform/.github/workflows/taxonomy-check.yml@v1.31
+#
+# If the caller's roadmap is not at its repo root, point both checks at the
+# real file — requires @v1.31 or newer:
+#
+#   jobs:
+#     taxonomy:
+#       uses: teelr/dev-platform/.github/workflows/taxonomy-check.yml@v1.31
+#       with:
+#         roadmap_path: docs/roadmap.md
+#
+# Note for anyone reading older guidance: `env:` on a job that calls a reusable
+# workflow is NOT valid, and caller-level env does not propagate into the called
+# workflow. Probed on live GitHub (v1.31): a job with both `uses:` and `env:`
+# fails workflow validation outright — the run cannot even resolve its own
+# `name:` and is reported by file path. `with:` is the only channel.
 #
 # See extensions/github-actions/dev-platform-gate.yml for the
 # copy-paste consumer template, and docs/CI-INTEGRATION.md for
@@ -24,6 +39,19 @@ on:
         type: string
         required: false
         default: ''
+      roadmap_path:
+        description: 'Path to the roadmap file, relative to the caller repo root'
+        type: string
+        required: false
+        # MUST default to ROADMAP.md, never ''. The scripts read this as
+        # ROADMAP_PATH, and Python's os.environ.get() treats an empty string as
+        # a VALUE, not as unset (bash's ${VAR:-default} does not). Path(root)/""
+        # is the root DIRECTORY, which .exists() accepts and read_text() cannot
+        # read — so check_version_collision.py dies with IsADirectoryError and
+        # exits 1, which the version-collision step below renders as
+        # "::error::version collision detected". An empty default would hand
+        # that false failure to every consumer who does not set this input.
+        default: 'ROADMAP.md'
 
 jobs:
   taxonomy:
@@ -53,6 +81,8 @@ jobs:
           path: dev-platform
 
       - name: Run taxonomy check against caller's repo
+        env:
+          ROADMAP_PATH: ${{ inputs.roadmap_path }}
         run: bash dev-platform/scripts/check_spec_taxonomy.sh "${GITHUB_WORKSPACE}/caller"
 
   version-collision:
@@ -83,6 +113,7 @@ jobs:
         working-directory: caller
         env:
           GH_TOKEN: ${{ github.token }}
+          ROADMAP_PATH: ${{ inputs.roadmap_path }}
         run: |
           set +e
           python3 "${GITHUB_WORKSPACE}/dev-platform/scripts/check_version_collision.py" .
