@@ -115,6 +115,11 @@ class ProjectPin:
     # Non-default `gh` account that answered, or None for the active one.
     # Last, and defaulted: a defaulted field cannot precede a non-defaulted one.
     via_account: Optional[str] = None
+    # An open PR that would bump this pin, and the version it targets.
+    # "behind with a merge-ready PR waiting" is a different state from
+    # "behind with nothing in flight"; the pin column renders them the same.
+    open_bump_pr: Optional[int] = None
+    open_bump_to: Optional[str] = None
 
 
 def _run(cmd: list[str], cwd: Path, token: Optional[str] = None) -> tuple[int, str]:
@@ -237,6 +242,44 @@ def fetch_live_pin(slug: str, tokens: Optional[list[tuple[str, str]]] = None
         if rc == 0:
             return _read_template(slug, token) + (account,)
     return None, "unreachable", None
+
+
+BUMP_TITLE_RE = re.compile(r'taxonomy-check|dev-platform-gate', re.I)
+# "…from 1.12 to 1.13" (Dependabot) or "…@v1.12 -> @v1.26" (hand-written).
+BUMP_TARGET_RE = re.compile(r'(?:to|->|→)\s*@?v?(\d+\.\d+)', re.I)
+
+
+def fetch_open_bump(slug: str, token: Optional[str]) -> tuple[Optional[int], Optional[str]]:
+    """An open PR that would bump this consumer's pin, if one is waiting.
+
+    "17 behind with a merge-ready PR open" and "17 behind with nothing in
+    flight" are different situations that the pin column alone renders
+    identically. kermit-pa PR #176 and keystone PR #512 both sat open and
+    mergeable for 18 days without that distinction being visible anywhere.
+
+    Lists open PRs and filters by title rather than using the search API:
+    search is rate-limited and eventually-consistent, so a freshly opened PR
+    can be missing from it. Returns (number, target_version) — target is None
+    when the title names no version.
+    """
+    rc, out = _run(
+        ["gh", "api", f"repos/{slug}/pulls?state=open&per_page=100",
+         "--jq", '.[] | "\\(.number)|\\(.title)"'],
+        cwd=REPO, token=token,
+    )
+    if rc != 0 or not out:
+        return None, None
+
+    for line in out.split("\n"):
+        num, _, title = line.partition("|")
+        if not BUMP_TITLE_RE.search(title):
+            continue
+        m = BUMP_TARGET_RE.search(title)
+        try:
+            return int(num), (f"v{m.group(1)}" if m else None)
+        except ValueError:
+            return None, None
+    return None, None
 
 
 def _read_template(slug: str, token: Optional[str]) -> tuple[Optional[str], str]:
@@ -384,6 +427,8 @@ def query_project(entry: dict, latest: Optional[str], source: str = "both",
     live_pin: Optional[str] = None
     live_state = "skipped"
     via_account: Optional[str] = None
+    open_bump_pr: Optional[int] = None
+    open_bump_to: Optional[str] = None
     if source in ("github", "both"):
         slug = repo_slug_for(target)
         if slug is None:
@@ -392,6 +437,11 @@ def query_project(entry: dict, latest: Optional[str], source: str = "both",
             live_state = "skipped"
         else:
             live_pin, live_state, via_account = fetch_live_pin(slug, tokens)
+            # Only ask about open PRs for a repo we could actually reach —
+            # an unreachable repo would just 404 again for no information.
+            if live_state in ("ok", "absent"):
+                bump_token = dict(tokens or {}).get(via_account) if via_account else None
+                open_bump_pr, open_bump_to = fetch_open_bump(slug, bump_token)
 
     # Whenever GitHub answered — with a template OR with its absence — that
     # answer is authoritative, because it is what CI runs. "absent" therefore
@@ -436,6 +486,8 @@ def query_project(entry: dict, latest: Optional[str], source: str = "both",
         live_state=live_state,
         drift=drift,
         via_account=via_account,
+        open_bump_pr=open_bump_pr,
+        open_bump_to=open_bump_to,
     )
 
 
@@ -517,6 +569,9 @@ def render_markdown(pins: list[ProjectPin], registry_path: Path, latest: Optiona
     ]
     for p in pins:
         status_cell = format_status(p.status, p.minor_delta)
+        if p.open_bump_pr:
+            target = f" → {p.open_bump_to}" if p.open_bump_to else ""
+            status_cell += f" · PR #{p.open_bump_pr} open{target}"
         if p.drift:
             live_desc = p.live_pin if p.live_pin else "no template on the default branch"
             status_cell += f" ⚠ local ≠ live ({p.local_pin} vs {live_desc})"

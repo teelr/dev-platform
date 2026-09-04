@@ -53,6 +53,15 @@ fi
 endpoint="${2:-}"
 fixture_dir="${MOCK_GH_FIXTURE:-}"
 
+# repos/<owner>/<repo>/pulls?... — open bump PRs (v1.31). A
+# <owner>__<repo>.prs fixture holds one "number|title" per line, exactly what
+# the real --jq produces; absent means the repo has no open PRs.
+if [[ "${endpoint}" =~ ^repos/([^/]+)/([^/]+)/pulls ]]; then
+    prs="${fixture_dir}/${BASH_REMATCH[1]}__${BASH_REMATCH[2]}.prs"
+    [[ -f "${prs}" ]] && cat "${prs}"
+    exit 0
+fi
+
 # repos/<owner>/<repo>[/contents/<path>]
 if [[ "${endpoint}" =~ ^repos/([^/]+)/([^/]+)(/contents/.*)?$ ]]; then
     owner="${BASH_REMATCH[1]}"
