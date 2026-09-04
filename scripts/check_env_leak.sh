@@ -23,6 +23,12 @@
 # Exit code:
 #   0 — no leak pattern found in any project
 #   1 — at least one project has the leak pattern
+#   2 — nothing to scan: projects/ does not exist (CI runner, fresh clone).
+#       DISTINCT from 0 on purpose. projects/ is gitignored and lives only in
+#       the main checkout, so before v1.30 this script exited 0 with
+#       "Clean — 0 project(s) checked" from any worktree and on every CI
+#       runner. Wired into a gate, that is a check that reports success while
+#       reading nothing. gate_fast.sh maps 2 to SKIP.
 #
 # Usage:
 #   ./scripts/check_env_leak.sh                # scan all projects
@@ -31,7 +37,23 @@
 set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PROJECTS_DIR="${REPO}/projects"
+
+# projects/ is gitignored — it exists only in the MAIN checkout, never in a
+# worktree. Resolve against it so a worktree run scans the real projects
+# instead of silently finding none (v1.27's shared helper; same fix the fleet
+# scripts needed).
+# shellcheck source=lib/main_checkout.sh
+source "${REPO}/scripts/lib/main_checkout.sh" || {
+    echo "ERROR: missing ${REPO}/scripts/lib/main_checkout.sh" >&2
+    exit 2
+}
+FLEET_ROOT="$(resolve_main_checkout "${REPO}")"
+# Overridable so the leak-detected path can actually be exercised against a
+# fixture — the same convention as LESSONS_FILE / PLANNING_FILE / REGISTRY in
+# the other scripts here. Without it the only way to test a positive detection
+# would be to write a fake leak into a real project, which the Scope rule
+# forbids, so the FAIL branch would ship having never once fired.
+PROJECTS_DIR="${PROJECTS_DIR:-${FLEET_ROOT}/projects}"
 FILTER="${1:-}"
 ERRORS=0
 CHECKED=0
@@ -85,6 +107,15 @@ print(d.get('python.envFile', '\${workspaceFolder}/.env'))
 
     echo "  OK ${proj_name}"
 }
+
+# No projects/ at all means there is nothing to audit — a fresh clone or a CI
+# runner. Say so and exit 2 rather than falling through to the loop, whose
+# unexpanded glob would otherwise produce a confident "Clean" having read
+# nothing.
+if [[ ! -d "${PROJECTS_DIR}" ]]; then
+    echo "check_env_leak: no ${PROJECTS_DIR} — nothing to scan (fresh clone or CI runner)."
+    exit 2
+fi
 
 echo "Checking for app-API-key -> Claude Code leak (python.terminal.useEnvFile / terminal.integrated.env)..."
 if [[ -n "${FILTER}" ]]; then
