@@ -43,6 +43,7 @@ set -uo pipefail
 PLANNING_FILE="${PLANNING_FILE:-planning.md}"
 SHIPPED_DIR="${SHIPPED_DIR:-tasks/shipped}"
 APPLY=0
+FORMAT=""
 
 usage() {
     cat <<'USAGE'
@@ -59,6 +60,14 @@ USAGE
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --apply) APPLY=1; shift ;;
+        --format)
+            shift
+            [[ $# -eq 0 ]] && { echo "migrate-shipped: --format requires bullets|table|sections" >&2; exit 2; }
+            case "$1" in
+                bullets|table|sections) FORMAT="$1" ;;
+                *) echo "migrate-shipped: --format must be bullets|table|sections, got '$1'" >&2; exit 2 ;;
+            esac
+            shift ;;
         --help|-h) usage; exit 0 ;;
         *) echo "migrate-shipped: unknown argument: $1" >&2; usage >&2; exit 2 ;;
     esac
@@ -69,46 +78,82 @@ if [[ ! -f "${PLANNING_FILE}" ]]; then
     exit 1
 fi
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 PLANNING_FILE="${PLANNING_FILE}" SHIPPED_DIR="${SHIPPED_DIR}" APPLY="${APPLY}" \
+REPO_ROOT="${REPO_ROOT}" FORMAT="${FORMAT}" \
 python3 - <<'PY'
-import os, re, sys, unicodedata
+import os, re, sys
+
+# The format-independent half lives in scripts/lib/entry_split.py (v1.28), one
+# definition shared with migrate-lessons.sh. This block runs from stdin, so
+# there is no __file__ to resolve from — bash exports REPO_ROOT for it.
+sys.path.insert(0, os.path.join(os.environ["REPO_ROOT"], "scripts", "lib"))
+from entry_split import Entry, assign_filenames, report_and_abort, emit  # noqa: E402
 
 src    = os.environ["PLANNING_FILE"]
 out    = os.environ["SHIPPED_DIR"]
 apply_ = os.environ["APPLY"] == "1"
 
+fmt_arg = os.environ.get("FORMAT", "")
+
 DATE    = re.compile(r'\d{4}-\d{2}-\d{2}')
 PHASE   = re.compile(r'^- (v\d+\.\d+)\s+(.*)$')
 BULLET  = re.compile(r'^- (.*)$')
 
-def slugify(text, words=8):
-    text = re.sub(r'`[^`]*`', ' ', text)
-    text = unicodedata.normalize('NFKD', text)
-    text = text.encode('ascii', 'ignore').decode()
-    parts = re.findall(r'[A-Za-z0-9]+', text)[:words]
-    slug = '-'.join(p.lower() for p in parts)[:50].strip('-')
-    return slug or 'entry'
+# kermit's `## Recently shipped` holds a table, not bullets:
+#   | v4.120.0 | 2026-08-25 | MINOR: VectorBackend.flush — … |
+SHIPPED_ROW = re.compile(
+    r'^\|\s*(?P<version>v[\d.]+)\s*\|\s*(?P<date>\d{4}-\d{2}-\d{2})\s*\|\s*'
+    r'(?P<summary>.*?)\s*\|?\s*$'
+)
+# kermit-v3's planning.md is 182 of these instead of any Recently-shipped section:
+#   ## Ground Truth (2026-09-03, v0.197 Duplicate Upload Badge — ✅ COMPLETE, milestone #198)
+GROUND_TRUTH = re.compile(
+    r'^## Ground Truth \((?P<date>\d{4}-\d{2}-\d{2}),\s*(?P<rest>.+)\)\s*$'
+)
+GT_VERSION = re.compile(r'^(?P<version>v\d+\.\d+)\s*(?P<title>.*)$')
 
-def titleize(text, words=12):
-    plain = re.sub(r'\s+', ' ', text).strip()
-    toks = plain.split(' ')
-    if len(toks) <= words:
-        return plain.rstrip('.')
-    return ' '.join(toks[:words]).rstrip(',;:').rstrip('.') + '…'
-
-# Isolate the Recently-shipped section.
 lines = open(src, encoding='utf-8').read().split('\n')
-try:
-    start = next(i for i, l in enumerate(lines) if l.strip() == '## Recently shipped')
-except StopIteration:
-    print(f"migrate-shipped: no '## Recently shipped' section in {src} — nothing to migrate",
-          file=sys.stderr)
-    sys.exit(1)
-end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith('## ')), len(lines))
-section = lines[start + 1:end]
 
-phases, chores, preamble, errors = [], [], [], []
-for offset, line in enumerate(section):
+
+def detect():
+    """bullets | table (both inside `## Recently shipped`) | sections."""
+    if fmt_arg:
+        return fmt_arg
+    if any(GROUND_TRUTH.match(l) for l in lines):
+        return 'sections'
+    try:
+        s = next(i for i, l in enumerate(lines) if l.strip() == '## Recently shipped')
+    except StopIteration:
+        print(f"migrate-shipped: no '## Recently shipped' section in {src} — nothing to migrate",
+              file=sys.stderr)
+        sys.exit(1)
+    e = next((i for i in range(s + 1, len(lines)) if lines[i].startswith('## ')), len(lines))
+    body = lines[s + 1:e]
+    if any(SHIPPED_ROW.match(l) for l in body):
+        return 'table'
+    return 'bullets'
+
+
+fmt = detect()
+
+if fmt in ('bullets', 'table'):
+    # Isolate the Recently-shipped section.
+    try:
+        start = next(i for i, l in enumerate(lines) if l.strip() == '## Recently shipped')
+    except StopIteration:
+        print(f"migrate-shipped: no '## Recently shipped' section in {src} — nothing to migrate",
+              file=sys.stderr)
+        sys.exit(1)
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith('## ')), len(lines))
+    section = lines[start + 1:end]
+else:
+    start, section = 0, []
+
+phases, chores, preamble, errors, skipped = [], [], [], [], []
+
+for offset, line in enumerate(section if fmt == 'bullets' else []):
     lineno = start + 2 + offset          # 1-based line number in the file
     if not line.strip():
         continue
@@ -129,52 +174,110 @@ for offset, line in enumerate(section):
         if not dm:
             errors.append((lineno, "chore bullet has no YYYY-MM-DD date", line))
             continue
-        chores.append((dm.group(0), m.group(1)))
+        # (date, title_source, body). For a bullet the two are the same text,
+        # which keeps this path byte-identical to the pre-v1.28 script; a
+        # section's differ (see the sections parser).
+        chores.append((dm.group(0), m.group(1), m.group(1)))
         continue
     # Non-bullet, non-blank: exactly one preamble line is expected.
     preamble.append(line)
     if len(preamble) > 1:
         errors.append((lineno, "second non-bullet line — not the known preamble", line))
 
-if errors:
-    for lineno, why, line in errors:
-        print(f"migrate-shipped: UNPARSEABLE at line {lineno} ({why}):", file=sys.stderr)
-        print(f"  {line[:160]}", file=sys.stderr)
-    print(f"migrate-shipped: aborting, {len(errors)} problem(s) — nothing written",
-          file=sys.stderr)
-    sys.exit(1)
+if fmt == 'table':
+    # kermit's shape: | version | date | summary | rows under the same heading.
+    for offset, line in enumerate(section):
+        lineno = start + 2 + offset
+        if not line.strip() or not line.lstrip().startswith('|'):
+            continue
+        if re.match(r'^\|\s*(Version|-+)\s*\|', line):        # header / separator
+            continue
+        m = SHIPPED_ROW.match(line)
+        if not m:
+            errors.append((lineno, "table row is not | version | date | summary |", line))
+            continue
+        phases.append((m['date'], m['version'], m['summary'], line.strip()))
 
-# Plan filenames, resolving collisions rather than overwriting.
-taken, planned = set(), []
-for date, version, title_src, body in phases:
-    base = f"{date}-{version}-{slugify(title_src)}"
-    name, n = f"{base}.md", 1
-    while name in taken:
-        n += 1
-        name = f"{base}-{n}.md"
-    taken.add(name)
-    planned.append((name, titleize(f"{version} {title_src}"), body))
-for date, body in chores:
-    base = f"{date}-{slugify(body)}"
-    name, n = f"{base}.md", 1
-    while name in taken:
-        n += 1
-        name = f"{base}-{n}.md"
-    taken.add(name)
-    planned.append((name, titleize(body), body))
+if fmt == 'sections':
+    # kermit-v3's shape: one `## Ground Truth (...)` block per shipped phase,
+    # body running to the next `## `.
+    cur, cur_body = None, []
 
-if not apply_:
-    print(f"migrate-shipped: DRY RUN — {len(phases)} phase + {len(chores)} chore "
-          f"entr{'y' if len(phases)+len(chores)==1 else 'ies'} would become "
-          f"{len(planned)} file(s) in {out}/")
-    print("migrate-shipped: re-run with --apply to write them")
-    sys.exit(0)
+    def close_section():
+        if cur is None:
+            return
+        date, rest, head = cur
+        body = '\n'.join([head] + cur_body).rstrip()
+        vm = GT_VERSION.match(rest)
+        if vm:
+            # Keep the qualifier ("Spec Phase 6", "follow-up") in the slug:
+            # kermit-v3 ships seven sections for v0.175 alone, and a bare
+            # version key would make seven indistinguishable filenames.
+            phases.append((date, vm['version'], vm['title'].strip(' —-') or rest, body))
+        else:
+            # Title/slug from the heading's own descriptive text, NOT the whole
+            # body — the body starts with the literal "## Ground Truth (<date>,"
+            # line, which slugged to filenames like
+            # 2026-09-03-ground-truth-2026-09-03-chores-exact-harness.md.
+            chores.append((date, rest, body))
 
-os.makedirs(out, exist_ok=True)
-for name, title, body in planned:
-    with open(os.path.join(out, name), 'w', encoding='utf-8') as fh:
-        fh.write(f"# {title}\n\n{body}\n")
+    for lineno, line in enumerate(lines, 1):
+        if line.startswith('## '):
+            close_section()
+            cur, cur_body = None, []
+            m = GROUND_TRUTH.match(line)
+            if m:
+                cur = (m['date'], m['rest'], line)
+            else:
+                # A non-Ground-Truth `## ` is ordinary planning.md prose, not a
+                # shipped entry, so this does NOT abort the way an unrecognised
+                # heading does in migrate-lessons — planning.md legitimately
+                # carries narrative sections. But it is never dropped SILENTLY:
+                # kermit-v3 has four, including two `## Incident (...)` blocks
+                # that are substantive records someone must decide about by
+                # hand. Listed in the output, both dry-run and apply.
+                skipped.append(line.strip())
+            continue
+        if cur is not None:
+            cur_body.append(line)
+    close_section()
 
-print(f"migrate-shipped: wrote {len(planned)} file(s) to {out}/ "
-      f"({len(phases)} phase, {len(chores)} chore)")
+report_and_abort(errors, "migrate-shipped")
+
+# Phases title as "v<X.Y> <Title>" but slug on <Title> alone — the two sources
+# differ, which is why Entry carries slug_source separately.
+entries = [Entry(date=date, title_source=f"{version} {title_src}", body=body,
+                 version=version, slug_source=title_src)
+           for date, version, title_src, body in phases]
+entries += [Entry(date=date, title_source=title_src, body=body)
+            for date, title_src, body in chores]
+planned, collisions = assign_filenames(entries, fallback="entry")
+
+notes = [f"format: {fmt} ({len(phases)} phase, {len(chores)} chore)"]
+
+if skipped:
+    notes.append(f"{len(skipped)} `## ` section(s) NOT migrated — not shipped "
+                 "entries. Move anything here by hand if it belongs:")
+    notes += [f"    {h}" for h in skipped]
+
+# Repeated versions are NORMAL here and must not read as damage: kermit-v3
+# ships one section per Spec Phase, seven for v0.175 alone. Say so, so the
+# collision count below is not mistaken for corruption.
+repeats = {}
+for _d, v, _t, _b in phases:
+    repeats[v] = repeats.get(v, 0) + 1
+many = sorted((v for v, c in repeats.items() if c > 1),
+              key=lambda s: [int(x) for x in s[1:].split('.')])
+if many:
+    notes.append(f"{len(many)} version(s) ship more than one section "
+                 f"(normal — one per Spec Phase): "
+                 + ", ".join(f"{v}×{repeats[v]}" for v in many[:6])
+                 + (" …" if len(many) > 6 else ""))
+
+n = len(phases) + len(chores)
+emit(planned, out, apply_, "migrate-shipped",
+     summary=f"{len(phases)} phase + {len(chores)} chore "
+             f"entr{'y' if n == 1 else 'ies'}",
+     collisions=collisions, notes=notes,
+     apply_summary=f"{len(phases)} phase, {len(chores)} chore")
 PY

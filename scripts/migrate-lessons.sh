@@ -42,22 +42,68 @@ set -uo pipefail
 LESSONS_FILE="${LESSONS_FILE:-tasks/lessons.md}"
 LESSONS_DIR="${LESSONS_DIR:-tasks/lessons}"
 APPLY=0
+FORMAT=""
+DATE_FROM=""
+IGNORE_HEADINGS=""
 
 usage() {
     cat <<'USAGE'
-migrate-lessons.sh — split a lessons.md table into one file per lesson
+migrate-lessons.sh — split a lessons.md into one file per lesson
 
   ./scripts/migrate-lessons.sh            dry-run (default): report, write nothing
   ./scripts/migrate-lessons.sh --apply    write tasks/lessons/<date>-<slug>.md
   ./scripts/migrate-lessons.sh --help     this text
 
+Formats (auto-detected; ambiguity aborts rather than guessing):
+  table       | Date | Lesson | Project | Status |   (dev-platform's own)
+  numbered    ## L12 — title                        (kermit-pa, keystone, OPIE,
+                                                     SQRL, kermit-v3)
+  dated       ## Title (2026-03-30)                 (keystone_prototype)
+
+  --format <table|numbered|dated>   force a parser instead of detecting
+
+The numbered format carries no per-entry date, so one is required:
+  --date-from git          date each entry from the commit that introduced it
+  --date-from today        stamp every entry with today's date
+  --date-from 2026-09-03   stamp every entry with an explicit date
+
+  --ignore-heading <regex>  (repeatable) treat a matching `## ` line as a
+                            structural container, not a lesson. Needed where
+                            lessons sit under category headings at the same
+                            level — SQRL groups its 30 lessons under 8 of them.
+                            Every ignored heading is listed in the output.
+
 Env: LESSONS_FILE (default tasks/lessons.md), LESSONS_DIR (default tasks/lessons)
+
+Examples:
+  # kermit-v3: 205 numbered lessons, dated from git history
+  LESSONS_FILE=tasks/lessons.md ./scripts/migrate-lessons.sh --date-from git
+
+  # SQRL: 30 lessons under 8 category headings
+  ./scripts/migrate-lessons.sh --date-from today \
+      --ignore-heading '^## (Sails|Schema|Billing|Data|Verification|Frontend|Infrastructure|Retired)'
 USAGE
 }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --apply) APPLY=1; shift ;;
+        --format)
+            shift
+            [[ $# -eq 0 ]] && { echo "migrate-lessons: --format requires table|numbered|dated" >&2; exit 2; }
+            case "$1" in
+                table|numbered|dated) FORMAT="$1" ;;
+                *) echo "migrate-lessons: --format must be table|numbered|dated, got '$1'" >&2; exit 2 ;;
+            esac
+            shift ;;
+        --date-from)
+            shift
+            [[ $# -eq 0 ]] && { echo "migrate-lessons: --date-from requires git|today|<YYYY-MM-DD>" >&2; exit 2; }
+            DATE_FROM="$1"; shift ;;
+        --ignore-heading)
+            shift
+            [[ $# -eq 0 ]] && { echo "migrate-lessons: --ignore-heading requires a regex" >&2; exit 2; }
+            IGNORE_HEADINGS+="$1"$'\n'; shift ;;
         --help|-h) usage; exit 0 ;;
         *) echo "migrate-lessons: unknown argument: $1" >&2; usage >&2; exit 2 ;;
     esac
@@ -70,13 +116,31 @@ fi
 
 # python3 does the parsing: bash regex cannot express the both-ends-anchored,
 # greedy-middle pattern this needs without mangling the pipe-bearing rows.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 LESSONS_FILE="${LESSONS_FILE}" LESSONS_DIR="${LESSONS_DIR}" APPLY="${APPLY}" \
+REPO_ROOT="${REPO_ROOT}" FORMAT="${FORMAT}" DATE_FROM="${DATE_FROM}" \
+IGNORE_HEADINGS="${IGNORE_HEADINGS}" \
 python3 - <<'PY'
-import os, re, sys, unicodedata
+import os, re, sys
+from datetime import date as _date
+
+TODAY = _date.today().isoformat()
+
+# The format-independent half lives in scripts/lib/entry_split.py (v1.28), one
+# definition shared with migrate-shipped.sh. This block runs from stdin, so
+# there is no __file__ to resolve from — bash exports REPO_ROOT for it.
+sys.path.insert(0, os.path.join(os.environ["REPO_ROOT"], "scripts", "lib"))
+from entry_split import Entry, assign_filenames, report_and_abort, emit  # noqa: E402
 
 src   = os.environ["LESSONS_FILE"]
 out   = os.environ["LESSONS_DIR"]
 apply_= os.environ["APPLY"] == "1"
+
+fmt_arg    = os.environ.get("FORMAT", "")
+date_from  = os.environ.get("DATE_FROM", "")
+ignore_res = [re.compile(p) for p in
+              os.environ.get("IGNORE_HEADINGS", "").split("\n") if p]
 
 # Only the outer columns are pipe-free; the lesson body is greedy so embedded
 # pipes inside backticks survive intact.
@@ -86,26 +150,55 @@ ROW = re.compile(
 )
 DATE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 
-def slugify(text, words=8):
-    text = re.sub(r'`[^`]*`', ' ', text)          # code spans make poor slugs
-    text = unicodedata.normalize('NFKD', text)
-    text = text.encode('ascii', 'ignore').decode()
-    parts = re.findall(r'[A-Za-z0-9]+', text)[:words]
-    slug = '-'.join(p.lower() for p in parts)[:50].strip('-')
-    return slug or 'lesson'
+# `## L12 — title`. Em dash, en dash and plain hyphen all appear across
+# consumers (kermit-v3 and SQRL use —); do not assume one.
+NUMBERED = re.compile(r'^## L(?P<num>\d+)\s*[—–-]\s*(?P<title>.+?)\s*$')
+# `## Title (2026-03-30)` — keystone_prototype's shape, date already present.
+DATED    = re.compile(r'^## (?P<title>.+?)\s*\((?P<date>\d{4}-\d{2}-\d{2})\)\s*$')
 
-def titleize(text, words=12):
-    """Cosmetic only. The full lesson always goes in the body regardless."""
-    plain = re.sub(r'\s+', ' ', text).strip()
-    toks = plain.split(' ')
-    if len(toks) <= words:
-        return plain.rstrip('.')
-    return ' '.join(toks[:words]).rstrip(',;:').rstrip('.') + '…'
+lines = open(src, encoding='utf-8').read().split('\n')
 
-rows, errors = [], []
-with open(src, encoding='utf-8') as fh:
-    for lineno, line in enumerate(fh, 1):
-        line = line.rstrip('\n')
+
+def detect():
+    """Pick a parser. Heading formats win over the table whenever they appear.
+
+    NOT a raw count comparison. A heading-format file routinely contains
+    markdown tables *inside* lesson bodies — SQRL's has a 60-row "Retired Index"
+    mapping table, which outnumbers its 30 lesson headings and made an earlier
+    count-based version pick 'table' and then abort on all 60 rows. The reverse
+    never happens: a table-format file's rows are its entries, and a `## L<N>`
+    heading in one would not be a table row. So any entry heading at all means
+    the file is heading-format, and the table parser is the fallback.
+    """
+    numbered = sum(1 for l in lines if NUMBERED.match(l))
+    dated    = sum(1 for l in lines if DATED.match(l))
+    table    = sum(1 for l in lines
+                   if l.startswith('| ')
+                   and not re.match(r'^\|\s*(Date|-+)\s*\|', l))
+
+    if numbered or dated:
+        # Both heading shapes present in quantity is genuine ambiguity — that is
+        # when a human chooses, not a heuristic.
+        if numbered and dated and min(numbered, dated) > max(numbered, dated) // 4:
+            print(f"migrate-lessons: ambiguous format — numbered={numbered}, "
+                  f"dated={dated}. Pass --format numbered|dated.", file=sys.stderr)
+            sys.exit(1)
+        return 'numbered' if numbered >= dated else 'dated'
+
+    if table:
+        return 'table'
+
+    print("migrate-lessons: no lessons found in any known format "
+          f"(table/numbered/dated) in {src}", file=sys.stderr)
+    sys.exit(1)
+
+
+fmt = fmt_arg or detect()
+
+
+def parse_table():
+    rows, errors = [], []
+    for lineno, line in enumerate(lines, 1):
         if not line.startswith('| '):
             continue
         if re.match(r'^\|\s*(Date|-+)\s*\|', line):      # header / separator
@@ -114,40 +207,117 @@ with open(src, encoding='utf-8') as fh:
         if not m or not DATE.match(m['date']):
             errors.append((lineno, line))
             continue
-        rows.append((m['date'], m['lesson']))
+        rows.append(Entry(date=m['date'], title_source=m['lesson'],
+                          body=m['lesson']))
+    return rows, errors, []
 
-if errors:
-    for lineno, line in errors:
-        print(f"migrate-lessons: UNPARSEABLE row at line {lineno}:", file=sys.stderr)
-        print(f"  {line[:160]}", file=sys.stderr)
-    print(f"migrate-lessons: aborting, {len(errors)} row(s) unparseable — "
-          "nothing written", file=sys.stderr)
-    sys.exit(1)
 
-# Assign filenames, resolving collisions rather than overwriting.
-taken, planned, collisions = set(), [], 0
-for date, lesson in rows:
-    base = f"{date}-{slugify(lesson)}"
-    name, n = f"{base}.md", 1
-    while name in taken:
-        n += 1
-        name = f"{base}-{n}.md"
-        collisions += 1
-    taken.add(name)
-    planned.append((name, lesson))
+def parse_headings(pattern, dated):
+    """Split on a specific `## ` pattern; everything to the next `## ` is body.
 
-if not apply_:
-    print(f"migrate-lessons: DRY RUN — {len(planned)} row(s) would become "
-          f"{len(planned)} file(s) in {out}/")
-    print("migrate-lessons: re-run with --apply to write them")
-    sys.exit(0)
+    A `## ` line matching neither the pattern nor an --ignore-heading regex
+    ABORTS. That is what stops SQRL's 8 category headings from silently
+    becoming 8 lessons.
+    """
+    out_entries, errors, ignored = [], [], []
+    cur_head, cur_body = None, []
 
-os.makedirs(out, exist_ok=True)
-for name, lesson in planned:
-    with open(os.path.join(out, name), 'w', encoding='utf-8') as fh:
-        fh.write(f"# {titleize(lesson)}\n\n{lesson}\n")
+    def close():
+        if cur_head is None:
+            return
+        m = pattern.match(cur_head)
+        body = '\n'.join([cur_head] + cur_body).rstrip()
+        out_entries.append(Entry(
+            date=m.group('date') if dated else None,
+            title_source=m.group('title'),
+            body=body,
+        ))
 
-print(f"migrate-lessons: wrote {len(planned)} file(s) to {out}/")
-if collisions:
-    print(f"migrate-lessons: {collisions} filename collision(s) resolved with a numeric suffix")
+    for lineno, line in enumerate(lines, 1):
+        if line.startswith('## '):
+            close()
+            cur_head, cur_body = None, []
+            if pattern.match(line):
+                cur_head = line
+            elif any(r.search(line) for r in ignore_res):
+                ignored.append(line.strip())
+            else:
+                errors.append((lineno, line))
+            continue
+        if cur_head is not None:
+            cur_body.append(line)
+    close()
+    return out_entries, errors, ignored
+
+
+if fmt == 'table':
+    entries, errors, ignored = parse_table()
+elif fmt == 'numbered':
+    entries, errors, ignored = parse_headings(NUMBERED, dated=False)
+else:
+    entries, errors, ignored = parse_headings(DATED, dated=True)
+
+report_and_abort(errors, "migrate-lessons",
+                 line_label="UNPARSEABLE row at",
+                 summary_noun="row(s) unparseable")
+
+notes = [f"format: {fmt} ({len(entries)} entries)"]
+if ignored:
+    notes.append(f"{len(ignored)} heading(s) ignored per --ignore-heading:")
+    notes += [f"    {h}" for h in ignored]
+
+# The numbered format carries no date. Refuse to guess one.
+if any(e.date is None for e in entries):
+    if not date_from:
+        print("migrate-lessons: this format has no per-entry date — pass "
+              "--date-from git|today|<YYYY-MM-DD>", file=sys.stderr)
+        sys.exit(1)
+    if date_from == 'git':
+        import subprocess
+        repo_dir = os.path.dirname(os.path.abspath(src)) or '.'
+        missed = 0
+        for e in entries:
+            head = e.body.split('\n', 1)[0]
+            r = subprocess.run(
+                ['git', 'log', '--diff-filter=A', '-S', head, '--reverse',
+                 '--format=%ad', '--date=short', '--', os.path.abspath(src)],
+                cwd=repo_dir, capture_output=True, text=True)
+            first = r.stdout.strip().split('\n')[0] if r.stdout.strip() else ''
+            if DATE.match(first):
+                e.date = first
+            else:
+                e.date = TODAY
+                missed += 1
+        if missed:
+            notes.append(f"WARNING: {missed} entr{'y' if missed == 1 else 'ies'} "
+                         f"had no introducing commit — dated {TODAY}")
+    elif date_from == 'today':
+        for e in entries:
+            e.date = TODAY
+    elif DATE.match(date_from):
+        for e in entries:
+            e.date = date_from
+    else:
+        print(f"migrate-lessons: --date-from must be git|today|<YYYY-MM-DD>, "
+              f"got '{date_from}'", file=sys.stderr)
+        sys.exit(2)
+elif date_from:
+    print(f"migrate-lessons: --date-from is meaningless for the '{fmt}' format "
+          "— every entry already carries its own date", file=sys.stderr)
+    sys.exit(2)
+
+planned, collisions = assign_filenames(entries, fallback="lesson")
+
+# Duplicate L-numbers are real corruption worth surfacing, not an error: two
+# sessions each appended what they thought was the next number. kermit-v3 has
+# six such pairs. The number is not the filename key, so they migrate fine.
+if fmt == 'numbered':
+    nums = [NUMBERED.match(e.body.split('\n', 1)[0]).group('num') for e in entries]
+    dupes = sorted({n for n in nums if nums.count(n) > 1}, key=int)
+    if dupes:
+        notes.append(f"{len(dupes)} duplicate L-number(s) found, migrating as "
+                     f"distinct files: {', '.join('L' + d for d in dupes)}")
+
+emit(planned, out, apply_, "migrate-lessons",
+     summary=f"{len(planned)} row(s)", collisions=collisions, notes=notes)
 PY
