@@ -1,0 +1,23 @@
+[
+  {
+    "name": "active-1",
+    "path": "tests/frozen-state/fixtures/mock-projects/active-1",
+    "gate_cmd": "./gate.sh",
+    "primary_language": "bash",
+    "enabled": true
+  },
+  {
+    "name": "frozen-1",
+    "path": "tests/frozen-state/fixtures/mock-projects/frozen-1",
+    "gate_cmd": "./gate.sh",
+    "primary_language": "bash",
+    "enabled": true
+  },
+  {
+    "name": "disabled-1",
+    "path": "tests/frozen-state/fixtures/mock-projects/disabled-1",
+    "gate_cmd": "./gate.sh",
+    "primary_language": "bash",
+    "enabled": false
+  }
+]

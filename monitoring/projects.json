@@ -28,7 +28,8 @@
     "gate_cmd": "./scripts/gate.sh fast",
     "primary_language": "python",
     "enabled": true,
-    "notes": "DEPLOYED BUT FROZEN as of 2026-09-04 — still running in production, no further development; kermit-v3 supersedes it (last feature work 2026-07-27). Deliberately left enabled, unlike OPIE: fleet-gate sweeps its test suite, which is the signal worth keeping on something in prod. Its pin will therefore sit permanently behind and that is expected, not drift to chase — dev-platform-gate only fires on PRs, and a frozen repo raises none, so bumping the pin would update a check with nothing left to check. Pin-bump and lessons-migration asks closed as moot (teelr/kermit-pa#178, #179), along with the stale Dependabot PR #176. Re-file if development resumes."
+    "frozen": true,
+    "notes": "Superseded by kermit-v3 as of 2026-09-04; last feature work 2026-07-27. Pin-bump and lessons-migration asks closed as moot (teelr/kermit-pa#178, teelr/kermit-pa#179), along with the stale Dependabot PR teelr/kermit-pa#176. Re-file if development resumes."
   },
   {
     "name": "keystone",

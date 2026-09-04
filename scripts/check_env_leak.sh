@@ -25,7 +25,7 @@
 #   1 — at least one project has the leak pattern
 #   2 — nothing to scan: projects/ does not exist (CI runner, fresh clone).
 #       DISTINCT from 0 on purpose. projects/ is gitignored and lives only in
-#       the main checkout, so before v1.30 this script exited 0 with
+#       the main checkout, so before PR #101 this script exited 0 with
 #       "Clean — 0 project(s) checked" from any worktree and on every CI
 #       runner. Wired into a gate, that is a check that reports success while
 #       reading nothing. gate_fast.sh maps 2 to SKIP.

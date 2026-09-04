@@ -169,6 +169,24 @@ mapfile -t entries < <(jq -c '.[] | select(.enabled == true) | select(.name != "
 for entry in "${entries[@]}"; do
     name="$(echo "${entry}" | jq -r '.name')"
     [[ -n "${SINGLE_PROJECT}" && "${name}" != "${SINGLE_PROJECT}" ]] && continue
+
+    # A frozen project is deployed but not developed. This check asks whether
+    # the lessons/shipped migrations CAN run — a convention that exists to stop
+    # FUTURE concurrent appends colliding in one file. A frozen repo gets no
+    # future appends, so migrating it would be reorganising a file nobody will
+    # write to again.
+    #
+    # The row is still printed, reading FROZEN, rather than the project quietly
+    # dropping out of the table: an unexplained absence is indistinguishable
+    # from a broken filter. Named explicitly with --project, it still runs —
+    # an explicit request is not a sweep.
+    frozen="$(echo "${entry}" | jq -r '.frozen // false')"
+    if [[ "${frozen}" == "true" && -z "${SINGLE_PROJECT}" ]]; then
+        ROWS+="$(printf '| %-20s | %-34s | %-34s |' \
+            "${name}" "FROZEN (skipped)" "FROZEN (skipped)")"$'\n'
+        continue
+    fi
+
     path_raw="$(echo "${entry}" | jq -r '.path')"
     if [[ "${path_raw}" == /* ]]; then target="${path_raw}"; else target="${FLEET_ROOT}/${path_raw}"; fi
 

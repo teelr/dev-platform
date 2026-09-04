@@ -20,7 +20,8 @@
 #
 # Exit codes:
 #   0 — dry-run completed, OR --apply wrote the file successfully
-#   1 — refuse-to-clobber, project not found, disabled-project gate, or similar
+#   1 — refuse-to-clobber, project not found, disabled- or frozen-project gate,
+#       or similar
 #   2 — setup error (jq absent, missing registry, missing args)
 
 set -uo pipefail
@@ -144,9 +145,29 @@ fi
 
 project_path="$(echo "${match}" | jq -r '.path')"
 project_enabled="$(echo "${match}" | jq -r '.enabled')"
+project_frozen="$(echo "${match}" | jq -r '.frozen // false')"
 
 if [[ "${project_enabled}" != "true" ]]; then
     echo "ERROR: project '${PROJECT}' is disabled in the registry — refusing to install" >&2
+    exit 1
+fi
+
+# Kept as a SEPARATE check with its own message rather than folded into the
+# condition above. The two states are different and the messages are the whole
+# value: a reader hitting the refusal needs to know which one stopped them.
+# `enabled: false` is already handled above, so reaching here means the project
+# is enabled — `frozen` only ever qualifies an enabled project.
+#
+# This is the one mutating fleet operation (Scope-rule carve-out), and on a
+# frozen project the mutation is pointless: dev-platform-gate fires only on
+# pull requests, and a repo nobody will develop raises none. Installing a
+# freshly pinned template there gates PRs that will never exist.
+if [[ "${project_frozen}" == "true" ]]; then
+    echo "ERROR: project '${PROJECT}' is frozen in the registry — refusing to install" >&2
+    echo "       Frozen means deployed but no longer developed. dev-platform-gate runs" >&2
+    echo "       only on pull requests, and this project will raise none, so a freshly" >&2
+    echo "       pinned template would gate nothing." >&2
+    echo "       See the project's \`notes\` in ${REGISTRY#"${REPO_ROOT}"/} for why." >&2
     exit 1
 fi
 

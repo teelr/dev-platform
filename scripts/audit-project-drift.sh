@@ -78,6 +78,8 @@ done
 command -v jq >/dev/null || { echo "ERROR: jq required" >&2; exit 2; }
 [[ -f "${REGISTRY}" ]] || { echo "ERROR: registry not found at ${REGISTRY}" >&2; exit 2; }
 
+frozen_skipped=""
+
 # Load projects. If --project is set, filter to that one entry.
 if [[ -n "${SINGLE_PROJECT}" ]]; then
     projects="$(jq -c --arg n "${SINGLE_PROJECT}" '[.[] | select(.name == $n and .enabled == true)]' "${REGISTRY}")"
@@ -87,7 +89,17 @@ if [[ -n "${SINGLE_PROJECT}" ]]; then
         exit 2
     fi
 else
-    projects="$(jq -c '[.[] | select(.enabled == true)]' "${REGISTRY}")"
+    # Frozen projects drop out of a SWEEP: this audit asks whether a project's
+    # documented workflow chain is current, which only matters to someone about
+    # to follow it — and on a frozen project nobody will. An explicit --project
+    # above still audits a frozen project; an explicit request is not a sweep,
+    # and refusing it would just be surprising.
+    #
+    # The skipped names are collected and printed in the summary. A project
+    # vanishing from a report with no explanation is indistinguishable from a
+    # broken filter, so the skip is stated, never silent.
+    frozen_skipped="$(jq -r '[.[] | select(.enabled == true) | select(.frozen == true) | .name] | join(", ")' "${REGISTRY}")"
+    projects="$(jq -c '[.[] | select(.enabled == true) | select(.frozen != true)]' "${REGISTRY}")"
 fi
 
 today="$(date '+%Y-%m-%d')"
@@ -186,6 +198,12 @@ while IFS= read -r row; do
 done < <(echo "${results}" | jq -c '.[]')
 
 echo ""
+if [[ -n "${frozen_skipped}" ]]; then
+    echo "Skipped (frozen — deployed, not developed): ${frozen_skipped}."
+    echo "  Chain drift only matters to someone about to follow the chain."
+    echo "  Audit one anyway with \`--project <name>\`."
+    echo ""
+fi
 if [[ ${drift_count} -eq 0 ]]; then
     echo "All projects clean."
 else

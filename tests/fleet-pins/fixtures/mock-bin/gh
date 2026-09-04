@@ -23,7 +23,7 @@ if [[ -n "${MOCK_GH_ARGS_FILE:-}" ]]; then
 fi
 
 # `gh auth status` / `gh auth token --user X` — the second-account fallback
-# (v1.30). MOCK_GH_SECOND names an account the active login cannot see; a
+# (PR #102). MOCK_GH_SECOND names an account the active login cannot see; a
 # fixture file <owner>__<repo>.second is readable ONLY when that account's
 # token is presented via GH_TOKEN.
 if [[ "${1:-}" == "auth" ]]; then
