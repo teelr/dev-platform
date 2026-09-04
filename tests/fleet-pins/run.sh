@@ -382,6 +382,11 @@ jobs:
       - run: echo "no uses: line"
 EOF
 
+# second-acct-1: the Osigin-LLC/SQRL shape — the active login gets a bare 404,
+# a second authenticated account can read it.
+live_project second-acct-1 mock/second-acct-1
+live_template v1.12 > "${GH_FIXTURE}/mock__second-acct-1.second"
+
 # noremote-1: a checkout with NO origin remote — nothing to ask gh about.
 mock_project_init "${LIVE_ROOT}/noremote-1"
 mkdir -p "${LIVE_ROOT}/noremote-1/.github/workflows"
@@ -397,13 +402,14 @@ cat > "${LIVE_REGISTRY}" <<EOF
   {"name": "shadow-1",       "path": "${LIVE_ROOT}/shadow-1",       "gate_cmd": "true", "primary_language": "bash", "enabled": true},
   {"name": "garbled-live-1", "path": "${LIVE_ROOT}/garbled-live-1", "gate_cmd": "true", "primary_language": "bash", "enabled": true},
   {"name": "noremote-1",     "path": "${LIVE_ROOT}/noremote-1",     "gate_cmd": "true", "primary_language": "bash", "enabled": true},
-  {"name": "uncommitted-1",  "path": "${LIVE_ROOT}/uncommitted-1",  "gate_cmd": "true", "primary_language": "bash", "enabled": true}
+  {"name": "uncommitted-1",  "path": "${LIVE_ROOT}/uncommitted-1",  "gate_cmd": "true", "primary_language": "bash", "enabled": true},
+  {"name": "second-acct-1",  "path": "${LIVE_ROOT}/second-acct-1",  "gate_cmd": "true", "primary_language": "bash", "enabled": true}
 ]
 EOF
 
-LIVE_JSON="$(PATH="${MOCK_BIN}:${PATH}" MOCK_GH_FIXTURE="${GH_FIXTURE}" \
+LIVE_JSON="$(PATH="${MOCK_BIN}:${PATH}" MOCK_GH_FIXTURE="${GH_FIXTURE}" MOCK_GH_SECOND=alt \
     python3 "${INSPECTOR}" --source both --latest v1.26 --format json --registry "${LIVE_REGISTRY}" 2>&1)"
-LIVE_MD="$(PATH="${MOCK_BIN}:${PATH}" MOCK_GH_FIXTURE="${GH_FIXTURE}" \
+LIVE_MD="$(PATH="${MOCK_BIN}:${PATH}" MOCK_GH_FIXTURE="${GH_FIXTURE}" MOCK_GH_SECOND=alt \
     python3 "${INSPECTOR}" --source both --latest v1.26 --registry "${LIVE_REGISTRY}" 2>&1)"
 
 # ─── Check 18: live pin read from the default branch ─────────────
@@ -530,4 +536,35 @@ assert p['drift'] is True, p['drift']
     record_pass "fleet-pins: JSON carries repo / local_pin / live_pin / live_state / drift"
 else
     record_fail "fleet-pins: JSON missing the v1.27 fields"
+fi
+
+# ─── Check 29: a repo only a SECOND gh account can see ───────────
+# The Osigin-LLC/SQRL shape. The active login gets a bare 404; before v1.30
+# that was reported as `unverifiable` while a token on the same machine could
+# answer it. The fallback must read the pin AND name the account that did.
+s2_pin="$(json_field "${LIVE_JSON}" second-acct-1 live_pin)"
+s2_state="$(json_field "${LIVE_JSON}" second-acct-1 live_state)"
+s2_acct="$(json_field "${LIVE_JSON}" second-acct-1 via_account)"
+if [[ "${s2_pin}" == "v1.12" ]] && [[ "${s2_state}" == "ok" ]] && [[ "${s2_acct}" == "alt" ]]; then
+    record_pass "fleet-pins: repo visible only to a second gh account is read, and the account is named"
+else
+    record_fail "fleet-pins: second-account fallback wrong — pin=${s2_pin}, state=${s2_state}, via=${s2_acct}"
+fi
+
+# ─── Check 30: still unverifiable when NO account can see it ─────
+# The fallback must not turn every 404 into a false read. hidden-1 has no
+# fixture at all, so neither account resolves it.
+h2_state="$(json_field "${LIVE_JSON}" hidden-1 live_state)"
+h2_acct="$(json_field "${LIVE_JSON}" hidden-1 via_account)"
+if [[ "${h2_state}" == "unreachable" ]] && [[ "${h2_acct}" == "None" ]]; then
+    record_pass "fleet-pins: a repo no account can see stays unreachable after the fallback"
+else
+    record_fail "fleet-pins: fallback masked a genuine 404 — state=${h2_state}, via=${h2_acct}"
+fi
+
+# ─── Check 31: the markdown names which account answered ─────────
+if echo "${LIVE_MD}" | grep -q "second-acct-1 → alt"; then
+    record_pass "fleet-pins: markdown footnote names the non-default account per row"
+else
+    record_fail "fleet-pins: no via-account footnote in the markdown report"
 fi
