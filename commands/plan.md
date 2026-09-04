@@ -106,6 +106,15 @@ Include a "Language Decisions" section in the spec explaining why each new compo
 
 Create the spec file at `tasks/{slug}-spec.md`, using the same slug derived in Step 2, with this structure.
 
+**Every factual claim about external state names the command that verified it, or is written as an open question.** External state is anything outside this spec: another repo's contents, a consumer's configuration, a tool's behaviour on input you have not run it against, a count, a file's format. Run the command, then write the claim. If you cannot run it, write "unverified —" or "assumption:" in front of the sentence rather than asserting it.
+
+This is not a new rule — it is the runbook form of **Verify Against Source of Truth, Not Derived State** in `CLAUDE.md`, which already says never to trust an intermediate signal. That rule is framed for verifying that *code works*, so it reads as inapplicable while writing a sentence in a spec; every instance below violated it anyway. It is the single most expensive class of spec error, because a spec's unverified claim gets laundered into the permanent record by `/code`'s doc step and, from there, into issues on other people's repos. Real instances, all from specs that looked authoritative:
+
+- "All seven consumers pin `@v0.7`" — read from a stale doc example, never queried. Wrong for all seven; reached seven issue titles.
+- "`migrate-shipped.sh` works for kermit" — kermit *has* the section, so it was assumed to parse. It is a table, not a bullet list. The tool fit zero consumers, not one.
+- "Both copies of `slugify` are already identical" — one `diff` away; they differ in a fallback string that would have silently renamed files.
+- "The convention applies only after `install.sh settings` runs" — one `ls -l` away; the deployed path is a symlink, so it applied at merge.
+
 **Taxonomy (locked in `/home/rich/dev/CLAUDE.md`):** A spec is broken into **Phases**, each Phase contains numbered **Changes**. Change numbering is continuous across the whole spec (Change 1, Change 2, … Change N) — NOT reset per Phase. One Change becomes one commit when implemented. NEVER use the killed terms: "Section", "Task", "Step", "Item", "Sprint", "Stage", "Iteration", "Milestone", "Group", "Epic".
 
 ```markdown
