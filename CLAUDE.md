@@ -302,6 +302,7 @@ Before writing ANY new code: search the codebase for existing implementations (G
 - Conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`.
 - Small, focused commits.
 - Run tests before committing.
+- **Write any multi-paragraph commit message to a file and use `git commit -F <file>`.** A one-line subject via `-m` is fine. Longer bodies are not: a double-quoted `-m` argument is still shell text, so a backtick runs command substitution and an unescaped `$` expands — the words vanish from the message and the commit lands looking fine. This shipped a mangled body in v1.30 (`` `latest` `` and `` `auth status` `` were executed and replaced with nothing, visible only as a stray `latest: command not found` in the output). Same rule and same reason as `gh ... --body-file` for PR bodies: **prose that mentions code should never travel through a shell argument.** Amend with `git commit --amend -F <file>` if one slips through.
 
 ## Data Lifecycle & Wiring Rules
 

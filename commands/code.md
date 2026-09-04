@@ -257,6 +257,7 @@ End your report with:
 - Do NOT commit unless the user explicitly asks
 - The user commits after `/gate fast` passes — feature code + staged doc updates go in one atomic commit
 - Use conventional commit format: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`
+- **Multi-paragraph message → write it to a file, then `git commit -F <file>`.** A one-line subject via `-m` is fine; a body is not. A double-quoted `-m` argument is shell text, so backticks run command substitution and `$` expands — words disappear from the message and the commit still succeeds. Same rule as `--body-file` for PR bodies (see `CLAUDE.md` → Git Workflow).
 
 ### Verification is Mandatory
 
