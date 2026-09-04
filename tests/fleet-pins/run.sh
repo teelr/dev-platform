@@ -387,6 +387,19 @@ EOF
 live_project second-acct-1 mock/second-acct-1
 live_template v1.12 > "${GH_FIXTURE}/mock__second-acct-1.second"
 
+# Open bump PRs (v1.31). current-1 has a Dependabot-shaped title carrying a
+# target version; drift-1 has a hand-written one with no version in the title;
+# absent-1 has an open PR that is NOT a pin bump and must be ignored.
+cat > "${GH_FIXTURE}/mock__current-1.prs" <<'EOF'
+176|chore(deps): Bump teelr/dev-platform/.github/workflows/taxonomy-check.yml from 1.12 to 1.13
+EOF
+cat > "${GH_FIXTURE}/mock__drift-1.prs" <<'EOF'
+99|chore: let Dependabot propose the dev-platform-gate pin bump
+EOF
+cat > "${GH_FIXTURE}/mock__absent-1.prs" <<'EOF'
+42|feat: something entirely unrelated to pins
+EOF
+
 # noremote-1: a checkout with NO origin remote — nothing to ask gh about.
 mock_project_init "${LIVE_ROOT}/noremote-1"
 mkdir -p "${LIVE_ROOT}/noremote-1/.github/workflows"
@@ -567,4 +580,40 @@ if echo "${LIVE_MD}" | grep -q "second-acct-1 → alt"; then
     record_pass "fleet-pins: markdown footnote names the non-default account per row"
 else
     record_fail "fleet-pins: no via-account footnote in the markdown report"
+fi
+
+# ─── Check 32: open bump PR with a target version in the title ───
+c_pr="$(json_field "${LIVE_JSON}" current-1 open_bump_pr)"
+c_to="$(json_field "${LIVE_JSON}" current-1 open_bump_to)"
+if [[ "${c_pr}" == "176" ]] && [[ "${c_to}" == "v1.13" ]]; then
+    record_pass "fleet-pins: open bump PR detected with its target version"
+else
+    record_fail "fleet-pins: bump PR/target wrong — pr=${c_pr}, to=${c_to}"
+fi
+
+# ─── Check 33: bump PR whose title names no version ──────────────
+# kermit PR #387 ("let Dependabot propose the pin bump") is this shape: a real
+# bump PR with nothing to parse. Report the PR, omit the arrow — do not invent
+# a target.
+d_pr="$(json_field "${LIVE_JSON}" drift-1 open_bump_pr)"
+d_to="$(json_field "${LIVE_JSON}" drift-1 open_bump_to)"
+if [[ "${d_pr}" == "99" ]] && [[ "${d_to}" == "None" ]]; then
+    record_pass "fleet-pins: bump PR with no version in the title reports PR, not a guessed target"
+else
+    record_fail "fleet-pins: no-version bump wrong — pr=${d_pr}, to=${d_to}"
+fi
+
+# ─── Check 34: an unrelated open PR is NOT reported as a bump ────
+a_pr="$(json_field "${LIVE_JSON}" absent-1 open_bump_pr)"
+if [[ "${a_pr}" == "None" ]]; then
+    record_pass "fleet-pins: an unrelated open PR is not mistaken for a pin bump"
+else
+    record_fail "fleet-pins: unrelated PR reported as a bump — pr=${a_pr}"
+fi
+
+# ─── Check 35: the markdown names the open PR in the status cell ─
+if echo "${LIVE_MD}" | grep -q "PR #176 open → v1.13"; then
+    record_pass "fleet-pins: status cell distinguishes 'behind with a PR open' from 'behind'"
+else
+    record_fail "fleet-pins: open-PR marker missing from the markdown status cell"
 fi
