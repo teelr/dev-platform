@@ -68,6 +68,20 @@ else
     record_fail "duplicate numbering (check_duplicate_numbering.sh exit 1)"
 fi
 
+# App-API-key -> Claude Code env leak across projects/ (read-only audit).
+# Three-way, NOT two: exit 2 means projects/ does not exist, which is every CI
+# runner and any fresh clone. Recording that as PASS would be a check that
+# reports success having read nothing — the script exited 0 with
+# "Clean, 0 projects checked" in exactly that situation before v1.30, which is
+# why it is worth being explicit here.
+(cd "${REPO}" && bash scripts/check_env_leak.sh >/dev/null 2>&1)
+env_leak_rc=$?
+case ${env_leak_rc} in
+    0) record_pass "env leak (no project injects an Anthropic key into its terminal)" ;;
+    2) record_skip "env leak (no projects/ — likely CI runner)" ;;
+    *) record_fail "env leak (check_env_leak.sh exit ${env_leak_rc} — run it for the offending project)" ;;
+esac
+
 # Bash syntax — all .sh files under scripts/, hooks/, scaffolding/*/scripts/, tests/
 syntax_pass=0
 syntax_fail=0
