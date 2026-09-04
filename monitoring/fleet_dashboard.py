@@ -60,6 +60,11 @@ class ProjectState:
     taxonomy_ok: bool
     # "self" for dev-platform, True if template installed, False otherwise.
     dev_platform_gate_installed: object
+    # Registry `frozen` flag — deployed, but no longer developed. The dashboard
+    # deliberately KEEPS listing frozen projects (a deployed project's state
+    # still matters) and only marks them, so a months-old "Last commit" reads
+    # as expected rather than as a project that quietly died.
+    frozen: bool = False
 
 
 def _run(cmd: list[str], cwd: Path) -> tuple[int, str]:
@@ -83,6 +88,7 @@ def query_project(entry: dict) -> ProjectState:
     """Run all per-project queries against one registry entry."""
     name = entry["name"]
     path_raw = entry["path"]
+    frozen = entry.get("frozen", False)
     target = (REPO if path_raw == "." else FLEET_ROOT / path_raw).resolve()
 
     branch = "?"
@@ -101,7 +107,7 @@ def query_project(entry: dict) -> ProjectState:
             last_commit_iso=None, last_commit_sha=None,
             last_commit_subject=None, last_commit_age_days=None,
             uncommitted_count=0, taxonomy_ok=True,
-            dev_platform_gate_installed=False,
+            dev_platform_gate_installed=False, frozen=frozen,
         )
 
     # 1. Last commit (timestamp, sha, subject) — single git call, pipe-delimited.
@@ -165,6 +171,7 @@ def query_project(entry: dict) -> ProjectState:
         uncommitted_count=uncommitted,
         taxonomy_ok=taxonomy_ok,
         dev_platform_gate_installed=gate_installed,
+        frozen=frozen,
     )
 
 
@@ -233,8 +240,11 @@ def render_markdown(states: list[ProjectState], registry_path: Path) -> str:
         else:
             commit_col = "?"
         tax_col = "OK" if s.taxonomy_ok else "DRIFT"
+        # Frozen projects stay in the table; the marker is what stops a
+        # months-old "Last commit" from reading as an abandoned project.
+        name_col = f"{s.name} (frozen)" if s.frozen else s.name
         lines.append(
-            f"| {s.name:<17} | {truncate_branch(s.branch):<22} | {commit_col:<19} | {s.uncommitted_count:<11} | {tax_col:<8} | {format_gate(s.dev_platform_gate_installed):<17} |"
+            f"| {name_col:<17} | {truncate_branch(s.branch):<22} | {commit_col:<19} | {s.uncommitted_count:<11} | {tax_col:<8} | {format_gate(s.dev_platform_gate_installed):<17} |"
         )
     return "\n".join(lines) + "\n"
 

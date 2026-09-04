@@ -552,7 +552,7 @@ else
 fi
 
 # ─── Check 29: a repo only a SECOND gh account can see ───────────
-# The Osigin-LLC/SQRL shape. The active login gets a bare 404; before v1.30
+# The Osigin-LLC/SQRL shape. The active login gets a bare 404; before PR #102
 # that was reported as `unverifiable` while a token on the same machine could
 # answer it. The fallback must read the pin AND name the account that did.
 s2_pin="$(json_field "${LIVE_JSON}" second-acct-1 live_pin)"

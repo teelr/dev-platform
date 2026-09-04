@@ -1,6 +1,43 @@
 # monitoring/
 
-Workflow-effectiveness telemetry for dev-platform. Collects events from hook scripts + `scripts/gate_fast.sh`, aggregates them into per-project metrics, reports via `scripts/report.sh`.
+Workflow-effectiveness telemetry for dev-platform. Collects events from hook scripts + `scripts/gate_fast.sh`, aggregates them into per-project metrics, reports via `scripts/report.sh`. Also holds `projects.json`, the fleet registry every `fleet-*` script reads.
+
+## projects.json — the fleet registry
+
+One JSON array; one object per project. Six scripts read it, so a change here changes fleet-wide behaviour. `scripts/check-registry.sh` validates it and runs in `gate_fast.sh`.
+
+| Field | Type | Required | Read by |
+| ----- | ---- | -------- | ------- |
+| `name` | string | yes | all six — the registry key, matching the directory under `projects/` and the `--project` argument every consumer but `check-registry.sh` accepts |
+| `path` | string | yes | all six — `projects/<name>`, or absolute |
+| `gate_cmd` | string | yes | `fleet-gate.sh` runs it; `check-registry.sh` checks the script exists |
+| `primary_language` | string | yes | **nothing reads it.** Required only so entries stay uniform — `check-registry.sh` is the sole consumer, and only to assert its presence. Drop the requirement rather than inventing a use if one is ever wanted. |
+| `enabled` | boolean | yes | all six — `false` removes the project from every fleet operation |
+| `frozen` | boolean | no (default `false`) | all but `fleet-gate.sh` — deployed but not developed; see below |
+| `notes` | string | no | humans only; no script parses it |
+
+**Relative paths resolve against the main checkout, not the invoking worktree.** `projects/` is gitignored, so it exists nowhere else — every consumer resolves it through `scripts/lib/main_checkout.sh`.
+
+**A missing `enabled` is a validation error, not a default.** Every consumer reads it as false-if-absent, so a typo'd or omitted key silently drops the project from the entire fleet. `check-registry.sh` rejects it rather than letting that pass quietly.
+
+### `frozen` — deployed, but not developed
+
+For a project still running in production that nobody will develop further (kermit-pa, superseded by kermit-v3). `enabled` alone cannot express this: it controls both *whether the fleet runs the tests* and *whether the fleet chases the pin*, and for a frozen project those want opposite answers.
+
+`frozen` is **not one check** — each consumer answers "does this operation still mean anything on a repo nobody will open a PR against?" for itself:
+
+| Consumer | On `frozen: true` | Why |
+| -------- | ----------------- | --- |
+| `scripts/fleet-gate.sh` | **still sweeps** | it is deployed; a broken test is the thing you want to hear about |
+| `monitoring/fleet_dashboard.py` | **still lists**, marked `frozen` | hiding a deployed project is worse than listing it |
+| `monitoring/fleet_pins.py` | pin still read, status `frozen`, no staleness delta | `dev-platform-gate` fires only on PRs, and a frozen repo raises none |
+| `scripts/check-migration-coverage.sh` | skip, reported as `FROZEN` | the lessons convention prevents *future* concurrent appends; there will be none |
+| `scripts/audit-project-drift.sh` | skip, named in the summary | chain drift only matters to someone about to follow the chain |
+| `scripts/fleet-install-template.sh` | refuse | it mutates a consumer repo; a fresh pin would gate PRs nobody will raise |
+
+**`enabled: false` wins.** `frozen` qualifies an *enabled* project, so a disabled entry is skipped regardless of it. The combination is contradictory rather than dangerous, and `check-registry.sh` rejects it outright instead of leaving a precedence rule for a reader to remember.
+
+Skips are always **reported, never silent** — a project vanishing from a report with no explanation is indistinguishable from a broken filter.
 
 ## What goes here
 

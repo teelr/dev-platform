@@ -68,11 +68,35 @@ else
     record_fail "duplicate numbering (check_duplicate_numbering.sh exit 1)"
 fi
 
+# Fleet registry schema (monitoring/projects.json). Six scripts read it and
+# nothing validated it before v1.30: a missing `enabled` key silently drops a
+# project from every fleet operation, and `enabled: false` + `frozen: true` is
+# expressible and contradictory.
+#
+# No SKIP state, unlike check_env_leak below: four of its five checks read the
+# tracked registry file, which is always present, so they really do run on a CI
+# runner. Only the gate_cmd leg depends on `projects/`, and the script reports
+# that leg's coverage in its own output rather than degrading the whole check
+# to SKIP and hiding four checks that passed.
+#
+# 2 is still separated from 1 so the message names the real problem: a missing
+# registry or an absent `jq` is a setup fault, not a malformed entry, and
+# telling the reader to "run it for the offending entry" would send them
+# looking for an entry that isn't the cause. (jq is pre-installed on the
+# ubuntu-latest runner — see .github/workflows/gate.yml.)
+(cd "${REPO}" && bash scripts/check-registry.sh >/dev/null 2>&1)
+registry_rc=$?
+case ${registry_rc} in
+    0) record_pass "fleet registry schema" ;;
+    1) record_fail "fleet registry schema (check-registry.sh — run it for the offending entry)" ;;
+    *) record_fail "fleet registry schema (check-registry.sh setup error, exit ${registry_rc} — missing registry or jq)" ;;
+esac
+
 # App-API-key -> Claude Code env leak across projects/ (read-only audit).
 # Three-way, NOT two: exit 2 means projects/ does not exist, which is every CI
 # runner and any fresh clone. Recording that as PASS would be a check that
 # reports success having read nothing — the script exited 0 with
-# "Clean, 0 projects checked" in exactly that situation before v1.30, which is
+# "Clean, 0 projects checked" in exactly that situation before PR #101, which is
 # why it is worth being explicit here.
 (cd "${REPO}" && bash scripts/check_env_leak.sh >/dev/null 2>&1)
 env_leak_rc=$?

@@ -1,0 +1,5 @@
+# A shared flag is N decisions, not one — and some of them are "ignore it"
+
+Adding `frozen` to the fleet registry looked like one filter to add in six places. It was six *different* answers to "does this operation still mean anything here?", and two of them were **do nothing**: `fleet-gate.sh` and `fleet_dashboard.py` must keep including frozen projects, because a frozen project is still deployed and its test suite is the only automated signal left on it. Filtering it there "for consistency" is the plausible wrong change that silently removes production coverage.
+
+When adding a flag to a shared config, enumerate every consumer and decide per consumer, writing the reason down at each site — including a comment at the sites that deliberately do *not* consult it, which is the only thing stopping the next reader from "finishing the job". Then mutation-test: break each behaviour in turn and confirm the suite fails. A test that asserts "the flag is honoured" passes happily while the two consumers that must ignore it have quietly started honouring it.

@@ -113,6 +113,16 @@ LOG_DIR="/tmp/fleet-gate.${LOG_TS}"
 mkdir -p "${LOG_DIR}"
 
 # Filter: enabled projects only (default), plus optional single-project filter.
+#
+# `frozen` is DELIBERATELY not consulted here, and adding it would be a
+# regression, not a consistency fix. A frozen project (kermit-pa) is still
+# DEPLOYED — it has simply stopped being developed. Its test suite is the one
+# automated signal left on something running in production, and dropping it
+# from the sweep removes exactly that. Four of the six registry consumers do
+# change what they do for a frozen project; this one and fleet_dashboard.py are
+# the two that keep including it — and the dashboard only adds a marker to the
+# row. This script is the only consumer that does not read the field at all.
+# See monitoring/README.md → "frozen — deployed, but not developed".
 filter='.[]'
 if [[ ${INCLUDE_DISABLED} -eq 0 ]]; then
     filter="${filter} | select(.enabled == true)"

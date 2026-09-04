@@ -98,7 +98,7 @@ class ProjectPin:
     pin: Optional[str]
     latest: Optional[str]
     # One of: "self", "up-to-date", "behind", "floating", "unparseable",
-    # "not-adopted", "unverifiable".
+    # "not-adopted", "unverifiable", "frozen".
     status: str
     # For sortability when status == "behind"; (major_diff * 1000) + minor_diff.
     minor_delta: Optional[int]
@@ -154,7 +154,7 @@ def secondary_accounts() -> list[str]:
     Not every repo in the fleet lives under the active account: SQRL is
     `Osigin-LLC/SQRL`, reachable only as `teelr129`. `gh` returns a bare 404 for
     a repo the current token cannot see, which is indistinguishable from "no
-    such repo" — so before v1.30 that row read `unverifiable` while a second
+    such repo" — so before PR #102 that row read `unverifiable` while a second
     authenticated account could have answered it.
 
     Resolved ONCE in main() before the thread pool fans out — same reason
@@ -231,7 +231,7 @@ def fetch_live_pin(slug: str, tokens: Optional[list[tuple[str, str]]] = None
     can't see this repo" — an unknown rendered as a fact is the defect this
     function exists to avoid.
 
-    On 404 it then RETRIES with each other authenticated account (v1.30). Not
+    On 404 it then RETRIES with each other authenticated account (PR #102). Not
     every repo in the fleet is under the active login: SQRL is
     `Osigin-LLC/SQRL`, visible only as `teelr129`, and before this it reported
     `unverifiable` while a token on the same machine could answer it.
@@ -399,6 +399,7 @@ def query_project(entry: dict, latest: Optional[str], source: str = "both",
     """Run all per-project queries against one registry entry."""
     name = entry["name"]
     path_raw = entry["path"]
+    frozen = entry.get("frozen", False)
     target = (REPO if path_raw == "." else FLEET_ROOT / path_raw).resolve()
 
     # dev-platform is the source of truth, not a consumer — short-circuit
@@ -467,6 +468,24 @@ def query_project(entry: dict, latest: Optional[str], source: str = "both",
     # the local copy here would report a pin no CI run has ever used.
     if live_state == "unreachable":
         status, minor_delta = "unverifiable", None
+
+    # A frozen project is deployed but not developed, so no pin-currency
+    # judgement is actionable: `dev-platform-gate` fires only on pull requests,
+    # and a frozen repo raises none. Suppress the JUDGEMENT, not the reading —
+    # the pin is still fetched above and still rendered in both Pin columns,
+    # and `adopted` still says whether a template is there at all. minor_delta
+    # goes to None so a frozen row can never sort into a "most behind" slot.
+    #
+    # Applied AFTER classify() and AFTER the unreachable check, so:
+    #   - "unverifiable" WINS over "frozen". That is a fact about this tool
+    #     failing to read the repo, and a fact about the project must never
+    #     mask it.
+    #   - every other currency verdict (behind / up-to-date / floating /
+    #     unparseable / not-adopted) loses to "frozen", because on a repo
+    #     nobody will open a PR against they are equally unactionable.
+    #   - "self" never reaches here; dev-platform short-circuits above.
+    if frozen and status not in ("unverifiable", "self"):
+        status, minor_delta = "frozen", None
 
     # Drift is "the local file is not what CI runs", which covers both a
     # different pin and a local template the default branch does not have.
@@ -545,6 +564,8 @@ def format_status(status: str, minor_delta: Optional[int]) -> str:
         return "— not adopted"
     if status == "unverifiable":
         return "? unverifiable (no gh access)"
+    if status == "frozen":
+        return "— frozen (deployed, not developed)"
     return status
 
 
