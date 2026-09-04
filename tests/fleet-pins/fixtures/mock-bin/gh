@@ -22,6 +22,29 @@ if [[ -n "${MOCK_GH_ARGS_FILE:-}" ]]; then
     echo "$*" >> "${MOCK_GH_ARGS_FILE}"
 fi
 
+# `gh auth status` / `gh auth token --user X` — the second-account fallback
+# (v1.30). MOCK_GH_SECOND names an account the active login cannot see; a
+# fixture file <owner>__<repo>.second is readable ONLY when that account's
+# token is presented via GH_TOKEN.
+if [[ "${1:-}" == "auth" ]]; then
+    case "${2:-}" in
+        status)
+            echo "github.com"
+            echo "  ✓ Logged in to github.com account primary (~/.config/gh/hosts.yml)"
+            echo "  - Active account: true"
+            if [[ -n "${MOCK_GH_SECOND:-}" ]]; then
+                echo "  ✓ Logged in to github.com account ${MOCK_GH_SECOND} (~/.config/gh/hosts.yml)"
+                echo "  - Active account: false"
+            fi
+            exit 0 ;;
+        token)
+            # gh auth token --user <account>
+            echo "mock-token-for-${4:-unknown}"
+            exit 0 ;;
+        *) echo "mock gh: unexpected auth subcommand: ${2:-<none>}" >&2; exit 2 ;;
+    esac
+fi
+
 if [[ "${1:-}" != "api" ]]; then
     echo "mock gh: unexpected subcommand: ${1:-<none>}" >&2
     exit 2
@@ -42,14 +65,29 @@ fi
 
 base="${fixture_dir}/${owner}__${repo}"
 
-# The repo probe: reachable when either fixture form exists.
+# A `.second` fixture is visible ONLY when the second account's token is
+# presented — this is the Osigin-LLC/SQRL shape, where the active login gets a
+# bare 404 and a different authenticated account can read the repo.
+second_ok=0
+if [[ -f "${base}.second" && -n "${MOCK_GH_SECOND:-}" \
+      && "${GH_TOKEN:-}" == "mock-token-for-${MOCK_GH_SECOND}" ]]; then
+    second_ok=1
+fi
+
+# The repo probe: reachable when a fixture form exists that this caller can see.
 if [[ -z "${contents}" ]]; then
-    if [[ -f "${base}.yml" || -f "${base}.absent" ]]; then
+    if [[ -f "${base}.yml" || -f "${base}.absent" || ${second_ok} -eq 1 ]]; then
         echo "${owner}/${repo}"
         exit 0
     fi
     echo "mock gh: Not Found (HTTP 404)" >&2
     exit 1
+fi
+
+if [[ ${second_ok} -eq 1 ]]; then
+    base64 -w 0 < "${base}.second"
+    echo
+    exit 0
 fi
 
 # The contents call: only the .yml form has a template to return.

@@ -37,6 +37,7 @@ import argparse
 import base64
 import binascii
 import json
+import os
 import re
 import subprocess
 import sys
@@ -111,10 +112,21 @@ class ProjectPin:
     live_state: str
     # Both pins known and unequal — the local file is not what CI runs.
     drift: bool
+    # Non-default `gh` account that answered, or None for the active one.
+    # Last, and defaulted: a defaulted field cannot precede a non-defaulted one.
+    via_account: Optional[str] = None
 
 
-def _run(cmd: list[str], cwd: Path) -> tuple[int, str]:
-    """Run a subprocess with a hard timeout. Returns (rc, stdout-stripped)."""
+def _run(cmd: list[str], cwd: Path, token: Optional[str] = None) -> tuple[int, str]:
+    """Run a subprocess with a hard timeout. Returns (rc, stdout-stripped).
+
+    `token` sets GH_TOKEN for this call only, so a repo on a second GitHub
+    account can be read without `gh auth switch` — that rewrites
+    ~/.config/gh/hosts.yml, which every other session and terminal shares.
+    """
+    env = None
+    if token:
+        env = {**os.environ, "GH_TOKEN": token}
     try:
         result = subprocess.run(
             cmd,
@@ -122,12 +134,49 @@ def _run(cmd: list[str], cwd: Path) -> tuple[int, str]:
             capture_output=True,
             text=True,
             timeout=QUERY_TIMEOUT_S,
+            env=env,
         )
         return result.returncode, result.stdout.strip()
     except subprocess.TimeoutExpired:
         return 124, ""
     except (FileNotFoundError, OSError):
         return 127, ""
+
+
+def secondary_accounts() -> list[str]:
+    """Authenticated `gh` accounts other than the active one.
+
+    Not every repo in the fleet lives under the active account: SQRL is
+    `Osigin-LLC/SQRL`, reachable only as `teelr129`. `gh` returns a bare 404 for
+    a repo the current token cannot see, which is indistinguishable from "no
+    such repo" — so before v1.30 that row read `unverifiable` while a second
+    authenticated account could have answered it.
+
+    Resolved ONCE in main() before the thread pool fans out — same reason
+    `latest` is: every worker would otherwise re-shell `gh auth status`, and
+    they would race on the cache for no benefit.
+    """
+    rc, out = _run(["gh", "auth", "status"], cwd=REPO)
+    accounts: list[str] = []
+    if rc == 0:
+        # Lines look like: "  ✓ Logged in to github.com account teelr (...)"
+        # followed by "  - Active account: true|false".
+        current = None
+        for line in out.split("\n"):
+            m = re.search(r"account (\S+)", line)
+            if m:
+                current = m.group(1)
+            elif current and "Active account:" in line:
+                if "false" in line:
+                    accounts.append(current)
+                current = None
+    return accounts
+
+
+def account_token(account: str) -> Optional[str]:
+    """Token for a named `gh` account, or None. Never logged or printed."""
+    rc, out = _run(["gh", "auth", "token", "--user", account], cwd=REPO)
+    return out if rc == 0 and out else None
 
 
 def fetch_latest_release(repo_slug: str = "teelr/dev-platform") -> Optional[str]:
@@ -159,29 +208,43 @@ def repo_slug_for(project_dir: Path) -> Optional[str]:
     return parse_repo_slug(out)
 
 
-def fetch_live_pin(slug: str) -> tuple[Optional[str], str]:
+def fetch_live_pin(slug: str, tokens: Optional[list[tuple[str, str]]] = None
+                   ) -> tuple[Optional[str], str, Optional[str]]:
     """Read the pin from the consumer template on the repo's default branch.
 
-    Returns (pin, live_state) where live_state is one of:
+    Returns (pin, live_state, account) where live_state is one of:
       "ok"          — the file was read; pin is the captured value, or ""
                       when the content has no parseable `uses:` line.
       "absent"      — repo is reachable but has no template at that path.
-      "unreachable" — the repo itself did not resolve.
+      "unreachable" — no authenticated account could resolve the repo.
+    `account` names the non-default account that answered, or None for the
+    active one — worth surfacing, because "read as someone else" is a fact
+    about the answer.
 
-    The repo probe runs first precisely so those last two stay distinct.
-    `gh` returns the same 404 for "file not there" and "this account
-    can't see this repo" — Osigin-LLC/SQRL is the second, and without
-    the probe it would be reported as a consumer that never adopted the
-    template. An unknown rendered as a fact is the defect this function
-    exists to avoid.
+    The repo probe runs first precisely so "absent" and "unreachable" stay
+    distinct. `gh` returns the same 404 for "file not there" and "this account
+    can't see this repo" — an unknown rendered as a fact is the defect this
+    function exists to avoid.
+
+    On 404 it then RETRIES with each other authenticated account (v1.30). Not
+    every repo in the fleet is under the active login: SQRL is
+    `Osigin-LLC/SQRL`, visible only as `teelr129`, and before this it reported
+    `unverifiable` while a token on the same machine could answer it.
     """
-    rc, _ = _run(["gh", "api", f"repos/{slug}", "--jq", ".full_name"], cwd=REPO)
-    if rc != 0:
-        return None, "unreachable"
+    for account, token in [(None, None), *(tokens or [])]:
+        rc, _ = _run(["gh", "api", f"repos/{slug}", "--jq", ".full_name"],
+                     cwd=REPO, token=token)
+        if rc == 0:
+            return _read_template(slug, token) + (account,)
+    return None, "unreachable", None
+
+
+def _read_template(slug: str, token: Optional[str]) -> tuple[Optional[str], str]:
+    """Read and parse the template for a repo already known to be reachable."""
 
     rc, out = _run(
         ["gh", "api", f"repos/{slug}/contents/{TEMPLATE_REL_PATH}", "--jq", ".content"],
-        cwd=REPO,
+        cwd=REPO, token=token,
     )
     if rc != 0:
         return None, "absent"
@@ -288,7 +351,8 @@ def extract_pin(template_path: Path) -> Optional[str]:
     return m.group(1)
 
 
-def query_project(entry: dict, latest: Optional[str], source: str = "both") -> ProjectPin:
+def query_project(entry: dict, latest: Optional[str], source: str = "both",
+                  tokens: Optional[list[tuple[str, str]]] = None) -> ProjectPin:
     """Run all per-project queries against one registry entry."""
     name = entry["name"]
     path_raw = entry["path"]
@@ -319,6 +383,7 @@ def query_project(entry: dict, latest: Optional[str], source: str = "both") -> P
     slug: Optional[str] = None
     live_pin: Optional[str] = None
     live_state = "skipped"
+    via_account: Optional[str] = None
     if source in ("github", "both"):
         slug = repo_slug_for(target)
         if slug is None:
@@ -326,7 +391,7 @@ def query_project(entry: dict, latest: Optional[str], source: str = "both") -> P
             # saying so beats guessing from the local file.
             live_state = "skipped"
         else:
-            live_pin, live_state = fetch_live_pin(slug)
+            live_pin, live_state, via_account = fetch_live_pin(slug, tokens)
 
     # Whenever GitHub answered — with a template OR with its absence — that
     # answer is authoritative, because it is what CI runs. "absent" therefore
@@ -370,6 +435,7 @@ def query_project(entry: dict, latest: Optional[str], source: str = "both") -> P
         live_pin=live_pin,
         live_state=live_state,
         drift=drift,
+        via_account=via_account,
     )
 
 
@@ -460,6 +526,14 @@ def render_markdown(pins: list[ProjectPin], registry_path: Path, latest: Optiona
             f"| {format_pin(p.local_pin, p.status):<11} "
             f"| {status_cell:<28} |"
         )
+    via = [p for p in pins if p.via_account]
+    if via:
+        lines += [
+            "",
+            "ℹ Read via a non-default `gh` account (the active login cannot see these): "
+            + ", ".join(f"{p.name} → {p.via_account}" for p in via)
+            + ". Not every repo in the fleet is under the active account.",
+        ]
     if any(p.drift for p in pins):
         lines += [
             "",
@@ -559,11 +633,23 @@ def main() -> int:
                 "Staleness comparison disabled.\n"
             )
 
+    # Resolve the other authenticated gh accounts ONCE, before fanning out —
+    # same reason `latest` is resolved here. Only needed when a repo 404s from
+    # the active account, but shelling `gh auth status`/`auth token` per worker
+    # would be wasteful and racy. Tokens stay in memory and are never printed.
+    secondary_tokens: list[tuple[str, str]] = []
+    if args.source in ("github", "both"):
+        for acct in secondary_accounts():
+            tok = account_token(acct)
+            if tok:
+                secondary_tokens.append((acct, tok))
+
     # Parallel per-project queries. I/O-bound (filesystem reads plus, under
     # --source github/both, two `gh api` calls each), so ThreadPoolExecutor
     # is correct and the network round-trips overlap across projects.
     with ThreadPoolExecutor(max_workers=8) as pool:
-        pins = list(pool.map(lambda e: query_project(e, latest, args.source), enabled))
+        pins = list(pool.map(
+            lambda e: query_project(e, latest, args.source, secondary_tokens), enabled))
 
     if args.format == "json":
         sys.stdout.write(render_json(pins, registry_path, latest))
