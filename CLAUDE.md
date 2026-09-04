@@ -191,13 +191,28 @@ Each step requires the user to invoke it. Completing one step does NOT mean star
 
 ## Which Identifier To Cite
 
-Three identifiers reference shipped work, and **all three can carry the same string `v1.25` while meaning different things** — which is exactly why this rule exists.
+**Every `#<number>` carries a type word immediately before it.** `PR #384`, `issue #383`, `milestone #157` — never a bare `#384`. GitHub issues and PRs share one number space, so adjacent integers routinely name different kinds of object and the number alone cannot tell a reader which. Milestone numbers are a third, unrelated counter. The one exempt form is `owner/repo#N` (`teelr/kermit-harness#200`): the repo name already supplies the context, and GitHub renders it as a cross-repo link.
+
+This is a writing rule, applied while writing. There is deliberately **no checker** — the tracked markdown already complies and a file scan would go green while chat reports, the surface that actually drifts, went unwatched. Reasoning and measurement: `docs/RULE_RATIONALE.md` → "Identifier Descriptors".
+
+Four identifiers reference shipped work, and the first and third can carry the same string `v1.25` while meaning different things — which is exactly why this rule exists.
 
 | Identifier | What it is | Cite it when |
 | ---------- | ---------- | ------------ |
 | **Roadmap Phase version** — `v1.25` | The unit of planned work, claimed atomically at `/plan`, matching a GitHub Milestone | **Always, by default.** This is the canonical reference in prose, reports, commit bodies, and anything a human reads. |
-| **PR number** — `#92` | A GitHub artifact, numbered sequentially and sharing a number space with issues | **Provenance only**, in parentheses after the phase, when the exact commit matters. Never as the primary reference: `#325` alone does not even say whether it is a PR or an issue. |
+| **PR number** — `PR #92` | A GitHub artifact, numbered sequentially and sharing a number space with issues | **Provenance only**, in parentheses after the phase, when the exact commit matters. Never as the primary reference: `#325` alone does not even say whether it is a PR or an issue. |
 | **Release tag** — `v1.25` | A git tag at the merge commit closing a Roadmap Phase — the only identifier a consumer can pin (`taxonomy-check.yml@v1.25`) | Only when discussing what a consumer depends on. The phase is the *work*; the tag is the *artifact*. |
+| **Milestone number** — `milestone #157` | GitHub's own sequential counter, assigned across the repo's whole history. It bears **no relation** to the version the milestone holds: `milestone #157` holds `v4.141`, `milestone #40` holds `v1.29` | **Essentially never in prose.** Cite the milestone by title — `milestone v4.141: Retry Policy Hook`. The number is an API argument, correct in `gh api .../milestones/157` and useless in a sentence, because a reader cannot map it to anything. |
+
+**Qualify the project when more than one is in play.** Roadmap Phase versions are per-project counters that all wear `v<n>.<n>`: dev-platform is on `v1.29`, kermit-harness on `v4.141`, kermit-v3 on `v0.197`. In any report mentioning more than one project, and in every cross-repo comm, name the project with the version — `kermit-harness v4.141`, not bare `v4.141`. Inside a single project's own session, bare `v1.29` is fine.
+
+Worked example — the report that prompted this rule, before and after:
+
+```text
+before:  Milestone #157 closed. #383 reply posted, matching how #365/#366/#367/#369 were handled.
+after:   Milestone v4.141: Retry Policy Hook closed. Reply posted on issue #383, matching how
+         issues #365/#366/#367/#369 were handled.
+```
 
 Cutting the tag is a mechanical post-merge sub-step, not a thing to remember — see the post-merge bullet below. It previously lived only in `docs/GLOSSARY.md`, a reference doc nobody executes from, and consequently stopped after v1.13 — which pinned every consumer to `@v1.13` or older, because a tag that does not exist cannot be pinned or Dependabot-bumped. `scripts/check-phase-tags.sh` is the backstop.
 

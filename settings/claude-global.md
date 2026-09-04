@@ -31,6 +31,8 @@ Ready for `/{next-step}`.
 
 The "Ready for X" line is REQUIRED. What's forbidden is **invoking the next step yourself**. Stating it is informative; running it is auto-advancement.
 
+**In `{results}`, every `#<number>` carries a type word: `PR #384`, `issue #383`. Name a milestone by its title (`milestone v4.141: Retry Policy Hook`), never by its number** — the milestone number is an unrelated sequential counter a reader cannot map to anything. When more than one project is in play, qualify the version with the project (`kermit-harness v4.141`). Exempt: `owner/repo#N`, which already carries its context. Full table: "Which Identifier To Cite" in `/home/rich/dev/CLAUDE.md`.
+
 **Do NOT append "Stopping per `/{just-finished}` workflow rule"** as a closing line — repetitive. The "Ready for X" line alone communicates workflow position.
 
 Shorthand affirmatives like "fix all", "do it", "go", "yes" authorize the IMMEDIATE action only — never workflow advancement. "Yes" to a /review fix is permission to fix the code, not to run /gate or commit.

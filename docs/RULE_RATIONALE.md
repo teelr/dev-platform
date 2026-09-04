@@ -254,3 +254,33 @@ Exact-string comparison of the trimmed first cell also correctly leaves intentio
 **Adoption in a consumer project:** copy `scripts/check_duplicate_numbering.sh` into your own `scripts/`, call it from your own `gate_fast.sh` the same way dev-platform's own gate does (`bash scripts/check_duplicate_numbering.sh`, `record_pass`/`record_fail` on its exit code). Override `HANDOFF_QUEUE_PATH`/`LESSONS_PATH` before calling it if your project's paths differ from the shared `tasks/HARNESS_HANDOFF_QUEUE.md` / `tasks/lessons.md` convention. Same "no runtime distribution mechanism for `gate_fast.sh` internals" reasoning as the docs-only-diff skip (see above) — this ships as a script to copy in, not one consumers source at runtime.
 
 **Known limitation, by design:** a table interrupted mid-body by a non-`|`-starting line (e.g. a blockquote spliced between data rows) ends that table's scope early; rows after the interruption go unscanned rather than falsely flagged. Not observed in any of the three consumer projects' real files as of this writing — conservative-by-construction, same posture as `scripts/lib/docs_only_diff.sh`.
+
+## Identifier Descriptors — Why Every `#N` Gets A Type Word
+
+**The report that prompted the rule** (kermit-harness, 2026-09-04), quoted back by the reader who could not parse it:
+
+> Release cut — `make release VERSION=4.141.0`; tag `v4.141.0` pushed. Milestone **#157** closed — v4.141: Retry Policy Hook. **#383** reply posted, after the Release existed. Left open for Kermit v3 to close, matching how **#365/#366/#367/#369** were handled.
+
+Six numbering systems in three sentences. Decoded against the live repo:
+
+| In the report | What it actually is | Recoverable from the text? |
+| ------------- | ------------------- | -------------------------- |
+| `v4.141: Retry Policy Hook` | Roadmap Phase | yes |
+| `#384` | a **PR** | **no** |
+| `#383` | an **issue** | **no** |
+| milestone `#157` | GitHub's sequential counter, holding `v4.141` | only from the word before it |
+| `4.141.0`, tag `v4.141.0` | `__api_version__` and release tag | two spellings of one phase |
+| `a2551bb1` | commit SHA | from shape |
+| `2282` | a test count | not an identifier at all |
+
+Three of those are ambiguous **by construction**. Issues and PRs share one number space, so `#383` and `#384` are adjacent integers naming different kinds of object. Milestone numbers are a separate counter with no relation to the version held — `milestone #157` holds `v4.141`. And Roadmap Phase versions are per-project counters all wearing `v<n>.<n>`: dev-platform `v1.29`, kermit-harness `v4.141`, kermit-v3 `v0.197`, with nothing in a report saying which project is meant.
+
+The v1.26 "Which Identifier To Cite" rule already ranked three identifiers but never said to **label** them and never mentioned milestone numbers — the worst offender above. v1.29 adds the descriptor mandate, the milestone row, and cross-project qualification, and puts the convention into the report templates (`settings/claude-global.md`, `commands/merge.md`, `commands/plan.md`, `commands/pr.md`) rather than leaving it as abstract prose guidance the templates never referenced.
+
+### Why there is deliberately no checker
+
+The measurement, taken before deciding: across `CLAUDE.md`, `commands/`, `docs/` and `settings/` there are **20 `#N` references, of which 5 lack a descriptor** — and **4 of those 5 are the `owner/repo#N` form** (`teelr/dev-platform#68`), which is already unambiguous because the repo name supplies the context. The fifth is `Ask #51`, which has a descriptor. **The tracked markdown was never the problem.**
+
+So a file-scanning check would go green on its first run and stay green while the surface that actually drifts — what gets written into chat reports — went unwatched. This repo has already recorded that failure shape (a gate whose output proves nothing is worse than no gate; see the v1.25 lesson on a 6-PASS/29-SKIP run that verified nothing). Adding a check here for symmetry with v1.26's `check-phase-tags.sh` would have manufactured exactly that. The enforcement is the rule plus the templates that shape what gets written.
+
+**A measurement error worth keeping**, because it looked like evidence: the first count reported "99 references, 73 with descriptors, ~26 bare." It piped `grep -o` match *fragments* into a second `grep`, so the descriptor test ran against the string `#92` with its line context already stripped — every fragment failed the test, and the "bare" count was an artifact of the pipeline, not a property of the files. The real numbers came from a line-context scan. A count is only evidence if the thing being counted still carries what the test needs.

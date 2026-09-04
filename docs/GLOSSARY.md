@@ -60,6 +60,8 @@ The pre-release gate. Adds full load tests (1K agents, 1K tenants × 10 reqs, 2.
 
 Repo-level container 1:1 with a [Roadmap Phase](#roadmap-phase). Title matches the Phase header (`v0.7: Team Enablement`). Closed when the Phase ships. v0.7 Phase 4's `scripts/sync-milestones.sh` automates mirroring `ROADMAP.md` → Milestones.
 
+**The title is 1:1 with the Phase; the number is not.** A milestone has two identifiers and only one of them means anything to a reader. Its *title* (`v1.29: Identifier Descriptors`) is the Roadmap Phase. Its *number* is GitHub's own sequential counter, assigned across the repo's entire history, with no relationship to the version inside it — `milestone #40` holds `v1.29`, and in kermit-harness `milestone #157` holds `v4.141`. That mismatch is the usual source of "which number is this?" when reading a report. **Cite the title; the number is an API argument** — correct in `gh api repos/:owner/:repo/milestones/40`, useless in a sentence. See the "Which Identifier To Cite" rule in [CLAUDE.md](../CLAUDE.md).
+
 ### In flight
 
 A [Spec Phase](#spec-phase) that's implemented on a feature branch but not yet merged. Tracked in [planning.md](../planning.md)'s "In flight" section. Distinct from "merged" (commit landed but post-merge tasks may still be pending) and from [Ship](#ship) (Phase fully closed including post-merge).
@@ -96,9 +98,11 @@ GitHub primitive that bundles a feature branch into a merge proposal against `ma
 
 The `#92` in "PR #92" — assigned sequentially by GitHub, sharing one number space with issues, carrying no meaning about what shipped. It is **provenance, not a reference**: cite the [Roadmap Phase](#roadmap-phase) version and put the PR number in parentheses when the exact commit matters. `#325` on its own does not even say whether it is a PR or an issue. See the "Which Identifier To Cite" rule in [CLAUDE.md](../CLAUDE.md).
 
+**Issues and PRs share one number space, so adjacent integers are routinely different kinds of object.** In kermit-harness, `#383` is an issue and `#384` is the PR — consecutive, unrelated in kind, indistinguishable from the numbers alone. This is why every `#<number>` in anything a human reads carries a type word in front of it: `issue #383`, `PR #384`. The exempt form is `owner/repo#N` (`teelr/kermit-harness#200`), where the repo name already supplies the context.
+
 ### Release tag
 
-A git tag at the merge commit closing a [Roadmap Phase](#roadmap-phase), named exactly as the phase version. It carries the same string as the phase but is a different object: **the phase is the work, the tag is the artifact** — and the tag is the only one of the three identifiers a consumer can pin (`taxonomy-check.yml@v1.26`). Cut mechanically at [Post-merge](#post-merge), verified by [scripts/check-phase-tags.sh](../scripts/check-phase-tags.sh). Tagging previously depended on remembering and stopped after v1.13, leaving twelve phases unpinnable and freezing every consumer at `@v1.12` or `@v1.13` — a tag nobody cut is one nobody can pin, and Dependabot cannot bump to it either.
+A git tag at the merge commit closing a [Roadmap Phase](#roadmap-phase), named exactly as the phase version. It carries the same string as the phase but is a different object: **the phase is the work, the tag is the artifact** — and the tag is the only one of the four identifiers a consumer can pin (`taxonomy-check.yml@v1.26`). Cut mechanically at [Post-merge](#post-merge), verified by [scripts/check-phase-tags.sh](../scripts/check-phase-tags.sh). Tagging previously depended on remembering and stopped after v1.13, leaving twelve phases unpinnable and freezing every consumer at `@v1.12` or `@v1.13` — a tag nobody cut is one nobody can pin, and Dependabot cannot bump to it either.
 
 ### Reusable workflow
 

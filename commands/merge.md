@@ -175,6 +175,8 @@ Print:
 - The PR URL (for reference)
 - In worktree mode: that the worktree was removed and the session is back in the main checkout.
 
+**Every `#<number>` in this report carries a type word — `PR #384`, `issue #383` — and an issue in another repo is cited as `<owner>/<repo>#<n>`, the exempt form.** A bare cross-repo number is the worst case: it names an object in a repo the reader is not looking at, in a number space shared with PRs. See "Which Identifier To Cite" in `CLAUDE.md`.
+
 ## Step 7: Run post-merge automatically
 
 `/merge` owns post-merge — it runs immediately, in the same turn, with no separate invocation. Do NOT stop and wait for the user to ask for it.
@@ -205,6 +207,8 @@ Print:
      ```
 
      The tag is the only identifier a consumer can pin (`taxonomy-check.yml@v<X.Y>`), so skipping it leaves the phase unreachable to every consumer — that is how tagging stopped at v1.13 and left twelve phases unpinnable. Then verify with `./scripts/check-phase-milestones.sh` and `./scripts/check-phase-tags.sh`.
+
+     **The `<n>` in the `gh api` call stays a number — that is the correct API argument. The REPORT does not.** Say `milestone v<X.Y>: <Title> closed`, never `milestone #<n> closed`: the milestone number is a sequential counter unrelated to the version it holds, so it tells the reader nothing. You already have the title — it is the milestone you just closed.
    - If this merge did NOT complete a phase (a mid-phase Change), say so explicitly: "mid-phase merge — no phase-completion step." and continue to sub-step 6 (nothing further to commit from this sub-step).
 6. **Land any file changes from steps 4-5.** If the project's rules forbid direct commits to `main` (check its CLAUDE.md), run the SAME mini-cycle this skill already knows how to do — reuse Steps 1-5 above on a fresh branch:
    - **Cut the branch worktree-aware, same as feature work.** Check `test -f .claude/worktree-deps` from the current directory (by this point in Step 7 the session is always back in the project's main checkout — Step 5 already returned it there, whether the feature branch itself used branch mode or worktree mode):
@@ -214,7 +218,7 @@ Print:
    - Run the project's local gate (`./scripts/gate_fast.sh` or equivalent) before committing — same rule as any other commit. A docs-only diff should be fast; if the project's gate doesn't already skip its expensive legs (test suite, lint, typecheck) for a diff touching only docs/roadmap files, that's worth a separate follow-on, not a reason to skip the gate here.
    - Open the PR (`gh pr create`), then run Steps 2-5 of THIS skill against it: poll CI, verify green, squash-merge, sync local main. This is the one case `/merge` calls its own logic recursively — it's still gated by the same non-overridable CI-green check as any other merge. **No further change is needed here**: Step 4 already re-derives `IN_WORKTREE` from the CURRENT session's toplevel path (not from any state carried over from the feature branch's own merge earlier in this same invocation), so it correctly detects the chore branch's worktree and takes the worktree-mode merge path (squash without `--delete-branch`, explicit `gh api -X DELETE` for the remote branch); Step 5 likewise already handles worktree-mode teardown generically (`ExitWorktree action: "keep"`, sync main, kill-by-cwd, `git worktree remove`, `git branch -D`, `git worktree prune`) for whatever worktree the session currently holds.
    - If the project instead permits a direct-to-`main` trivial-edit path for pure doc/roadmap changes, use that instead — it's faster and the outcome is identical. (This path never creates a branch at all, so the worktree-vs-branch-mode question doesn't apply to it.)
-7. **Report what post-merge did** — starting with the Change Summary block from sub-step 2, then the actions taken (files changed, milestone closed, doc-update PR's own merge commit SHA if sub-step 6 ran), or "nothing further to do" if sub-steps 4-5 found nothing.
+7. **Report what post-merge did** — starting with the Change Summary block from sub-step 2, then the actions taken (files changed, milestone closed by title, doc-update PR's own merge commit SHA if sub-step 6 ran), or "nothing further to do" if sub-steps 4-5 found nothing. Identifiers follow Step 6's rule: type word in front of every `#<number>`, milestones by title, `<owner>/<repo>#<n>` for anything in another repo.
 
 ## Rules
 
