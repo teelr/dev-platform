@@ -1,0 +1,5 @@
+# git's --diff-filter selects FILE status, not content — it defeats the -S pickaxe
+
+`migrate-lessons.sh --date-from git` looked up each entry's introducing commit with `git log --diff-filter=A -S "<entry>" -- lessons.md`. `-S` is the pickaxe and was doing the right thing; `--diff-filter=A` restricts results to commits where **the file was Added**, which is exactly one commit. So the query could only ever match entries present when the file was created, and every entry appended afterwards resolved to nothing and fell through to "dated today". On kermit-v3 that was 214 of 214 entries — a migration that would have stamped every lesson with the migration date and destroyed the chronology date-leading filenames exist to preserve.
+
+Reach for `--diff-filter` only when you mean the file's own status (added/modified/deleted/renamed). To find where a *string* came from, `-S <text> --reverse` alone is the whole answer. When a lookup silently degrades to a default, test it against a fixture with **history** — the pre-existing suite exercised `--date-from today` and the refusal paths but never `git`, so nothing failed and the bug shipped in v1.28.
