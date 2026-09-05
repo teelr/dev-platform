@@ -53,12 +53,21 @@ fi
 endpoint="${2:-}"
 fixture_dir="${MOCK_GH_FIXTURE:-}"
 
-# repos/<owner>/<repo>/pulls?... — open bump PRs (v1.31). A
-# <owner>__<repo>.prs fixture holds one "number|title" per line, exactly what
-# the real --jq produces; absent means the repo has no open PRs.
-if [[ "${endpoint}" =~ ^repos/([^/]+)/([^/]+)/pulls ]]; then
-    prs="${fixture_dir}/${BASH_REMATCH[1]}__${BASH_REMATCH[2]}.prs"
-    [[ -f "${prs}" ]] && cat "${prs}"
+# repos/<owner>/<repo>/issues?... — open bump PRs (PR #105) and tracking issues
+# (v1.32). GitHub's issues endpoint returns BOTH issues and pull requests, with
+# .pull_request non-null on the PRs, so one call serves both. A
+# <owner>__<repo>.issues fixture holds one "number|is_pr|title" per line,
+# exactly what the real --jq produces; absent means the repo has neither.
+#
+# A <owner>__<repo>.issues-fail fixture makes the call fail instead, so the
+# suite can prove a failed lookup is never rendered as "no tracking issue".
+if [[ "${endpoint}" =~ ^repos/([^/]+)/([^/]+)/issues ]]; then
+    base="${fixture_dir}/${BASH_REMATCH[1]}__${BASH_REMATCH[2]}"
+    if [[ -f "${base}.issues-fail" ]]; then
+        echo "mock gh: simulated issues-endpoint failure" >&2
+        exit 1
+    fi
+    [[ -f "${base}.issues" ]] && cat "${base}.issues"
     exit 0
 fi
 
