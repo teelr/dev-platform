@@ -278,8 +278,21 @@ if any(e.date is None for e in entries):
         missed = 0
         for e in entries:
             head = e.body.split('\n', 1)[0]
+            # `-S <head>` is the pickaxe: it lists commits that changed how many
+            # times that text appears in the file, and --reverse puts the oldest
+            # first — so [0] is the commit that introduced the entry.
+            #
+            # NO --diff-filter=A here. That flag filters on the FILE's status,
+            # not the content's: `A` means "commits where this file was Added",
+            # i.e. the single commit that created lessons.md. Combined with -S it
+            # could only ever match entries that existed in that first commit, so
+            # every entry appended later resolved to nothing and fell through to
+            # TODAY. Measured on kermit-v3: the file was added 2026-07-05, and
+            # all 214 of its entries missed — the migration would have stamped
+            # every lesson with the migration date and lost the chronology that
+            # date-leading filenames exist to preserve.
             r = subprocess.run(
-                ['git', 'log', '--diff-filter=A', '-S', head, '--reverse',
+                ['git', 'log', '-S', head, '--reverse',
                  '--format=%ad', '--date=short', '--', os.path.abspath(src)],
                 cwd=repo_dir, capture_output=True, text=True)
             first = r.stdout.strip().split('\n')[0] if r.stdout.strip() else ''

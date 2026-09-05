@@ -273,3 +273,45 @@ if [[ "${BASELINE}" == "${CURRENT}" ]]; then
 else
     record_fail "migration-formats: a script wrote into the fixture directory"
 fi
+
+# ─── Check 17: --date-from git dates an APPENDED entry ────────────
+# The regression. `--date-from git` used to pass --diff-filter=A, which filters
+# on the FILE's status: `A` means "commits where this file was Added", i.e. the
+# one commit that created lessons.md. Combined with the -S pickaxe it could only
+# ever match entries present in that first commit, so every entry appended later
+# resolved to nothing and silently fell through to TODAY.
+#
+# Every check above this one used --date-from today or asserted a refusal, so
+# the git path had no coverage at all — which is how it shipped. Measured on
+# kermit-v3: 214 of 214 entries missed, and the migration would have stamped
+# every lesson with the migration date.
+#
+# Two commits on different dates: entry A ships with the file, entry B is
+# appended later. B is the one that used to break.
+GITFIX="${TMP}/gitrepo"
+mkdir -p "${GITFIX}"
+(
+    cd "${GITFIX}" || exit 1
+    git init -q -b main
+    printf '# Lessons\n\n## L1 — first lesson, present when the file was created\n\nBody A.\n' > lessons.md
+    git add lessons.md
+    GIT_AUTHOR_DATE="2026-01-02T10:00:00" GIT_COMMITTER_DATE="2026-01-02T10:00:00" \
+        git -c user.email=t@t -c user.name=t commit -qm "add lessons.md"
+    printf '\n## L2 — second lesson, appended in a LATER commit\n\nBody B.\n' >> lessons.md
+    git add lessons.md
+    GIT_AUTHOR_DATE="2026-03-04T10:00:00" GIT_COMMITTER_DATE="2026-03-04T10:00:00" \
+        git -c user.email=t@t -c user.name=t commit -qm "append a lesson"
+) >/dev/null 2>&1
+
+out="$(LESSONS_FILE="${GITFIX}/lessons.md" LESSONS_DIR="${TMP}/o10" \
+       bash "${LESSONS}" --date-from git --apply 2>&1)"; rc=$?
+today="$(date +%F)"
+if [[ ${rc} -eq 0 ]] \
+   && find "${TMP}/o10" -name '2026-01-02-*.md' | grep -q . \
+   && find "${TMP}/o10" -name '2026-03-04-*.md' | grep -q . \
+   && ! echo "${out}" | grep -q "no introducing commit" \
+   && ! find "${TMP}/o10" -name "${today}-*.md" | grep -q .; then
+    record_pass "migration-formats: --date-from git dates an appended entry from its own commit, not today"
+else
+    record_fail "migration-formats: --date-from git wrong — rc=${rc}, files: $(ls "${TMP}/o10" 2>/dev/null | tr '\n' ' '), out: ${out}"
+fi
