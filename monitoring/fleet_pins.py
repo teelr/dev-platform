@@ -120,6 +120,15 @@ class ProjectPin:
     # "behind with nothing in flight"; the pin column renders them the same.
     open_bump_pr: Optional[int] = None
     open_bump_to: Optional[str] = None
+    # An open ISSUE tracking this pin bump. Distinct from open_bump_pr and
+    # rendered with its own type word: issues and PRs share one number space,
+    # so a row may legitimately show both.
+    tracking_issue: Optional[int] = None
+    # State of the single lookup that finds both, so the renderer can tell
+    # "found nothing" from "could not look". One of "ok", "failed",
+    # "truncated", or "skipped" — the last meaning no lookup ran at all
+    # (--source local, or a repo that was never reachable).
+    bump_lookup: str = "skipped"
 
 
 def _run(cmd: list[str], cwd: Path, token: Optional[str] = None) -> tuple[int, str]:
@@ -244,42 +253,87 @@ def fetch_live_pin(slug: str, tokens: Optional[list[tuple[str, str]]] = None
     return None, "unreachable", None
 
 
+# The /issues page size. A full page means the answer may be incomplete, so it
+# is also the truncation threshold — the two must stay the same number.
+BUMP_PAGE_SIZE = 100
 BUMP_TITLE_RE = re.compile(r'taxonomy-check|dev-platform-gate', re.I)
 # "…from 1.12 to 1.13" (Dependabot) or "…@v1.12 -> @v1.26" (hand-written).
 BUMP_TARGET_RE = re.compile(r'(?:to|->|→)\s*@?v?(\d+\.\d+)', re.I)
 
 
-def fetch_open_bump(slug: str, token: Optional[str]) -> tuple[Optional[int], Optional[str]]:
-    """An open PR that would bump this consumer's pin, if one is waiting.
+def fetch_bump_refs(
+    slug: str, token: Optional[str]
+) -> tuple[Optional[int], Optional[str], Optional[int], str]:
+    """Open references that would move this consumer's pin: a PR, and an issue.
 
-    "17 behind with a merge-ready PR open" and "17 behind with nothing in
-    flight" are different situations that the pin column alone renders
-    identically. kermit-pa PR #176 and keystone PR #512 both sat open and
-    mergeable for 18 days without that distinction being visible anywhere.
+    "19 behind with a merge-ready PR open", "19 behind with a tracking issue
+    filed", and "19 behind with nothing at all" are three different situations
+    that the pin column alone renders identically. kermit-pa PR #176 and
+    keystone PR #512 both sat open and mergeable for 18 days without the first
+    distinction being visible; every active consumer had a tracking issue on
+    2026-09-04 and not one of them appeared in the report.
 
-    Lists open PRs and filters by title rather than using the search API:
-    search is rate-limited and eventually-consistent, so a freshly opened PR
-    can be missing from it. Returns (number, target_version) — target is None
-    when the title names no version.
+    ONE call serves both. GitHub's issues endpoint returns pull requests too,
+    with `.pull_request` non-null on them, so this replaces the former /pulls
+    call rather than adding to it. The split on that field is load-bearing:
+    keystone's only open PR is itself a bump PR, so without it one object is
+    reported twice on one row — once as `PR #512`, once as `issue #512`.
+
+    Lists and filters by title rather than using the search API: search is
+    rate-limited and eventually-consistent, so a freshly opened PR or issue can
+    be missing from it.
+
+    Returns (pr_number, pr_target, issue_number, lookup_state). `pr_target` is
+    None when the title names no version. `lookup_state` is "ok", "failed" or
+    "truncated" — only "ok" licenses the caller to report absence, because
+    "nothing is tracking this" and "we could not find out" must never render
+    the same way.
     """
     rc, out = _run(
-        ["gh", "api", f"repos/{slug}/pulls?state=open&per_page=100",
-         "--jq", '.[] | "\\(.number)|\\(.title)"'],
+        ["gh", "api", f"repos/{slug}/issues?state=open&per_page={BUMP_PAGE_SIZE}",
+         "--jq", '.[] | "\\(.number)|\\(.pull_request != null)|\\(.title)"'],
         cwd=REPO, token=token,
     )
-    if rc != 0 or not out:
-        return None, None
+    if rc != 0:
+        return None, None, None, "failed"
 
-    for line in out.split("\n"):
-        num, _, title = line.partition("|")
+    lines = [ln for ln in out.split("\n") if ln] if out else []
+
+    # An empty result is a COMPLETE answer — a repo with no open issues and no
+    # open PRs. Only a non-zero rc is a failure. (Treating empty as failure
+    # would suppress the untracked marker on exactly the quietest repos, which
+    # are the ones most likely to have been forgotten.)
+    #
+    # A full page means an item beyond it was never seen, so absence cannot be
+    # claimed from it. The largest consumer returns 11 items today, so this is
+    # a guard rather than a live condition — asserted by fixture, not awaited.
+    state = "truncated" if len(lines) >= BUMP_PAGE_SIZE else "ok"
+
+    pr_num: Optional[int] = None
+    pr_to: Optional[str] = None
+    issue_num: Optional[int] = None
+
+    for line in lines:
+        num_s, _, rest = line.partition("|")
+        is_pr_s, _, title = rest.partition("|")
         if not BUMP_TITLE_RE.search(title):
             continue
-        m = BUMP_TARGET_RE.search(title)
         try:
-            return int(num), (f"v{m.group(1)}" if m else None)
+            num = int(num_s)
         except ValueError:
-            return None, None
-    return None, None
+            # Skip the malformed row rather than abandoning the scan — one bad
+            # line must not blind the lookup to the rows after it.
+            continue
+        if is_pr_s == "true":
+            if pr_num is None:
+                m = BUMP_TARGET_RE.search(title)
+                pr_num, pr_to = num, (f"v{m.group(1)}" if m else None)
+        elif issue_num is None:
+            issue_num = num
+        if pr_num is not None and issue_num is not None:
+            break
+
+    return pr_num, pr_to, issue_num, state
 
 
 def _read_template(slug: str, token: Optional[str]) -> tuple[Optional[str], str]:
@@ -430,6 +484,8 @@ def query_project(entry: dict, latest: Optional[str], source: str = "both",
     via_account: Optional[str] = None
     open_bump_pr: Optional[int] = None
     open_bump_to: Optional[str] = None
+    tracking_issue: Optional[int] = None
+    bump_lookup = "skipped"
     if source in ("github", "both"):
         slug = repo_slug_for(target)
         if slug is None:
@@ -438,11 +494,15 @@ def query_project(entry: dict, latest: Optional[str], source: str = "both",
             live_state = "skipped"
         else:
             live_pin, live_state, via_account = fetch_live_pin(slug, tokens)
-            # Only ask about open PRs for a repo we could actually reach —
-            # an unreachable repo would just 404 again for no information.
+            # Only ask about open refs for a repo we could actually reach —
+            # an unreachable repo would just 404 again for no information, and
+            # `bump_lookup` correctly stays "skipped" so nothing is claimed
+            # about what is or isn't tracking it.
             if live_state in ("ok", "absent"):
                 bump_token = dict(tokens or {}).get(via_account) if via_account else None
-                open_bump_pr, open_bump_to = fetch_open_bump(slug, bump_token)
+                open_bump_pr, open_bump_to, tracking_issue, bump_lookup = fetch_bump_refs(
+                    slug, bump_token
+                )
 
     # Whenever GitHub answered — with a template OR with its absence — that
     # answer is authoritative, because it is what CI runs. "absent" therefore
@@ -507,6 +567,8 @@ def query_project(entry: dict, latest: Optional[str], source: str = "both",
         via_account=via_account,
         open_bump_pr=open_bump_pr,
         open_bump_to=open_bump_to,
+        tracking_issue=tracking_issue,
+        bump_lookup=bump_lookup,
     )
 
 
@@ -539,6 +601,31 @@ def format_pin(pin: Optional[str], status: str) -> str:
     if pin is None or pin == "":
         return "—"
     return pin
+
+
+def is_untracked(p: ProjectPin) -> bool:
+    """Nothing open will move this pin, and we actually established that.
+
+    ONE definition, used by both the row marker and the footnote that explains
+    it. Written twice in two shapes, the two would eventually disagree and the
+    footnote would name a different set than the rows it describes.
+
+    Four conditions, each ruling out a confident falsehood:
+
+    - `status == "behind"` — a frozen or up-to-date row needs no bump issue,
+      and marking it would invite someone to file a pointless one.
+    - `bump_lookup == "ok"` — a failed, truncated, or never-run lookup has not
+      established absence. Saying "untracked" from one would send someone to
+      file a duplicate of an issue that already exists.
+    - no open bump PR — a PR in flight IS tracking, issue or no issue.
+    - no tracking issue — the obvious one.
+    """
+    return (
+        p.status == "behind"
+        and p.bump_lookup == "ok"
+        and not p.open_bump_pr
+        and not p.tracking_issue
+    )
 
 
 def format_status(status: str, minor_delta: Optional[int]) -> str:
@@ -593,6 +680,10 @@ def render_markdown(pins: list[ProjectPin], registry_path: Path, latest: Optiona
         if p.open_bump_pr:
             target = f" → {p.open_bump_to}" if p.open_bump_to else ""
             status_cell += f" · PR #{p.open_bump_pr} open{target}"
+        if p.tracking_issue:
+            status_cell += f" · issue #{p.tracking_issue} open"
+        if is_untracked(p):
+            status_cell += " · untracked"
         if p.drift:
             live_desc = p.live_pin if p.live_pin else "no template on the default branch"
             status_cell += f" ⚠ local ≠ live ({p.local_pin} vs {live_desc})"
@@ -602,6 +693,15 @@ def render_markdown(pins: list[ProjectPin], registry_path: Path, latest: Optiona
             f"| {format_pin(p.local_pin, p.status):<11} "
             f"| {status_cell:<28} |"
         )
+    untracked = [p for p in pins if is_untracked(p)]
+    if untracked:
+        lines += [
+            "",
+            "⚠ `untracked` means the lookup completed and found no open bump PR and no open "
+            "tracking issue on that repo: "
+            + ", ".join(p.name for p in untracked)
+            + ". Nothing will move that pin until someone files one.",
+        ]
     via = [p for p in pins if p.via_account]
     if via:
         lines += [

@@ -387,18 +387,57 @@ EOF
 live_project second-acct-1 mock/second-acct-1
 live_template v1.12 > "${GH_FIXTURE}/mock__second-acct-1.second"
 
-# Open bump PRs (v1.31). current-1 has a Dependabot-shaped title carrying a
-# target version; drift-1 has a hand-written one with no version in the title;
-# absent-1 has an open PR that is NOT a pin bump and must be ignored.
-cat > "${GH_FIXTURE}/mock__current-1.prs" <<'EOF'
-176|chore(deps): Bump teelr/dev-platform/.github/workflows/taxonomy-check.yml from 1.12 to 1.13
+# Open bump PRs (PR #105) and tracking issues (v1.32), both read from the one
+# /issues call. Fixture lines are "number|is_pr|title".
+#
+# current-1 is the keystone shape and the most load-bearing fixture: its ONLY
+# pull request is itself a bump PR, so if the .pull_request split is ever
+# dropped, one object gets reported twice on one row — once as PR #176, once as
+# "issue #176". It also carries a real tracking issue, so the row must show both.
+cat > "${GH_FIXTURE}/mock__current-1.issues" <<'EOF'
+515|false|[dev-platform] Bump dev-platform-gate pin @v1.26 → @v1.31
+176|true|chore(deps): Bump teelr/dev-platform/.github/workflows/taxonomy-check.yml from 1.12 to 1.13
 EOF
-cat > "${GH_FIXTURE}/mock__drift-1.prs" <<'EOF'
-99|chore: let Dependabot propose the dev-platform-gate pin bump
+# drift-1: a hand-written bump PR with no version in the title, no issue.
+cat > "${GH_FIXTURE}/mock__drift-1.issues" <<'EOF'
+99|true|chore: let Dependabot propose the dev-platform-gate pin bump
 EOF
-cat > "${GH_FIXTURE}/mock__absent-1.prs" <<'EOF'
-42|feat: something entirely unrelated to pins
+# absent-1: an open PR that is NOT a pin bump, and an issue that is not one
+# either — both must be ignored. The issue title is a real near-miss: it
+# mentions dev-platform without being a bump ask.
+cat > "${GH_FIXTURE}/mock__absent-1.issues" <<'EOF'
+42|true|feat: something entirely unrelated to pins
+43|false|Port gate-fast docs-only-diff skip pattern from dev-platform
 EOF
+# tracked-1: a tracking issue and NO bump PR — the SQRL/kermit-v3 shape.
+live_project tracked-1 mock/tracked-1
+live_template v1.12 > "${GH_FIXTURE}/mock__tracked-1.yml"
+cat > "${GH_FIXTURE}/mock__tracked-1.issues" <<'EOF'
+740|false|[dev-platform] Bump dev-platform-gate pin @v1.13 → @v1.31
+EOF
+# unfiled-1: behind, with neither. The row this phase exists to surface.
+live_project unfiled-1 mock/unfiled-1
+live_template v1.12 > "${GH_FIXTURE}/mock__unfiled-1.yml"
+# uptodate-1: current, with neither — must NOT be marked untracked.
+live_project uptodate-1 mock/uptodate-1
+live_template v1.26 > "${GH_FIXTURE}/mock__uptodate-1.yml"
+# frozen-1: behind and frozen, with neither — must NOT be marked untracked.
+live_project frozen-1 mock/frozen-1
+live_template v1.12 > "${GH_FIXTURE}/mock__frozen-1.yml"
+# truncated-1: a full 100-line page. Absence cannot be claimed from a response
+# that may have been cut off, so this must not render as untracked either.
+live_project truncated-1 mock/truncated-1
+live_template v1.12 > "${GH_FIXTURE}/mock__truncated-1.yml"
+python3 -c "
+import sys
+with open(sys.argv[1], 'w') as fh:
+    for i in range(100):
+        fh.write(f'{9000+i}|false|unrelated issue {i}\n')
+" "${GH_FIXTURE}/mock__truncated-1.issues"
+# failed-1: the issues call itself errors. Same rule — no absence claim.
+live_project failed-1 mock/failed-1
+live_template v1.12 > "${GH_FIXTURE}/mock__failed-1.yml"
+touch "${GH_FIXTURE}/mock__failed-1.issues-fail"
 
 # noremote-1: a checkout with NO origin remote — nothing to ask gh about.
 mock_project_init "${LIVE_ROOT}/noremote-1"
@@ -416,7 +455,13 @@ cat > "${LIVE_REGISTRY}" <<EOF
   {"name": "garbled-live-1", "path": "${LIVE_ROOT}/garbled-live-1", "gate_cmd": "true", "primary_language": "bash", "enabled": true},
   {"name": "noremote-1",     "path": "${LIVE_ROOT}/noremote-1",     "gate_cmd": "true", "primary_language": "bash", "enabled": true},
   {"name": "uncommitted-1",  "path": "${LIVE_ROOT}/uncommitted-1",  "gate_cmd": "true", "primary_language": "bash", "enabled": true},
-  {"name": "second-acct-1",  "path": "${LIVE_ROOT}/second-acct-1",  "gate_cmd": "true", "primary_language": "bash", "enabled": true}
+  {"name": "second-acct-1",  "path": "${LIVE_ROOT}/second-acct-1",  "gate_cmd": "true", "primary_language": "bash", "enabled": true},
+  {"name": "tracked-1",      "path": "${LIVE_ROOT}/tracked-1",      "gate_cmd": "true", "primary_language": "bash", "enabled": true},
+  {"name": "unfiled-1",    "path": "${LIVE_ROOT}/unfiled-1",    "gate_cmd": "true", "primary_language": "bash", "enabled": true},
+  {"name": "uptodate-1",     "path": "${LIVE_ROOT}/uptodate-1",     "gate_cmd": "true", "primary_language": "bash", "enabled": true},
+  {"name": "frozen-1",       "path": "${LIVE_ROOT}/frozen-1",       "gate_cmd": "true", "primary_language": "bash", "enabled": true, "frozen": true},
+  {"name": "truncated-1",    "path": "${LIVE_ROOT}/truncated-1",    "gate_cmd": "true", "primary_language": "bash", "enabled": true},
+  {"name": "failed-1",       "path": "${LIVE_ROOT}/failed-1",       "gate_cmd": "true", "primary_language": "bash", "enabled": true}
 ]
 EOF
 
@@ -616,4 +661,104 @@ if echo "${LIVE_MD}" | grep -q "PR #176 open → v1.13"; then
     record_pass "fleet-pins: status cell distinguishes 'behind with a PR open' from 'behind'"
 else
     record_fail "fleet-pins: open-PR marker missing from the markdown status cell"
+fi
+
+# ══════════════════════════════════════════════════════════════════
+# Bump-issue tracking (v1.32). The same /issues call that finds an open
+# bump PR also finds the tracking ISSUE, and — the point of the phase —
+# marks a behind row that has NEITHER as `untracked`.
+#
+# Four of these assertions exist only to stop a FALSE `untracked`: from a
+# frozen row, an up-to-date row, a truncated page, and a failed lookup.
+# Claiming absence from a read that did not complete would send someone to
+# file a duplicate of an issue that already exists.
+# ══════════════════════════════════════════════════════════════════
+
+# ─── Check 36: one row reports BOTH a bump PR and a tracking issue ─
+cur_pr="$(json_field "${LIVE_JSON}" current-1 open_bump_pr)"
+cur_issue="$(json_field "${LIVE_JSON}" current-1 tracking_issue)"
+if [[ "${cur_pr}" == "176" ]] && [[ "${cur_issue}" == "515" ]]; then
+    record_pass "fleet-pins: a row carries both its bump PR and its tracking issue"
+else
+    record_fail "fleet-pins: PR/issue pair wrong — pr=${cur_pr}, issue=${cur_issue} (want 176/515)"
+fi
+
+# ─── Check 37: a PR is never counted as the tracking issue ────────
+# The keystone shape: current-1's only pull request IS a bump PR, so dropping
+# the .pull_request split reports one object twice on one row.
+if [[ "${cur_issue}" != "176" ]]; then
+    record_pass "fleet-pins: a bump PR is not also reported as the tracking issue"
+else
+    record_fail "fleet-pins: PR #176 reported as an issue — the .pull_request split is gone"
+fi
+
+# ─── Check 38: tracking issue with no bump PR ─────────────────────
+t_pr="$(json_field "${LIVE_JSON}" tracked-1 open_bump_pr)"
+t_issue="$(json_field "${LIVE_JSON}" tracked-1 tracking_issue)"
+if [[ "${t_pr}" == "None" ]] && [[ "${t_issue}" == "740" ]]; then
+    record_pass "fleet-pins: tracking issue found where no bump PR exists"
+else
+    record_fail "fleet-pins: issue-only case wrong — pr=${t_pr}, issue=${t_issue}"
+fi
+
+# ─── Check 39: behind with neither → untracked ────────────────────
+u_row="$(echo "${LIVE_MD}" | grep "^| unfiled-1")"
+if echo "${u_row}" | grep -q "· untracked"; then
+    record_pass "fleet-pins: a behind row with no PR and no issue is marked untracked"
+else
+    record_fail "fleet-pins: untracked marker missing — ${u_row}"
+fi
+
+# ─── Check 40: an up-to-date row is never marked untracked ────────
+if ! echo "${LIVE_MD}" | grep "^| uptodate-1" | grep -q "· untracked"; then
+    record_pass "fleet-pins: an up-to-date row is not marked untracked"
+else
+    record_fail "fleet-pins: up-to-date row marked untracked — nobody should file a bump issue for it"
+fi
+
+# ─── Check 41: a frozen row is never marked untracked ─────────────
+if ! echo "${LIVE_MD}" | grep "^| frozen-1" | grep -q "· untracked"; then
+    record_pass "fleet-pins: a frozen row is not marked untracked"
+else
+    record_fail "fleet-pins: frozen row marked untracked — its pin is deliberately not chased"
+fi
+
+# ─── Check 42: a behind row WITH a bump PR is not untracked ───────
+# drift-1 is behind, has bump PR #99, and has no tracking issue. An open PR is
+# tracking; marking it untracked would tell someone to file an issue for work
+# already in flight. Added after a mutation test showed this guard could be
+# deleted with every other assertion still green.
+if ! echo "${LIVE_MD}" | grep "^| drift-1" | grep -q "· untracked"; then
+    record_pass "fleet-pins: a behind row with an open bump PR is not marked untracked"
+else
+    record_fail "fleet-pins: row with an open bump PR marked untracked — a PR in flight IS tracking"
+fi
+
+# ─── Check 43: a truncated page cannot claim absence ──────────────
+trunc_lookup="$(json_field "${LIVE_JSON}" truncated-1 bump_lookup)"
+if [[ "${trunc_lookup}" == "truncated" ]] && \
+   ! echo "${LIVE_MD}" | grep "^| truncated-1" | grep -q "· untracked"; then
+    record_pass "fleet-pins: a full page reports 'truncated' and refuses the untracked claim"
+else
+    record_fail "fleet-pins: truncation not handled — lookup=${trunc_lookup}"
+fi
+
+# ─── Check 44: a failed lookup cannot claim absence ───────────────
+fail_lookup="$(json_field "${LIVE_JSON}" failed-1 bump_lookup)"
+if [[ "${fail_lookup}" == "failed" ]] && \
+   ! echo "${LIVE_MD}" | grep "^| failed-1" | grep -q "· untracked"; then
+    record_pass "fleet-pins: a failed issues lookup reports 'failed' and refuses the untracked claim"
+else
+    record_fail "fleet-pins: failed lookup not handled — lookup=${fail_lookup}"
+fi
+
+# ─── Check 45: --source local makes no issues call at all ─────────
+LOCAL_ARGS_LOG="${TMP}/gh-args-local-issues.log"
+PATH="${MOCK_BIN}:${PATH}" MOCK_GH_FIXTURE="${GH_FIXTURE}" MOCK_GH_ARGS_FILE="${LOCAL_ARGS_LOG}" \
+    python3 "${INSPECTOR}" --source local --latest v1.26 --registry "${LIVE_REGISTRY}" \
+    >/dev/null 2>&1
+if [[ ! -s "${LOCAL_ARGS_LOG}" ]] || ! grep -q "issues" "${LOCAL_ARGS_LOG}"; then
+    record_pass "fleet-pins: --source local performs no issues lookup"
+else
+    record_fail "fleet-pins: --source local called the issues endpoint"
 fi
