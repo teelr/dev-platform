@@ -1,0 +1,5 @@
+# A target directory existing is not proof the migration happened
+
+`check-migration-coverage.sh` reported `MIGRATED (N files)` on `[[ -d tasks/lessons ]]` alone, never checking whether the source still held entries. Both kermit-harness and kermit-v3 had reached a split state — new lessons landing in `tasks/lessons/` while the old `tasks/lessons.md` still held 153 and 214 entries — and both read as done for weeks. The false all-clear also meant kermit-harness never had a migration issue filed, because nothing said it needed one.
+
+A migration check must compare **both ends**: what has arrived and what is left behind. The split state is worse than not having started, since the collision the convention removes is still live for the backlog while the half-filled directory looks finished. Fixing the obvious branch was not enough either — kermit surfaced only after the `NEEDS --ignore-heading` path got the same treatment, so check every early return that can conclude "fine" before the comparison runs.
