@@ -85,6 +85,7 @@ trap "rm -rf '${PROBE_DIR}'" EXIT
 
 FAILURES=0
 ROWS=""
+PARTIALS=()
 
 # Probe one source file with one script. Echoes "<ok|fail>|<cell>".
 #
@@ -99,12 +100,25 @@ ROWS=""
 probe() {
     local script="$1" env_file_var="$2" env_dir_var="$3" src="$4" migrated_dir="$5"
 
+    # The target directory existing does NOT mean the migration happened.
+    # Both kermit-harness and kermit-v3 reached a split state: new entries were
+    # being written into tasks/lessons/ while the old tasks/lessons.md still
+    # held 153 and 214 entries respectively. Short-circuiting on `-d` here
+    # reported both as MIGRATED for weeks — a false all-clear that also meant
+    # kermit-harness never got a migration issue filed, because nothing said it
+    # needed one. The directory is counted, never trusted as an answer.
+    local migrated=0
     if [[ -d "${migrated_dir}" ]]; then
-        echo "ok|MIGRATED ($(find "${migrated_dir}" -maxdepth 1 -name '*.md' | wc -l | tr -d ' ') files)"
-        return 0
+        migrated="$(find "${migrated_dir}" -maxdepth 1 -name '*.md' | wc -l | tr -d ' ')"
     fi
+
     if [[ ! -f "${src}" ]]; then
-        echo "ok|NO SOURCE"
+        # Source gone: migrated if anything landed, otherwise never had any.
+        if [[ ${migrated} -gt 0 ]]; then
+            echo "ok|MIGRATED (${migrated} files)"
+        else
+            echo "ok|NO SOURCE"
+        fi
         return 0
     fi
 
@@ -127,7 +141,14 @@ probe() {
     # "Nothing to migrate" is not a failure: the file exists but holds no
     # shipped content in any known shape. Distinguish it from a parser choking.
     if echo "${out}" | grep -q "nothing to migrate"; then
-        echo "ok|NO SECTION"
+        # Source present but holding nothing extractable. With files already in
+        # the target, that is genuinely finished — the leftover source is a
+        # husk, not a backlog.
+        if [[ ${migrated} -gt 0 ]]; then
+            echo "ok|MIGRATED (${migrated} files)"
+        else
+            echo "ok|NO SECTION"
+        fi
         return 0
     fi
 
@@ -138,7 +159,16 @@ probe() {
         if echo "${out}" | grep -qE '^  ## '; then
             local n
             n="$(echo "${out}" | grep -cE '^  ## ')"
-            echo "ok|NEEDS --ignore-heading (${n})"
+            # Files already in the target means this is ALSO the split state,
+            # and that is the more important half: kermit reads
+            # "NEEDS --ignore-heading (3)" while 153 entries sit in the source.
+            # No entry count here — the parse did not complete, so claiming one
+            # would be inventing it.
+            if [[ ${migrated} -gt 0 ]]; then
+                echo "ok|PARTIAL (${migrated} migrated, needs --ignore-heading)"
+            else
+                echo "ok|NEEDS --ignore-heading (${n})"
+            fi
             return 0
         fi
         local why
@@ -158,6 +188,13 @@ probe() {
         echo "fail|FAILS (no entry count in output)"
     elif [[ "${n}" -eq 0 ]]; then
         echo "fail|FAILS (0 of $(grep -c '^## ' "${src}" 2>/dev/null || echo '?') headings parsed)"
+    elif [[ ${migrated} -gt 0 ]]; then
+        # The split state, and the reason this check was rewritten: entries are
+        # landing in the new convention while the old file still holds a
+        # backlog. Worse than either end alone — the collision risk the
+        # convention removes is still live for everything left in the source,
+        # and the half-done directory makes it look handled.
+        echo "ok|PARTIAL (${migrated} migrated, ${n} left)"
     else
         echo "ok|PARSES (${n} entries)"
     fi
@@ -201,6 +238,12 @@ for entry in "${entries[@]}"; do
     lessons_cell="${lessons_raw#*|}"
     shipped_cell="${shipped_raw#*|}"
 
+    # A PARTIAL row must reach the summary too. The table alone is what let the
+    # split state sit unnoticed — the closing line said "already migrated" and
+    # that is the sentence people read.
+    [[ "${lessons_cell}" == PARTIAL* ]] && PARTIALS+=("${name} lessons.md: ${lessons_cell#PARTIAL }")
+    [[ "${shipped_cell}" == PARTIAL* ]] && PARTIALS+=("${name} planning.md: ${shipped_cell#PARTIAL }")
+
     ROWS+="$(printf '| %-20s | %-34s | %-34s |' "${name}" "${lessons_cell}" "${shipped_cell}")"$'\n'
 done
 
@@ -219,11 +262,26 @@ printf '| %-20s | %-34s | %-34s |\n' "$(printf '%.0s-' {1..20})" "$(printf '%.0s
 printf '%s' "${ROWS}"
 echo
 
+if [[ ${#PARTIALS[@]} -gt 0 ]]; then
+    echo "check-migration-coverage: ${#PARTIALS[@]} source(s) PARTIALLY migrated —"
+    echo "  new entries are landing in the target directory while the old file still holds a backlog."
+    for p in "${PARTIALS[@]}"; do
+        echo "    ${p}"
+    done
+    echo "  This is worse than not having started: the collision the convention removes is still"
+    echo "  live for everything left in the source, and the half-filled directory looks finished."
+    echo
+fi
+
 if [[ ${FAILURES} -gt 0 ]]; then
     echo "check-migration-coverage: ${FAILURES} source file(s) fail to parse."
     echo "  A consumer that cannot run the migration script cannot adopt the convention."
     exit 1
 fi
 
-echo "check-migration-coverage: every consumer source parses or is already migrated."
+if [[ ${#PARTIALS[@]} -gt 0 ]]; then
+    echo "check-migration-coverage: every source parses; ${#PARTIALS[@]} partially migrated (above)."
+else
+    echo "check-migration-coverage: every consumer source parses or is already migrated."
+fi
 exit 0
