@@ -54,6 +54,49 @@ mk done-1      yes no    # dir, no source → MIGRATED
 mk notyet-1    no  yes   # source only    → PARSES
 mk nothing-1   no  no    # neither        → NO SOURCE
 
+# Two shapes of unparseable heading, which must NOT be reported the same way.
+#
+# categories-1 is the SQRL shape: every unparseable heading is a category label,
+# so --ignore-heading is the correct advice and skips nothing of value.
+mkdir -p "${TMP}/projects/categories-1/tasks"
+cat > "${TMP}/projects/categories-1/tasks/lessons.md" <<'EOF'
+# Lessons
+
+## Frontend
+
+## L1 — a real lesson
+
+Body one.
+
+## Infrastructure
+
+## L2 — another real lesson
+
+Body two.
+EOF
+
+# lossy-1 is the kermit shape: the unparseable headings are lesson-SHAPED,
+# carrying a consolidation numbering the `## L<N> —` pattern rejects. Skipping
+# them would drop real content, so this must never read "needs --ignore-heading".
+mkdir -p "${TMP}/projects/lossy-1/tasks"
+cat > "${TMP}/projects/lossy-1/tasks/lessons.md" <<'EOF'
+# Lessons
+
+## Renumbering note
+
+## L1 — a real lesson
+
+Body one.
+
+## L19+ — a consolidated lesson (consolidates former L19, L54)
+
+Body two.
+
+## L51+L60 — a merged lesson
+
+Body three.
+EOF
+
 REG="${TMP}/registry.json"
 python3 - "${TMP}" "${REG}" <<'PY'
 import json, sys
@@ -61,7 +104,8 @@ base, out = sys.argv[1], sys.argv[2]
 rows = [
     {"name": n, "path": f"{base}/projects/{n}", "gate_cmd": "true",
      "primary_language": "bash", "enabled": True}
-    for n in ("split-1", "done-1", "notyet-1", "nothing-1")
+    for n in ("split-1", "done-1", "notyet-1", "nothing-1",
+              "categories-1", "lossy-1")
 ]
 with open(out, "w", encoding="utf-8") as fh:
     json.dump(rows, fh, indent=2)
@@ -122,6 +166,42 @@ if [[ ${rc} -eq 0 ]]; then
     record_pass "migration-coverage: PARTIAL alone does not fail the run (consumer state, not a tool defect)"
 else
     record_fail "migration-coverage: PARTIAL made the checker exit ${rc}"
+fi
+
+# ─── 7: category headings still get the --ignore-heading advice ───
+# The SQRL shape must be untouched by the lesson-shaped discriminator.
+if echo "$(row categories-1)" | grep -q "NEEDS --ignore-heading"; then
+    record_pass "migration-coverage: all-category headings still advise --ignore-heading"
+else
+    record_fail "migration-coverage: category-heading case regressed — $(row categories-1)"
+fi
+
+# ─── 8: lesson-shaped headings must NOT advise --ignore-heading ───
+# The kermit shape. Following that advice would silently drop two real lessons,
+# which is the loss the parser's abort exists to prevent.
+lossy_row="$(row lossy-1)"
+if echo "${lossy_row}" | grep -q "UNPARSEABLE (2 entries, 1 headings)"; then
+    record_pass "migration-coverage: lesson-shaped unparseable rows counted as entries, not skippable headings"
+elif echo "${lossy_row}" | grep -q "ignore-heading"; then
+    record_fail "migration-coverage: lesson-shaped rows advised --ignore-heading — following it would drop them"
+else
+    record_fail "migration-coverage: lossy case wrong — ${lossy_row}"
+fi
+
+# ─── 9: the summary warns against the destructive fix ─────────────
+if echo "${OUT}" | grep -q "do NOT reach for --ignore-heading" \
+   && echo "${OUT}" | grep -q "lossy-1 lessons.md"; then
+    record_pass "migration-coverage: summary names the lossy project and warns off --ignore-heading"
+else
+    record_fail "migration-coverage: summary does not warn that --ignore-heading would drop entries"
+fi
+
+# ─── 10: a lossy row does not fail the run ────────────────────────
+# Consumer format drift, not a tool defect — and this script is not in the gate.
+if [[ ${rc} -eq 0 ]]; then
+    record_pass "migration-coverage: a lossy row reports without failing the run"
+else
+    record_fail "migration-coverage: lossy row made the checker exit ${rc}"
 fi
 
 echo ""

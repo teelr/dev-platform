@@ -86,6 +86,7 @@ trap "rm -rf '${PROBE_DIR}'" EXIT
 FAILURES=0
 ROWS=""
 PARTIALS=()
+LOSSY=()
 
 # Probe one source file with one script. Echoes "<ok|fail>|<cell>".
 #
@@ -157,13 +158,40 @@ probe() {
         # project, not a defect in the tool. SQRL's 8 category headings are the
         # case: it parses cleanly once they are named.
         if echo "${out}" | grep -qE '^  ## '; then
-            local n
+            local n entries headings
             n="$(echo "${out}" | grep -cE '^  ## ')"
+
+            # NOT every unparseable heading is a skippable category heading.
+            # The original verdict assumed so — true for SQRL, whose 8 are
+            # `## Sails`, `## Schema`, `## Billing` and so on, and false for
+            # kermit, where 2 of 3 are REAL lessons carrying that repo's own
+            # consolidation numbering (`## L19+ —`, `## L51+L60 —`) that the
+            # `## L<N> —` pattern does not match. Recommending --ignore-heading
+            # there would have silently dropped two entries — exactly the loss
+            # the parser's abort exists to prevent.
+            #
+            # Lesson-shaped (`## L<digit>`) means content, not a category.
+            # Verified against both repos: kermit splits 2 entries / 1 heading,
+            # SQRL is 0 / 8.
+            entries="$(echo "${out}" | grep -cE '^  ## L[0-9]')"
+            headings=$(( n - entries ))
+
+            if [[ ${entries} -gt 0 ]]; then
+                # `lossy` is a third verdict, distinct from ok and fail: the run
+                # is not broken, but the obvious fix would destroy content, so
+                # the caller lists it separately. It does NOT count as a
+                # failure — this is consumer format drift, not a tool defect.
+                if [[ ${migrated} -gt 0 ]]; then
+                    echo "lossy|PARTIAL (${migrated} migrated, ${entries} unparseable)"
+                else
+                    echo "lossy|UNPARSEABLE (${entries} entries, ${headings} headings)"
+                fi
+                return 0
+            fi
+
             # Files already in the target means this is ALSO the split state,
-            # and that is the more important half: kermit reads
-            # "NEEDS --ignore-heading (3)" while 153 entries sit in the source.
-            # No entry count here — the parse did not complete, so claiming one
-            # would be inventing it.
+            # and that is the more important half. No entry count here — the
+            # parse did not complete, so claiming one would be inventing it.
             if [[ ${migrated} -gt 0 ]]; then
                 echo "ok|PARTIAL (${migrated} migrated, needs --ignore-heading)"
             else
@@ -244,6 +272,13 @@ for entry in "${entries[@]}"; do
     [[ "${lessons_cell}" == PARTIAL* ]] && PARTIALS+=("${name} lessons.md: ${lessons_cell#PARTIAL }")
     [[ "${shipped_cell}" == PARTIAL* ]] && PARTIALS+=("${name} planning.md: ${shipped_cell#PARTIAL }")
 
+    # `lossy` is read from the VERDICT, not by pattern-matching the cell text —
+    # probe() runs in a command substitution, so it cannot append to an array
+    # here, and the "aborting, N row(s) unparseable" message can otherwise put
+    # the word "unparseable" into an unrelated FAILS cell.
+    [[ "${lessons_raw%%|*}" == "lossy" ]] && LOSSY+=("${name} lessons.md: ${lessons_cell}")
+    [[ "${shipped_raw%%|*}" == "lossy" ]] && LOSSY+=("${name} planning.md: ${shipped_cell}")
+
     ROWS+="$(printf '| %-20s | %-34s | %-34s |' "${name}" "${lessons_cell}" "${shipped_cell}")"$'\n'
 done
 
@@ -262,6 +297,19 @@ printf '| %-20s | %-34s | %-34s |\n' "$(printf '%.0s-' {1..20})" "$(printf '%.0s
 printf '%s' "${ROWS}"
 echo
 
+if [[ ${#LOSSY[@]} -gt 0 ]]; then
+    echo "check-migration-coverage: ${#LOSSY[@]} source(s) hold entries the parser cannot match —"
+    echo "  do NOT reach for --ignore-heading on these; it would DROP them."
+    for l in "${LOSSY[@]}"; do
+        echo "    ${l}"
+    done
+    echo "  These headings are lesson-shaped (## L<n>) but use a numbering the"
+    echo "  ## L<N> — pattern does not accept, e.g. a consolidated '## L19+' or"
+    echo "  '## L51+L60'. Renumber them in the source, migrate them by hand, or"
+    echo "  ask dev-platform to widen the pattern — but do not skip them."
+    echo
+fi
+
 if [[ ${#PARTIALS[@]} -gt 0 ]]; then
     echo "check-migration-coverage: ${#PARTIALS[@]} source(s) PARTIALLY migrated —"
     echo "  new entries are landing in the target directory while the old file still holds a backlog."
@@ -279,7 +327,14 @@ if [[ ${FAILURES} -gt 0 ]]; then
     exit 1
 fi
 
-if [[ ${#PARTIALS[@]} -gt 0 ]]; then
+# The closing line is the sentence people actually read, so it must not claim
+# more than the run established. "every source parses" is false once any source
+# holds entries the parser cannot match, even though nothing failed.
+if [[ ${#LOSSY[@]} -gt 0 && ${#PARTIALS[@]} -gt 0 ]]; then
+    echo "check-migration-coverage: ${#LOSSY[@]} source(s) with unmatchable entries, ${#PARTIALS[@]} partially migrated (both above)."
+elif [[ ${#LOSSY[@]} -gt 0 ]]; then
+    echo "check-migration-coverage: ${#LOSSY[@]} source(s) hold entries the parser cannot match (above)."
+elif [[ ${#PARTIALS[@]} -gt 0 ]]; then
     echo "check-migration-coverage: every source parses; ${#PARTIALS[@]} partially migrated (above)."
 else
     echo "check-migration-coverage: every consumer source parses or is already migrated."
