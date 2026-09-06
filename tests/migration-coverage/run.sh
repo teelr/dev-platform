@@ -75,9 +75,15 @@ Body one.
 Body two.
 EOF
 
-# lossy-1 is the kermit shape: the unparseable headings are lesson-SHAPED,
-# carrying a consolidation numbering the `## L<N> —` pattern rejects. Skipping
-# them would drop real content, so this must never read "needs --ignore-heading".
+# lossy-1: the unparseable headings are lesson-SHAPED, so skipping them would
+# drop real content and this must never read "needs --ignore-heading".
+#
+# NOTE: this fixture originally used `## L19+` and `## L51+L60`, kermit's real
+# consolidation labels. Those now PARSE — the pattern was widened for exactly
+# that reason — so they stopped exercising this path and the assertions below
+# went red. The lossy branch still needs covering, so the fixture moved to forms
+# that remain lesson-shaped and genuinely unparseable: a malformed label, and a
+# heading with no title separator at all.
 mkdir -p "${TMP}/projects/lossy-1/tasks"
 cat > "${TMP}/projects/lossy-1/tasks/lessons.md" <<'EOF'
 # Lessons
@@ -88,13 +94,13 @@ cat > "${TMP}/projects/lossy-1/tasks/lessons.md" <<'EOF'
 
 Body one.
 
-## L19+ — a consolidated lesson (consolidates former L19, L54)
+## L19+foo — a malformed consolidation label
 
 Body two.
 
-## L51+L60 — a merged lesson
+## L42
 
-Body three.
+Body three, a lesson heading with no title separator.
 EOF
 
 REG="${TMP}/registry.json"
