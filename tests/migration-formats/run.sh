@@ -58,6 +58,17 @@ Body text for the second lesson.
 ## L2 — A different lesson that reused the number
 
 Two sessions each appended what they thought was the next number.
+
+## L19+ — A consolidated lesson (consolidates former L19, L54, L58)
+
+kermit's shape. Absorbing several lessons into one and marking it with a
+trailing plus. Before the parser was widened this aborted the whole run, and
+check-migration-coverage advised --ignore-heading, which would have dropped it.
+
+## L51+L60 — A merged pair keeping both numbers
+
+Also kermit's. The label is `51+L60`, not `51` — duplicate detection compares
+whole labels, which matters because a separate `## L60` exists there too.
 EOF
 
 cat > "${FIX}/dated.md" <<'EOF'
@@ -121,6 +132,18 @@ cat > "${FIX}/shipped-table.md" <<'EOF'
 | v4.119.1 | 2026-08-25 | PATCH: Anthropic dependency ceiling fix |
 EOF
 
+cat > "${FIX}/malformed.md" <<'EOF'
+# Lessons
+
+## L1 — a valid lesson
+
+Body.
+
+## L19+foo — not a valid label
+
+Body.
+EOF
+
 BASELINE="$(cd "${FIX}" && find . -type f | sort)"
 
 # ─── Check 1: bash -n syntax clean ────────────────────────────────
@@ -135,7 +158,7 @@ fi
 # table inside L1's body. That is the kermit-v3 failure, reduced.
 out="$(LESSONS_FILE="${FIX}/numbered.md" LESSONS_DIR="${TMP}/o1" \
        bash "${LESSONS}" --date-from today 2>&1)"; rc=$?
-if [[ ${rc} -eq 0 ]] && echo "${out}" | grep -q "format: numbered (3 entries)"; then
+if [[ ${rc} -eq 0 ]] && echo "${out}" | grep -q "format: numbered (5 entries)"; then
     record_pass "migration-formats: numbered detected, table inside a body does not abort"
 else
     record_fail "migration-formats: numbered detection failed — rc=${rc}: ${out:0:200}"
@@ -152,10 +175,10 @@ fi
 LESSONS_FILE="${FIX}/numbered.md" LESSONS_DIR="${TMP}/o1" \
     bash "${LESSONS}" --date-from today --apply >/dev/null 2>&1
 n="$(find "${TMP}/o1" -name '*.md' | wc -l | tr -d ' ')"
-if [[ "${n}" -eq 3 ]]; then
-    record_pass "migration-formats: 3 numbered lessons → 3 files (duplicate number de-duped by name)"
+if [[ "${n}" -eq 5 ]]; then
+    record_pass "migration-formats: 5 numbered lessons → 5 files (duplicate number de-duped by name)"
 else
-    record_fail "migration-formats: expected 3 files, got ${n}"
+    record_fail "migration-formats: expected 5 files, got ${n}"
 fi
 
 # ─── Check 5: every body preserved verbatim ───────────────────────
@@ -166,6 +189,30 @@ if grep -rqF 'That table is body content, not two more lessons.' "${TMP}/o1" \
     record_pass "migration-formats: every lesson body preserved verbatim, pipes intact"
 else
     record_fail "migration-formats: a lesson body was lost or mangled"
+fi
+
+# ─── Check 5b: consolidation labels parse and keep their whole label ─
+# kermit's `## L19+` and `## L51+L60`. Before the pattern was widened these
+# aborted the run, and check-migration-coverage told the reader to reach for
+# --ignore-heading — which would have silently dropped two real lessons.
+#
+# The label must survive whole: `51+L60`, not `51`. kermit has a separate
+# `## L60`, so truncating would either invent a duplicate or hide one.
+if grep -rqF 'consolidates former L19, L54, L58' "${TMP}/o1" \
+   && grep -rqF 'A merged pair keeping both numbers' "${TMP}/o1"; then
+    record_pass "migration-formats: L19+ and L51+L60 consolidation labels parse, not dropped"
+else
+    record_fail "migration-formats: a consolidation-labelled lesson was lost"
+fi
+
+# The widened pattern must stay strict: a malformed label is still an abort,
+# not a silently accepted entry.
+out="$(LESSONS_FILE="${FIX}/malformed.md" LESSONS_DIR="${TMP}/o1b" \
+       bash "${LESSONS}" --date-from today 2>&1)"; rc=$?
+if [[ ${rc} -ne 0 ]] && echo "${out}" | grep -q "UNPARSEABLE"; then
+    record_pass "migration-formats: widened label pattern still aborts on a malformed one"
+else
+    record_fail "migration-formats: malformed label accepted — rc=${rc}"
 fi
 
 # ─── Check 6: dated format; date comes from the heading ───────────

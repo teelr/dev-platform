@@ -152,7 +152,23 @@ DATE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 
 # `## L12 — title`. Em dash, en dash and plain hyphen all appear across
 # consumers (kermit-v3 and SQRL use —); do not assume one.
-NUMBERED = re.compile(r'^## L(?P<num>\d+)\s*[—–-]\s*(?P<title>.+?)\s*$')
+#
+# The number also accepts CONSOLIDATION labels, which kermit uses when several
+# lessons are merged into one: `## L19+` (absorbed L19, L54, L58, L63, L70) and
+# `## L51+L60` (a merged pair). Before this, both were unparseable, the parser
+# aborted on them — correctly, since it will not silently drop an entry — and
+# check-migration-coverage advised `--ignore-heading`, which WOULD have dropped
+# them. Widening here is the non-destructive fix: kermit keeps its numbering.
+#
+# `num` captures the whole label ("19+", "51+L60"), not just the leading digits,
+# so duplicate detection compares real labels. That matters in kermit, where
+# `## L51+L60` and a separate `## L60` both exist: truncating to "51" or "60"
+# would either miss a clash or invent one.
+#
+# Still strict — `## L19+foo` does not match, so a malformed heading aborts
+# rather than being quietly accepted. Only these two forms exist fleet-wide
+# (`grep -hoE '^## L[0-9]+\+[A-Za-z0-9+]*' projects/*/tasks/lessons.md`).
+NUMBERED = re.compile(r'^## L(?P<num>\d+(?:\+L?\d+)*\+?)\s*[—–-]\s*(?P<title>.+?)\s*$')
 # `## Title (2026-03-30)` — keystone_prototype's shape, date already present.
 DATED    = re.compile(r'^## (?P<title>.+?)\s*\((?P<date>\d{4}-\d{2}-\d{2})\)\s*$')
 
@@ -326,7 +342,11 @@ planned, collisions = assign_filenames(entries, fallback="lesson")
 # six such pairs. The number is not the filename key, so they migrate fine.
 if fmt == 'numbered':
     nums = [NUMBERED.match(e.body.split('\n', 1)[0]).group('num') for e in entries]
-    dupes = sorted({n for n in nums if nums.count(n) > 1}, key=int)
+    # Sort on the LEADING integer, not int(n): a consolidation label like "19+"
+    # or "51+L60" is a valid num and int() would raise on it. The pattern
+    # guarantees at least one leading digit, so the match cannot be None.
+    dupes = sorted({n for n in nums if nums.count(n) > 1},
+                   key=lambda n: (int(re.match(r'\d+', n).group()), n))
     if dupes:
         notes.append(f"{len(dupes)} duplicate L-number(s) found, migrating as "
                      f"distinct files: {', '.join('L' + d for d in dupes)}")
