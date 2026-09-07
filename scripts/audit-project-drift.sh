@@ -76,6 +76,20 @@ HELP
 done
 
 command -v jq >/dev/null || { echo "ERROR: jq required" >&2; exit 2; }
+
+# `projects/` is gitignored, so it exists only in the main checkout. Deriving
+# the fleet root from this script's own location resolves it inside whatever
+# worktree is running, where every consumer reads as absent and comes back
+# NO_CLAUDE_MD/DRIFT. This is a reporter, so that wrong table is the whole
+# product — nothing downstream re-checks it. Sourced after the jq gate per
+# the helper's contract. See scripts/lib/main_checkout.sh.
+# shellcheck source=lib/main_checkout.sh
+source "${REPO_ROOT}/scripts/lib/main_checkout.sh" || {
+    echo "ERROR: missing ${REPO_ROOT}/scripts/lib/main_checkout.sh" >&2
+    exit 2
+}
+FLEET_ROOT="$(resolve_main_checkout "${REPO_ROOT}")"
+
 [[ -f "${REGISTRY}" ]] || { echo "ERROR: registry not found at ${REGISTRY}" >&2; exit 2; }
 
 frozen_skipped=""
@@ -114,7 +128,7 @@ audit_project() {
     if [[ "${path}" == /* ]]; then
         abs_path="${path}"
     else
-        abs_path="${REPO_ROOT}/${path}"
+        abs_path="${FLEET_ROOT}/${path}"
     fi
 
     local claude_md="${abs_path}/CLAUDE.md"
