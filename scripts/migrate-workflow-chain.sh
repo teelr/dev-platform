@@ -79,6 +79,18 @@ HELP
 done
 
 command -v jq >/dev/null || { echo "ERROR: jq required" >&2; exit 2; }
+
+# `projects/` is gitignored, so it exists only in the main checkout. Deriving
+# the fleet root from this script's own location resolves it inside whatever
+# worktree is running, so --apply would target a CLAUDE.md that is not there.
+# Sourced after the jq gate per the helper's contract.
+# shellcheck source=lib/main_checkout.sh
+source "${REPO_ROOT}/scripts/lib/main_checkout.sh" || {
+    echo "ERROR: missing ${REPO_ROOT}/scripts/lib/main_checkout.sh" >&2
+    exit 2
+}
+FLEET_ROOT="$(resolve_main_checkout "${REPO_ROOT}")"
+
 [[ -f "${REGISTRY}" ]] || { echo "ERROR: registry not found at ${REGISTRY}" >&2; exit 2; }
 [[ -n "${PROJECT}" ]] || { echo "ERROR: --project <name> is required" >&2; exit 2; }
 
@@ -95,7 +107,7 @@ project_path="$(echo "${match}" | jq -r '.path')"
 if [[ "${project_path}" == /* ]]; then
     claude_md="${project_path}/CLAUDE.md"
 else
-    claude_md="${REPO_ROOT}/${project_path}/CLAUDE.md"
+    claude_md="${FLEET_ROOT}/${project_path}/CLAUDE.md"
 fi
 
 if [[ ! -f "${claude_md}" ]]; then

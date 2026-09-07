@@ -42,6 +42,11 @@ mkdir -p "${MAIN}/monitoring" "${MAIN}/scripts/lib"
 cp "${REPO}/monitoring/fleet_pins.py" "${MAIN}/monitoring/"
 cp "${REPO}/scripts/lib/main_checkout.py" "${REPO}/scripts/lib/repo_slug.py" "${MAIN}/scripts/lib/"
 cp "${HELPER_SH}" "${MAIN}/scripts/lib/"
+# The two scripts that resolve `projects/` in their own bodies (checks 11-12).
+# Committed, so the worktree gets them exactly as a real worktree would.
+cp "${REPO}/scripts/audit-project-drift.sh" \
+   "${REPO}/scripts/migrate-workflow-chain.sh" \
+   "${REPO}/scripts/check_spec_taxonomy.sh" "${MAIN}/scripts/"
 (
     cd "${MAIN}" && \
     git init -q -b main && \
@@ -66,6 +71,15 @@ on: [pull_request]
 jobs:
   taxonomy:
     uses: teelr/dev-platform/.github/workflows/taxonomy-check.yml@v1.12
+EOF
+
+# audit-project-drift.sh reads this file; without it the consumer reads as
+# NO_CLAUDE_MD, which is the very symptom checks 11-12 exist to distinguish
+# from "the script looked in the worktree and found nothing".
+cat > "${CONSUMER}/CLAUDE.md" <<'EOF'
+# consumer-a
+
+Chain: /plan → /code → /review → /gate fast → commit → push → /pr → CI → /merge → post-merge
 EOF
 
 # `realpath` on macOS/BSD differs; resolve with pwd -P, which the helper uses.
@@ -209,6 +223,35 @@ if [[ "${pin}" == "v1.12" ]]; then
     record_pass "fleet-worktree: absolute registry path is used as-is (FLEET_ROOT not prepended)"
 else
     record_fail "fleet-worktree: absolute path handling broke — pin='${pin}' (want v1.12)"
+fi
+
+# ─── Check 11: audit-project-drift.sh, run from a worktree ────────
+# Checks 3-8 prove the HELPER resolves correctly; they say nothing about
+# whether a given script calls it. This one didn't. From a worktree it
+# resolved `projects/` inside the worktree and reported every consumer as
+# NO_CLAUDE_MD / DRIFT. This script is a reporter and exits 0 by design, so
+# its report IS its product — a wrong one has nothing downstream to catch
+# it, and it read as a real answer. The suite went green throughout.
+out="$(cd "${WT}" && bash "${WT}/scripts/audit-project-drift.sh" \
+    --registry "${REL_REGISTRY}" 2>&1)"
+if echo "${out}" | grep -q '| consumer-a | YES |'; then
+    record_pass "fleet-worktree: audit-project-drift.sh finds the consumer from a worktree"
+else
+    got="$(echo "${out}" | grep 'consumer-a' || echo 'no consumer-a row')"
+    record_fail "fleet-worktree: audit-project-drift.sh lost the consumer from a worktree — got: ${got}"
+fi
+
+# ─── Check 12: migrate-workflow-chain.sh, run from a worktree ─────
+# The higher-stakes one: this is a Scope-rule carve-out allowed to WRITE
+# into projects/. Resolved from a worktree, --apply would have pointed at a
+# CLAUDE.md that does not exist there.
+out="$(cd "${WT}" && bash "${WT}/scripts/migrate-workflow-chain.sh" \
+    --project consumer-a --registry "${REL_REGISTRY}" 2>&1)"
+want="${MAIN_REAL}/projects/consumer-a/CLAUDE.md"
+if echo "${out}" | grep -qF "${want}"; then
+    record_pass "fleet-worktree: migrate-workflow-chain.sh targets the main checkout from a worktree"
+else
+    record_fail "fleet-worktree: migrate-workflow-chain.sh wrong target from a worktree — want '${want}', got: ${out}"
 fi
 
 # Leave no worktree registered behind in the fixture repo before the trap
