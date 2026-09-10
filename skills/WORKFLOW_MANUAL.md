@@ -70,7 +70,7 @@ Implements a spec file task by task with verification after each step.
 
 - Follows the spec literally — doesn't improvise or add features
 - If the spec is wrong, it stops and tells you instead of silently working around it
-- Verifies every change before moving on
+- Verifies every change before moving on, with a bounded retry — stops and reports to you after 2 failed fix attempts on the same failure, or sooner if a fix doesn't change the failure, instead of retrying indefinitely
 - Won't commit unless you explicitly ask
 
 ### `/test` — Testing & QC Agent

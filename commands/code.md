@@ -89,6 +89,7 @@ For EACH Change in the spec:
    - **Fix any errors before moving to the next Change** — do not leave broken state
    - **Fix SECURITY, BUG, COMPLIANCE, and QUALITY issues found during verification** — auto-fix; do not wait for user approval
    - **ARCHITECTURE issues** (wrong language choice) → surface for user decision; do not auto-fix
+   - **This loop is bounded — see "Auto-Fix Circuit Breaker" under Rules.** Count fix attempts for THIS Change; on the 3rd consecutive verification failure, or immediately if a fix attempt reproduces the same failure signature as the attempt before it, stop and escalate instead of trying again.
 5. **Mark the todo as completed**
 
 ## Step 4: Container Rebuild (if applicable)
@@ -111,7 +112,7 @@ After all changes are implemented:
 1. Run the full build for all affected stacks
 2. Run through the spec's Verification Checklist item by item
 3. Test the end-to-end flow described in the spec
-4. Fix any remaining issues before proceeding to Step 6
+4. **Fix any remaining issues before proceeding to Step 6 — bounded the same way as Step 3.** See "Auto-Fix Circuit Breaker" under Rules; the same attempt cap and no-progress check apply here, scoped to this end-to-end pass rather than a single Change.
 
 ## Step 6: Adversarial Self-Review
 
@@ -213,6 +214,8 @@ This review pass is independent of Step 6's Adversarial Self-Review — it is th
 
 ## Step 10: Report — Next Step Is `/gate fast`
 
+If Step 3 or Step 5 tripped the Auto-Fix Circuit Breaker (see Rules), skip the rest of this Step — you already stopped and reported at the point of failure, in that section's escalation format. Do not run Step 9's review pass and do not end with "Ready for `/gate fast`" — the spec is not finished.
+
 Combine this turn's report: the implementation summary (Changes completed, Step 7's doc updates, Step 8's security reminder if applicable) followed by Step 9's `# Code Review` report block.
 
 If Step 9 found ARCHITECTURE issues, they are unresolved — surface them clearly; the user must decide before proceeding.
@@ -264,3 +267,19 @@ End your report with:
 - NEVER skip verification steps
 - If a build fails, fix it before proceeding
 - NEVER claim something works without actually testing it
+
+### Auto-Fix Circuit Breaker
+
+The verify → fix → re-verify loop in Steps 3 and 5 is bounded, not open-ended — [issue #118](https://github.com/teelr/dev-platform/issues/118) flagged that nothing stopped a stuck fix from cycling silently. Track attempts per Change (Step 3) or per the end-to-end pass (Step 5), counting from the first verification failure:
+
+- **Attempt cap:** stop on the 3rd consecutive verification failure for the same Change/pass — i.e. after 2 fix attempts have both failed to produce a clean verification. Do not attempt a 3rd fix.
+- **No-progress cap — fires earlier:** stop immediately, even under the cap, if a fix attempt is followed by a re-verification failure with the same signature as the failure before it (same command, same file/line, same error message or assertion). An unchanged failure after a fix means the fix changed nothing about the problem; a second attempt made with the same understanding of it is unlikely to either.
+- **On tripping either cap:** STOP the whole `/code` run — do not continue to any later Step for this invocation. Do not silently skip the failing Change or check, and do not revert the broken state — it's evidence for whoever picks this up next, not something to clean up. Report to the user, in place of Step 10's normal ending:
+  - which Change (or which end-to-end check, for Step 5) is blocked
+  - the exact failing output from the last verification
+  - each fix attempted, in order, and why it didn't resolve the failure
+  - that you stopped rather than continuing to retry, and you're waiting for direction
+
+This is the same STOP-and-wait discipline `settings/claude-global.md` already applies between workflow steps, now applied inside a single `/code` turn's own retry loop: hand a stuck problem back to the user rather than guessing further.
+
+**Does not apply to `commands/review.md` Step 4** (the SECURITY/BUG/COMPLIANCE/QUALITY fix pass `/code` Step 9 runs). That loop fixes each already-identified issue once and re-verifies once — it doesn't retry a fix against a failure that persists, so it carries none of the unbounded-cycling risk this section bounds.
