@@ -1,7 +1,7 @@
 ---
 description: Create a detailed implementation spec for a feature or task. Use when starting new work that needs planning before coding.
 argument-hint: "<feature description>"
-allowed-tools: Read, Grep, Glob, Write, Bash, WebSearch, WebFetch, TodoWrite, EnterWorktree
+allowed-tools: Read, Grep, Glob, Write, Bash, WebSearch, WebFetch, TodoWrite, EnterWorktree, ListAgents
 ---
 
 # Planning Agent
@@ -26,6 +26,13 @@ Read the project's rules and understand the environment:
 ## Step 2: Derive the Feature Slug + Create the Branch (or Worktree)
 
 Do this now, before exploring the codebase — this is the moment you've decided what to build, and claiming an isolated branch here (rather than waiting for `/code`) means two concurrent `/plan` sessions never collide writing `tasks/*.md` or `planning.md` on the same shared branch.
+
+**Peer check, before claiming anything:** call the **`ListAgents`** tool. It lists every peer session — subagents, other local sessions, Remote Control, and cloud — each with a name and, for local/cloud sessions, a location hint (tmux pane, worktree path, cwd-derived name fragment). Skim the list for a peer that looks like it's already working on THIS project or THIS feature: a name containing the project's directory name (e.g. a `kermit-v3-*` session when planning inside kermit-v3), or a descriptive name that overlaps with the feature description in `$ARGUMENTS`. This is advisory, not a real task-claim registry — `ListAgents` carries no project or task metadata, only what a name and location happen to suggest, so treat a match as a prompt to ask, never a fact to act on:
+
+- **No plausible overlap:** proceed silently — no need to mention the check in the report.
+- **A plausible overlap:** tell the user which peer session looks related (name + location, quoted verbatim from `ListAgents`) and ask them to confirm before proceeding.
+
+Never block on this automatically — there is no shared task board to check a name against, so a "looks related" match is common and the user is the only one who can resolve it.
 
 1. Derive the slug from the feature description: kebab-case (e.g. "add image generation" → `image-generation`). This is the same slug used for the spec filename in Step 5 below — derive it once, here, and reuse it.
 2. Check the current branch: `git branch --show-current`. If it's already something other than `main` — a prior `/plan` or `/code` already put you on a feature branch or in a worktree this session — skip straight to Step 3. Don't create anything new.
@@ -77,7 +84,7 @@ Do this now, before exploring the codebase — this is the moment you've decided
    If it printed `unset`, you are not inside tmux — skip the rename silently. No
    error, no tab rename.
 
-Report the branch/worktree path and (if renamed) the new tmux window name, then continue.
+Report the branch/worktree path and (if renamed) the new tmux window name, then continue. **Also suggest the user run `/rename <title>`**, using the Title-Cased feature title from sub-step 3 (or, if this session skipped sub-step 3 because it was already on a feature branch, a title derived from the branch/slug instead) — interactive sessions default to a generic `<directory>-<suffix>` name in `ListAgents`, and no tool lets an agent set its own session's display name (only a human running `/rename`, or accepting a plan in Claude Code's own built-in plan mode, changes it). This is a suggestion for the human to act on, never something to invoke automatically — there is no tool call that does it.
 
 ## Step 3: Explore the Codebase
 
