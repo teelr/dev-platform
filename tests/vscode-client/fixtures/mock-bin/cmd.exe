@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# tests/vscode-client/fixtures/mock-bin/cmd.exe
+# Echoes $MOCK_APPDATA_WIN with a trailing \r\n, matching real cmd.exe's
+# CRLF output — exercises the `tr -d '\r\n'` strip in resolve_vscode_user_dir.
+#
+# Failure injection: set MOCK_CMD_EXE_FAIL to make this exit 1 with no
+# output, simulating a real cmd.exe/WSL-interop hiccup.
+if [[ -n "${MOCK_CMD_EXE_FAIL:-}" ]]; then
+    exit 1
+fi
+: "${MOCK_APPDATA_WIN:?MOCK_APPDATA_WIN must be set in env}"
+if [[ "${1:-}" == "/c" ]]; then
+    printf '%s\r\n' "${MOCK_APPDATA_WIN}"
+else
+    echo "mock-cmd.exe: unsupported invocation: $*" >&2
+    exit 1
+fi
