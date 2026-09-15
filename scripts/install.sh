@@ -13,6 +13,7 @@
 #   ./scripts/install.sh settings
 #   ./scripts/install.sh hooks
 #   ./scripts/install.sh vscode
+#   ./scripts/install.sh vscode-client
 #   ./scripts/install.sh managed    # v1.11 — machine-wide auth pin (sudo)
 #   ./scripts/install.sh git-hooks  # v1.2 — opt-in pre-commit hook
 #   ./scripts/install.sh worktree   # v1.4 — worktree isolation tooling
@@ -269,6 +270,77 @@ install_vscode() {
     return 0
 }
 
+install_vscode_client() {
+    # Client-side VSCode config (settings.json, keybindings.json) on the
+    # Windows VSCode client machine (v1.35). Deliberately duplicates the
+    # Windows-detection logic in scripts/sync-vscode-client.sh's
+    # resolve_vscode_user_dir() rather than sourcing it or shelling out to
+    # it — same reason install_vscode() above duplicates sync-vscode.sh's
+    # install loop instead of calling it, and the same reason this file's
+    # own REPO resolution (see file header) stays inline: this function
+    # must keep working when install.sh is copied out and run standalone
+    # (tests/worktree-default copies install.sh/verify.sh/uninstall.sh
+    # alone, with no scripts/lib/ or sibling scripts alongside them).
+    #
+    # Permissive by design, same philosophy as install_vscode(): this runs
+    # as part of `install.sh all` on every machine, including the Linux
+    # neurX server, where "not a Windows client" is the expected, common
+    # case and must be a silent one-line skip, never an error.
+    local dir=""
+    if [[ -n "${WSL_DISTRO_NAME:-}" ]] || grep -qi microsoft /proc/version 2>/dev/null; then
+        if command -v cmd.exe >/dev/null 2>&1 && command -v wslpath >/dev/null 2>&1; then
+            local appdata_win
+            # `|| true` on both substitutions below: under `set -e` (active
+            # for this whole script), a bare assignment whose command
+            # substitution exits non-zero would otherwise abort install.sh
+            # entirely — silently skipping every category queued after this
+            # one in `install.sh all` — instead of the graceful one-line
+            # skip this function exists to provide.
+            appdata_win="$(cmd.exe /c 'echo %APPDATA%' 2>/dev/null | tr -d '\r\n')" || true
+            if [[ -n "${appdata_win}" && "${appdata_win}" != "%APPDATA%" ]]; then
+                local posix_root
+                posix_root="$(wslpath -u "${appdata_win}" 2>/dev/null)" || true
+                # Only trust a non-empty translation — a failed/empty wslpath
+                # must not leave dir set to a bare "/Code/User" (a real, if
+                # unintended, filesystem-root path).
+                [[ -n "${posix_root}" ]] && dir="${posix_root}/Code/User"
+            fi
+        fi
+    elif [[ -n "${APPDATA:-}" ]]; then
+        local posix_root=""
+        if command -v cygpath >/dev/null 2>&1; then
+            posix_root="$(cygpath -u "${APPDATA}" 2>/dev/null)" || true
+        fi
+        if [[ -n "${posix_root}" ]]; then
+            dir="${posix_root}/Code/User"
+        else
+            dir="${APPDATA//\\//}/Code/User"
+        fi
+    fi
+
+    if [[ -z "${dir}" ]]; then
+        echo "  vscode-client: not a Windows VSCode client environment — skipping"
+        return 0
+    fi
+
+    local settings="${REPO}/extensions/vscode/client-settings.json"
+    local keybindings="${REPO}/extensions/vscode/client-keybindings.json"
+    if [[ ! -f "${settings}" && ! -f "${keybindings}" ]]; then
+        echo "  vscode-client: no tracked client config — run 'scripts/sync-vscode-client.sh capture' on this machine first — skipping"
+        return 0
+    fi
+
+    mkdir -p "${dir}"
+    local deployed=0
+    if [[ -f "${settings}" ]]; then
+        cp "${settings}" "${dir}/settings.json" && deployed=$((deployed + 1))
+    fi
+    if [[ -f "${keybindings}" ]]; then
+        cp "${keybindings}" "${dir}/keybindings.json" && deployed=$((deployed + 1))
+    fi
+    echo "  vscode-client: ${deployed} file(s) deployed to ${dir}"
+}
+
 install_managed() {
     # v1.11 — machine-wide Claude Code auth pin (forceLoginMethod: "claudeai").
     # Deployed to a system path (/etc/claude-code/), not ~/.claude/, because
@@ -369,19 +441,20 @@ install_shell() {
 }
 
 case "${CATEGORY}" in
-    commands)   install_commands ;;
-    skills)     install_skills ;;
-    settings)   install_settings ;;
-    hooks)      install_hooks ;;
-    vscode)     install_vscode ;;
-    managed)    install_managed ;;
-    git-hooks)  install_git_hooks ;;
-    worktree)   install_worktree ;;
-    shell)      install_shell ;;
-    all)        install_commands; install_skills; install_settings; install_hooks; install_vscode; install_managed; install_git_hooks; install_worktree; install_shell ;;
-    *)          echo "Unknown category: ${CATEGORY}" >&2
-                echo "Usage: $0 [commands|skills|settings|hooks|vscode|managed|git-hooks|worktree|shell|all]" >&2
-                exit 1 ;;
+    commands)       install_commands ;;
+    skills)         install_skills ;;
+    settings)       install_settings ;;
+    hooks)          install_hooks ;;
+    vscode)         install_vscode ;;
+    vscode-client)  install_vscode_client ;;
+    managed)        install_managed ;;
+    git-hooks)      install_git_hooks ;;
+    worktree)       install_worktree ;;
+    shell)          install_shell ;;
+    all)            install_commands; install_skills; install_settings; install_hooks; install_vscode; install_vscode_client; install_managed; install_git_hooks; install_worktree; install_shell ;;
+    *)              echo "Unknown category: ${CATEGORY}" >&2
+                    echo "Usage: $0 [commands|skills|settings|hooks|vscode|vscode-client|managed|git-hooks|worktree|shell|all]" >&2
+                    exit 1 ;;
 esac
 
 echo "Install complete. Restart Claude Code for changes to take effect."

@@ -21,7 +21,7 @@ The install script symlinks tracked files from this repo into `~/.claude/`. Edit
 | `skills/` | User-defined skills + `WORKFLOW_MANUAL.md` taxonomy reference |
 | `settings/` | Global Claude Code config (`settings.json`) |
 | `hooks/` | Shell scripts invoked by Claude Code hook events |
-| `extensions/` | IDE config. `vscode/server-extensions.json` is the tracked extension list; `scripts/install.sh vscode` reinstalls them all; `scripts/sync-vscode.sh` captures/deploys/diffs. Client-side coverage deferred to v0.6b. |
+| `extensions/` | IDE config. `vscode/server-extensions.json` is the tracked server-side extension list (`scripts/install.sh vscode` / `scripts/sync-vscode.sh`); `vscode/client-settings.json` + `client-keybindings.json` are the Windows client's tracked config (`scripts/install.sh vscode-client` / `scripts/sync-vscode-client.sh`, v1.35). |
 | `scaffolding/` | New-project starter templates (`go-service`, `python-agent`, `next-frontend`). `scripts/new-project.sh` scaffolds from a template via conversational Q&A; see `docs/NEW-PROJECT.md`. |
 | `monitoring/` | Workflow telemetry — JSON Schema for events (`schemas/event-v1.json`), aggregator (`aggregator.py`), metrics catalog (`metrics.md`). CLI entry: `scripts/report.sh`. |
 | `shell/` | Shell helpers, git-hook templates, worktree-isolation tooling (`shell/worktree/`, v1.4), sourced shell functions (`shell/profile.d/`, v1.18 — `cc`) |
@@ -37,7 +37,7 @@ Symlinks always target the **main checkout**, whichever worktree you install fro
 
 **Exception — `settings.json` (v1.6):** because Claude Code writes "always allow" grants into the user settings file at runtime, `settings.json` is deployed as a real local file (via `scripts/merge_settings.py`), not a symlink — so those grants accumulate in `~/.claude/settings.json` and never pollute this repo. Install **merges** the tracked baseline into the live file (preserving local grants). `settings.local.json` is seeded once from `settings.local.json.example`. See `settings/README.md`.
 
-`./scripts/install.sh` accepts: `commands`, `skills`, `settings`, `hooks`, `vscode`, `managed` (v1.11 — machine-wide auth pin, needs sudo), `git-hooks` (v1.2 — opt-in pre-commit hook), `worktree` (v1.4 — concurrent-dev isolation tooling), `shell` (v1.18 — sourced shell functions, `cc`), or `all` (default).
+`./scripts/install.sh` accepts: `commands`, `skills`, `settings`, `hooks`, `vscode`, `vscode-client` (v1.35 — Windows client `settings.json`/`keybindings.json`), `managed` (v1.11 — machine-wide auth pin, needs sudo), `git-hooks` (v1.2 — opt-in pre-commit hook), `worktree` (v1.4 — concurrent-dev isolation tooling), `shell` (v1.18 — sourced shell functions, `cc`), or `all` (default).
 
 ## Verifying deployment
 

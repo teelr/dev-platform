@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# tests/vscode-client/fixtures/mock-bin/wslpath
+# Translates a "C:\..." style path into $MOCK_WSL_ROOT + the remainder,
+# standing in for the real WSL mount of the Windows C: drive.
+#
+# Failure injection: set MOCK_WSLPATH_FAIL to make this exit 1 with no
+# output, simulating a real wslpath translation failure.
+if [[ -n "${MOCK_WSLPATH_FAIL:-}" ]]; then
+    exit 1
+fi
+: "${MOCK_WSL_ROOT:?MOCK_WSL_ROOT must be set in env}"
+if [[ "${1:-}" == "-u" ]]; then
+    win_path="${2:-}"
+    rel="${win_path#*:}"
+    rel="${rel//\\//}"
+    echo "${MOCK_WSL_ROOT}${rel}"
+else
+    echo "mock-wslpath: unsupported invocation: $*" >&2
+    exit 1
+fi

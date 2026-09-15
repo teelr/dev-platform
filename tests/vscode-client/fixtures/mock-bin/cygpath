@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# tests/vscode-client/fixtures/mock-bin/cygpath
+: "${MOCK_CYGPATH_ROOT:?MOCK_CYGPATH_ROOT must be set in env}"
+if [[ "${1:-}" == "-u" ]]; then
+    win_path="${2:-}"
+    rel="${win_path#*:}"
+    rel="${rel//\\//}"
+    echo "${MOCK_CYGPATH_ROOT}${rel}"
+else
+    echo "mock-cygpath: unsupported invocation: $*" >&2
+    exit 1
+fi
