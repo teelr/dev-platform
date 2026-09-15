@@ -133,6 +133,19 @@ def detect():
     body = lines[s + 1:e]
     if any(SHIPPED_ROW.match(l) for l in body):
         return 'table'
+    # No table rows either. Only call this 'bullets' if the body actually
+    # holds at least one real entry (PHASE and BULLET are defined below, at
+    # module scope, so both are already in reach here) — otherwise this is a
+    # fully-migrated section whose table was already extracted, leaving a
+    # residual pointer paragraph (verified: kermit's `## Recently shipped`
+    # reads "Per-phase records now live in tasks/shipped/... The 14 entries
+    # that were in this table were migrated there"). Forcing the bullets
+    # parser onto ordinary prose aborts on its own one-preamble-line
+    # allowance, not because anything needs migrating.
+    if not any(PHASE.match(l) or BULLET.match(l) for l in body):
+        print(f"migrate-shipped: no shippable entries in the '## Recently shipped' "
+              f"section of {src} — nothing to migrate", file=sys.stderr)
+        sys.exit(1)
     return 'bullets'
 
 
