@@ -144,6 +144,37 @@ Body.
 Body.
 EOF
 
+cat > "${FIX}/already-migrated-lessons.md" <<'EOF'
+# Lessons
+
+**The lessons moved to tasks/lessons/.** No new L-numbers are issued.
+
+The renumbering note below is kept because it is a live lookup table, not
+history: archived citations were deliberately never rewritten.
+
+## Renumbering note — 2026-08-31
+
+Use this table to resolve an old citation:
+
+| Old | New | The entry that MOVED |
+| --- | --- | -------------------- |
+| L77 | L178 | Milvus VARCHAR max_length is bytes, not chars |
+| L78 | L179 | bound a streaming generate by inter-pull time |
+EOF
+
+cat > "${FIX}/already-migrated-shipped.md" <<'EOF'
+# Planning
+
+## Recently shipped
+
+Per-phase records now live in tasks/shipped/ — one file per phase, so
+concurrent worktree sessions cannot collide appending to a shared table. The
+entries that were in this table were migrated there already.
+
+**Not yet migrated:** a separate legacy section elsewhere uses a bullet
+format this tool does not read from here.
+EOF
+
 BASELINE="$(cd "${FIX}" && find . -type f | sort)"
 
 # ─── Check 1: bash -n syntax clean ────────────────────────────────
@@ -311,6 +342,26 @@ if [[ ${rc} -eq 0 ]] && echo "${out}" | grep -q "format: table (2 phase, 0 chore
     record_pass "migration-formats: shipped table parsed, version-bearing filenames"
 else
     record_fail "migration-formats: shipped table wrong — rc=${rc}, files: $(ls "${TMP}/o9" 2>/dev/null | tr '\n' ' ')"
+fi
+
+# ─── Check: already-fully-migrated lessons.md (residual reference table,
+# zero lesson headings) reports "nothing to migrate", not a parse abort ───
+out="$(LESSONS_FILE="${FIX}/already-migrated-lessons.md" LESSONS_DIR="${TMP}/o11" \
+        bash "${LESSONS}" 2>&1)"; rc=$?
+if [[ ${rc} -ne 0 ]] && echo "${out}" | grep -q "nothing to migrate"; then
+    record_pass "migration-formats: fully-migrated lessons.md with a kept reference table reports cleanly"
+else
+    record_fail "migration-formats: fully-migrated lessons.md mis-detected — rc=${rc}: ${out:0:200}"
+fi
+
+# ─── Check: already-fully-migrated '## Recently shipped' (pointer prose,
+# zero real entries) reports "nothing to migrate", not a bullets-parse abort ───
+out="$(PLANNING_FILE="${FIX}/already-migrated-shipped.md" SHIPPED_DIR="${TMP}/o12" \
+        bash "${SHIPPED}" 2>&1)"; rc=$?
+if [[ ${rc} -ne 0 ]] && echo "${out}" | grep -q "nothing to migrate"; then
+    record_pass "migration-formats: fully-migrated '## Recently shipped' with pointer prose reports cleanly"
+else
+    record_fail "migration-formats: fully-migrated shipped section mis-detected — rc=${rc}: ${out:0:200}"
 fi
 
 # ─── Check 16: PATH-GUARD — fixtures never written to ─────────────

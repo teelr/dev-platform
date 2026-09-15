@@ -188,9 +188,6 @@ def detect():
     """
     numbered = sum(1 for l in lines if NUMBERED.match(l))
     dated    = sum(1 for l in lines if DATED.match(l))
-    table    = sum(1 for l in lines
-                   if l.startswith('| ')
-                   and not re.match(r'^\|\s*(Date|-+)\s*\|', l))
 
     if numbered or dated:
         # Both heading shapes present in quantity is genuine ambiguity — that is
@@ -201,8 +198,38 @@ def detect():
             sys.exit(1)
         return 'numbered' if numbered >= dated else 'dated'
 
+    # No heading-format entries. A `| ` line only counts toward "table format"
+    # if it actually matches this repo's own 4-column shape (ROW) with a real
+    # date in the first column — not just "starts with a pipe". A residual,
+    # non-lesson reference table under a kept `## ` heading (kermit's
+    # renumbering lookup: `| Old | New | title |`, 3 columns, no date) never
+    # matches this, so it correctly counts as zero rather than being
+    # misdetected as a lessons table — while dev-platform's own canonical
+    # shape (this repo's `tests/lessons-dir/` fixture: a `## Active Lessons`
+    # heading THEN a real 4-column dated table) is still counted correctly
+    # regardless of the heading preceding it. A position-based check (only
+    # count rows before the first `## `) was tried first and rejected: that
+    # exact fixture has its real table AFTER a heading, and the position rule
+    # would have misdetected it as empty.
+    table = sum(1 for l in lines
+                if (m := ROW.match(l)) and DATE.match(m['date']))
+
     if table:
         return 'table'
+
+    # Genuinely nothing to migrate: no numbered/dated entries, and no row
+    # matches this repo's own table shape either. If the file still has a
+    # `## ` heading, it's a fully-migrated file with a residual, non-lesson
+    # section (kermit's case, verified: `## Renumbering note — 2026-08-31`) —
+    # report the SAME "nothing to migrate" phrase the missing-file check
+    # above uses, so check-migration-coverage.sh's existing "nothing to
+    # migrate" handling (probe(), scripts/check-migration-coverage.sh) reports
+    # MIGRATED (if LESSONS_DIR already has files) or NO SECTION, instead of
+    # this being read as a parse failure.
+    if any(l.startswith('## ') for l in lines):
+        print(f"migrate-lessons: no numbered/dated/table entries found in {src} "
+              "— nothing to migrate", file=sys.stderr)
+        sys.exit(1)
 
     print("migrate-lessons: no lessons found in any known format "
           f"(table/numbered/dated) in {src}", file=sys.stderr)

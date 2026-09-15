@@ -54,6 +54,27 @@ mk done-1      yes no    # dir, no source → MIGRATED
 mk notyet-1    no  yes   # source only    → PARSES
 mk nothing-1   no  no    # neither        → NO SOURCE
 
+# residual-1: source exists but holds nothing left to migrate — a kept,
+# non-lesson reference table under its own heading — AND the target dir is
+# already populated. Mirrors kermit-harness's real lessons.md exactly (v1.37):
+# fully migrated, but the source was kept rather than deleted, so it never
+# takes the `[[ ! -f "${src}" ]]` short-circuit done-1 does. Before v1.37 this
+# misdetected as table format and reported FAILS.
+mkdir -p "${TMP}/projects/residual-1/tasks/lessons"
+printf '# Already migrated\n\nBody.\n' \
+    > "${TMP}/projects/residual-1/tasks/lessons/2026-01-01-already-migrated.md"
+cat > "${TMP}/projects/residual-1/tasks/lessons.md" <<'EOF'
+# Lessons
+
+**The lessons moved to tasks/lessons/.**
+
+## Renumbering note — 2026-08-31
+
+| Old | New | The entry that MOVED |
+| --- | --- | -------------------- |
+| L77 | L178 | Milvus VARCHAR max_length is bytes, not chars |
+EOF
+
 # Two shapes of unparseable heading, which must NOT be reported the same way.
 #
 # categories-1 is the SQRL shape: every unparseable heading is a category label,
@@ -110,7 +131,7 @@ base, out = sys.argv[1], sys.argv[2]
 rows = [
     {"name": n, "path": f"{base}/projects/{n}", "gate_cmd": "true",
      "primary_language": "bash", "enabled": True}
-    for n in ("split-1", "done-1", "notyet-1", "nothing-1",
+    for n in ("split-1", "done-1", "notyet-1", "nothing-1", "residual-1",
               "categories-1", "lossy-1")
 ]
 with open(out, "w", encoding="utf-8") as fh:
@@ -151,6 +172,15 @@ if echo "$(row nothing-1)" | grep -q "NO SOURCE"; then
     record_pass "migration-coverage: neither file nor dir → NO SOURCE"
 else
     record_fail "migration-coverage: empty case wrong — $(row nothing-1)"
+fi
+
+# ─── 4b: source exists but holds nothing left (kept reference table) + dir
+# already populated → MIGRATED, not the FAILS this shipped as before v1.37 ───
+residual_row="$(row residual-1)"
+if echo "${residual_row}" | grep -q "MIGRATED (1 files)"; then
+    record_pass "migration-coverage: fully-migrated source with a kept reference table → MIGRATED"
+else
+    record_fail "migration-coverage: residual-reference-table case wrong — ${residual_row}"
 fi
 
 # ─── 5: the SUMMARY names partials, not just the table ────────────
