@@ -156,6 +156,92 @@ each consumer enables Dependabot **from its own session**. The harness completed
 that cutover in v4.84.2 (2026-06-29) — relay retired, Releases now the transport;
 the section below tracks current state.
 
+## Runtime install: pinned wheel, not the live tree
+
+A third case, distinct from both halves above. Inbound is "a consumer files an issue."
+Outbound is "the dependency cuts a Release and consumers watch/Dependabot for it."
+Neither covers **how the package actually reaches a consumer's Python environment** —
+and for the one dependency this applies to today (`teelr/kermit-harness`), the current
+answer defeats every pin any consumer declares.
+
+### The problem (verified 2026-09-17)
+
+Every active consumer of `teelr/kermit-harness` shares one conda env (`kermit`) on the
+dev box, and that env installs the harness **editable**, against the live sibling
+checkout at `/home/rich/dev/projects/kermit`:
+
+```bash
+pip install -e /home/rich/dev/projects/kermit
+```
+
+— run by hand as part of each consumer's own pin-bump survey (e.g.
+`kermit-v3/docs/roadmap.md:372`, "editable install — not on PyPI"), never by an
+automated script. Because it is editable, `import kermit_harness` resolves to whatever
+that one checkout currently has on disk, **regardless of what version any consumer
+declared** in its own `pyproject.toml`:
+
+- `kermit-v3` exact-pins (`pyproject.toml:11`: `kermit-harness==4.167.0`)
+- `keystone` range-pins (`pyproject.toml:11`: `kermit-harness>=4.105.2,<5.0.0`)
+- `kermit-pa` (frozen) range-pins with extras (`pyproject.toml:52`:
+  `kermit-harness[audio,bm25,reranker,documents]>=4.91.0,<5.0.0`)
+
+None of the three pins constrain what's actually *installed* — only what's *declared*.
+The harness cuts a Release on nearly every commit already (10 releases,
+`v4.158.0`–`v4.167.0`, over roughly two days — `gh release list --repo
+teelr/kermit-harness`), automated by its own `make release VERSION=X.Y.Z`
+(`Makefile:452-487`, which runs `gh release create` / `gh release edit`) — but
+**attaches no build artifact to any of them** (`gh release view --repo
+teelr/kermit-harness --json assets` on `v4.167.0` returns `"assets": []`). There is
+nothing to install *except* the live tree.
+
+Measured cost (issue #122, and a live cross-session report the same day this spec was
+written): three harness releases in about a day each turned every live `kermit-v3`
+session's gate red simultaneously; two sessions independently started the same fix
+before noticing the duplicate work; the identical drift then hard-blocked a real
+`kermit-v3` prod-deploy build (the shared checkout had already moved to `4.167.0` while
+`pyproject.toml` still pinned `4.165.0`). `kermit-v3` and `keystone` have each
+independently built their *own* mitigation for the deploy path only — both
+`scripts/prod-deploy.sh` run `pip wheel "${KERMIT_SRC}" --no-deps` against the same
+sibling checkout at deploy time — duplicated logic that still leaves the shared **dev**
+env unpinned, which is where the gate actually goes red.
+
+### The decision
+
+Pinned wheel/sdist, over an editable tree or per-project conda envs. Per-project envs
+alone would not decouple anything — an editable install against the SAME sibling
+checkout is live regardless of how many envs point at it. A pinned artifact is the only
+option where each consumer's env, not just its deploy build, installs one version and
+stays there until it deliberately reinstalls.
+
+**Target shape:** `teelr/kermit-harness` attaches a wheel (and sdist) to every Release
+it already cuts — it already declares a `hatchling` build backend
+(`pyproject.toml:329-331`), so `python -m build` needs no new packaging config, only a
+step that runs it and uploads the result (`gh release upload`). Each consumer's shared
+dev env then installs its own pinned version directly from that Release asset instead
+of the live tree — e.g. `pip install
+https://github.com/teelr/kermit-harness/releases/download/vX.Y.Z/kermit_harness-X.Y.Z-py3-none-any.whl`
+(pip installs directly from a URL to a wheel; no package index required) — and each
+consumer's deploy script can install the same published artifact instead of rebuilding
+its own wheel from source at deploy time.
+
+**Open question for the harness's own session, not resolved here:** the Makefile also
+builds a Rust component (`cargo build --release`, line 438, `services/wiki-processor`) —
+whether that ships inside the same installable wheel or as a separate artifact
+determines the wheel's platform tag, and is not something a read-only pass from outside
+that repo can determine.
+
+### What dev-platform ships vs. what each repo does
+
+Same split as the outbound standard above: dev-platform ships this decision and standard
+(this section). It does not build the wheel, does not edit `teelr/kermit-harness`'s
+`Makefile`, and does not touch any consumer's `prod-deploy.sh` or env-setup script — per
+the no-cross-project-writes rule. The concrete unblocking step (attach the build
+artifact to `make release`) is filed as the sanctioned upstream ask on
+`teelr/kermit-harness`, from this session, post-merge. Each consumer switching its own
+dev-env install command — and retiring its own ad hoc deploy-time wheel build once an
+asset exists to install instead — is that consumer's own follow-on decision, filed only
+once there is something to switch to.
+
 ## Migration status
 
 - **Inbound** adopted 2026-06-28 (PA↔Harness, pilot issue `teelr/kermit-harness#200`).
@@ -172,6 +258,11 @@ the section below tracks current state.
   (keystone `#355`); ATLAS deprecated, so complete for active consumers.
 - **Only open item:** Keystone applies its `consumer:keystone` label on its next
   actual harness ask (the label exists; it is just unused so far).
+- **Pinned wheel install — DECIDED** (v1.38, issue #122): the harness cuts Releases but
+  attaches no build assets, so the shared dev conda env still installs editable off the
+  live sibling checkout. The upstream ask (attach a wheel/sdist to `make release`) is
+  filed post-merge against `teelr/kermit-harness`; each consumer's own switch-over is
+  deferred until that asset exists.
 - The legacy `tasks/communique-to-*` files, `HARNESS_INBOX.md`, and
   `HARNESS_REPLIES_INBOX.md` remain as the historical receipt trail; they are no
   longer the transport.
