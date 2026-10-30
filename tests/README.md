@@ -34,6 +34,10 @@ tests/
 │   └── run.sh                      install → verify → uninstall round-trip
 ├── scaffold/
 │   └── run.sh                      new-project.sh smoke
+├── merge-settings/
+│   └── run.sh                      merge_settings.py union + --retract fixtures
+├── settings-baseline/
+│   └── run.sh                      invariants on settings/settings.json + permissions-retract.json
 ├── phase-milestones/
 │   ├── run.sh                      check-phase-milestones.sh detector (offline mock-gh)
 │   └── fixtures/mock-bin/gh        mock gh CLI for canned milestone responses

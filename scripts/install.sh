@@ -156,7 +156,8 @@ install_settings() {
     # a real file first (preserving its grants), then union the repo baseline in.
     materialize_if_symlink "${HOME_CLAUDE}/settings.json"
     python3 "${REPO}/scripts/merge_settings.py" \
-        "${REPO}/settings/settings.json" "${HOME_CLAUDE}/settings.json"
+        "${REPO}/settings/settings.json" "${HOME_CLAUDE}/settings.json" \
+        --retract "${REPO}/settings/permissions-retract.json"
     linked="${linked}, settings.json (merged real file)"
 
     # settings.local.json — seed once from the tracked .example, then never touch.

@@ -5,6 +5,7 @@ Claude Code global configuration. Tracked here, deployed by `scripts/install.sh`
 ## Files
 
 - `settings.json` — global Claude Code settings (hooks, permissions, env vars). The **tracked baseline**. Deployed as a real local file via merge (see Deployment model below), NOT a symlink — because Claude Code writes "always allow" grants into the live file at runtime and a symlink would push those grants into this repo.
+- `permissions-retract.json` — v1.39: exact `permissions.allow` strings that `merge_settings.py` removes from the live `~/.claude/settings.json` on every install (`{"allow": [...]}`). The way a baseline edit tightens a machine that already holds the old grant. An entry here must not also be in the baseline allow list; `tests/settings-baseline/run.sh` and the merge both enforce that.
 - `claude-global.md` — global Claude Code behavior layer, deployed to `~/.claude/CLAUDE.md`. Loads into every Claude Code session, INCLUDING sessions outside `/home/rich/dev/`. Distinct from `/home/rich/dev/CLAUDE.md` which is the workspace dev-standards file (loads only when working under `/home/rich/dev/`). Two-tier model: `claude-global.md` for tool behavior, `dev/CLAUDE.md` for development standards. **Symlinked** (not runtime-writable).
 - `keybindings.json` — global keybindings (NOT currently tracked: this machine has never customized keybindings, so the file does not exist in `~/.claude/`. Add it here and re-run install if you customize a key.) **Symlinked** when present.
 - `settings.local.json.example` — secret-free seed for the machine-local `~/.claude/settings.local.json`. `install.sh` copies it ONCE if the live file is absent, then never touches it.
@@ -42,16 +43,30 @@ Anything that varies per machine — auth tokens, DB passwords, absolute paths b
 "Bash(PGPASSWORD=kermit_dev_password psql -U kermit_user ...)"  // literal
 ```
 
+## What the permission baseline does and does not protect (v1.39)
+
+It stops the common unprompted routes: shell wrappers (`bash`, `sh`, `source`, `xargs`), network and remote tools (`curl`, `ssh`, `scp`), service and package changes (`systemctl`, `apt`, `kill`), force pushes, piping a download into a shell, and reads of `~/.ssh`, cloud credentials and `.env` files. It does NOT make a session safe from prompt injection: `python *`, `node *`, `npm *`, `npx *`, `pip *`, `go *`, `cargo *` and `./scripts/*` stay allowed, and each can run arbitrary code. A prefix pattern can also be sidestepped by chaining or substitution. Claude Code's sandbox is the real boundary and is not configured here. If a grant you removed keeps coming back through "always allow", add its exact string to `permissions-retract.json`; if it must never be allowed, put it in `deny` instead, since deny holds against any later grant.
+
 ## Hygiene
 
-Runtime "always allow" grants now accumulate in the **live** `~/.claude/settings.json` (a real local file), NOT in this tracked baseline — so the repo no longer collects one-off prompt-acceptance junk on its own. Prune the *live* file periodically (`Bash(done)`, `Bash(sudo kill 4011)`, etc.); the `fewer-permission-prompts` skill helps. The tracked baseline only changes when you edit it here on purpose.
+Runtime "always allow" grants now accumulate in the **live** `~/.claude/settings.json` (a real local file), NOT in this tracked baseline — so the repo no longer collects one-off prompt-acceptance junk on its own. Prune the *live* file periodically (`Bash(done)`, `Bash(sudo kill 4011)`, etc.); the `fewer-permission-prompts` skill helps, but do not let it re-add anything listed in `permissions-retract.json` (the next install removes it again). The tracked baseline only changes when you edit it here on purpose.
 
 ## Deployment model (v1.6 Local Settings Isolation)
 
 `scripts/install.sh` deploys this category two ways, by whether Claude Code writes to the file at runtime:
 
 - **Symlinked** (live edits, repo is source of truth): `claude-global.md` → `~/.claude/CLAUDE.md`, and `keybindings.json` when present. Editing `~/.claude/` directly is overwritten on next install — edit here instead.
-- **Merge-deployed as a real local file**: `settings.json`. `scripts/merge_settings.py` unions the baseline's `permissions.allow/deny/ask` into the live `~/.claude/settings.json` and overwrites config keys (`hooks`, `model`, …); runtime grants in the live file are preserved. The live file is NOT a symlink, so "always allow" grants never reach this repo. **Limitation:** a union-merge can ADD but not REMOVE a permission — to retract one, edit the live file or add a `deny` rule.
+- **Merge-deployed as a real local file**: `settings.json`. `scripts/merge_settings.py` unions the baseline's `permissions.allow/deny/ask` into the live `~/.claude/settings.json` and overwrites config keys (`hooks`, `model`, …); runtime grants in the live file are preserved. The live file is NOT a symlink, so "always allow" grants never reach this repo. A plain union can ADD but not REMOVE a permission, so install passes `--retract settings/permissions-retract.json`: every exact string in that file's `allow` list is removed from the live `permissions.allow` after the union (v1.39). To retract a permission, add its exact string to that file and remove it from the baseline; `scripts/verify.sh` reports any retracted entry still present in the live file.
 - **Seeded once as a real local file**: `settings.local.json`. Copied from `settings.local.json.example` only if `~/.claude/settings.local.json` is absent; never clobbered (it holds per-machine grants + secrets).
 
 Why settings.json isn't symlinked: Claude Code persists "always allow" grants into the user settings file at runtime. When that file was a symlink into this repo, every grant polluted the tracked repo (the recurring `settings/settings.json` drift). Making it a real local file is the fix. Precedent: `install.sh vscode` already copy-deploys rather than symlinking.
+
+### Permission rule behaviour (verified 2026-10-30, v1.39)
+
+Source: the Claude Code docs, fetched by the `claude-code-guide` agent.
+
+- **Order is deny, then ask, then allow; the first match decides** ([permissions](https://code.claude.com/docs/en/permissions.md), "Manage permissions"). A matching `ask` rule prompts even when a narrower `allow` rule also matches, and a `deny` blocks even if a narrower `allow` matches. So an entry in `ask` or `deny` defeats any allow, including grants added to the live file later. It also means `ask` must never hold a broad pattern (`Bash(bash *)`) that a narrow allow (`Bash(bash ~/.claude/worktree/*)`) depends on.
+- **Lists merge across scopes** ([settings](https://code.claude.com/docs/en/settings.md), "Lists merge instead of overriding"). A deny from any scope beats an allow from any other.
+- **Auto mode:** the same order applies, deny holds in every mode, and explicit `ask` rules still prompt. Entering auto mode also drops broad allow rules such as `Bash(*)` and `Bash(python*)` ([permission modes](https://code.claude.com/docs/en/permission-modes.md)); the live file here has `defaultMode: auto`.
+- **`~` and `${VAR}` in `Bash(...)` patterns: UNTESTED.** The docs say Bash rules "match the command text", and mention `~` expansion only for Read/Edit path rules, so `Bash(bash ~/.claude/worktree/*)` should match the literal command text. That is inferred, not stated. If a `/plan` or `/code` run prompts for `bash ~/.claude/worktree/link-deps.sh` after install, the inference was wrong; switch the command files to the absolute path.
+- **Quoted forms are not normalised:** `Bash(git push *)` does not match `git 'push' origin main`. Prefix patterns are a convenience, not a boundary.
