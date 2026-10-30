@@ -87,4 +87,78 @@ else
     record_fail "merge-settings: baseline file was modified — repo-pollution risk"
 fi
 
+# --- v1.39 retract support -------------------------------------------------
+
+rbase="${TMP}/rbase.json"; rlive="${TMP}/rlive.json"; rret="${TMP}/rret.json"
+printf '{"permissions":{"allow":["Bash(keep)"]}}' > "${rbase}"
+printf '{"permissions":{"allow":["Bash(bash *)","Bash(bash ~/x/*)","Bash(other)"],"deny":["Bash(bash *)"]}}' > "${rlive}"
+printf '{"allow":["Bash(bash *)"]}' > "${rret}"
+
+# Check 8: retract removes only the exact match; narrow entry and baseline entry survive
+python3 "${MERGE}" "${rbase}" "${rlive}" --retract "${rret}" >/dev/null 2>&1
+if python3 -c "
+import json,sys
+d=json.load(open('${rlive}'))['permissions']
+ok = set(d['allow'])=={'Bash(bash ~/x/*)','Bash(other)','Bash(keep)'} and d['deny']==['Bash(bash *)']
+sys.exit(0 if ok else 1)
+"; then
+    record_pass "merge-settings: retract removes exact match only, leaves narrow allow and deny"
+else
+    record_fail "merge-settings: retract result wrong"
+fi
+
+# Check 9: no --retract argument removes nothing
+printf '{"permissions":{"allow":["Bash(bash *)"]}}' > "${rlive}"
+python3 "${MERGE}" "${rbase}" "${rlive}" >/dev/null 2>&1
+if python3 -c "
+import json,sys
+sys.exit(0 if 'Bash(bash *)' in json.load(open('${rlive}'))['permissions']['allow'] else 1)
+"; then
+    record_pass "merge-settings: without --retract nothing is removed"
+else
+    record_fail "merge-settings: entry removed without --retract"
+fi
+
+# Check 10: contradiction (baseline allow also retracted) exits 2
+printf '{"allow":["Bash(keep)"]}' > "${TMP}/rcontra.json"
+python3 "${MERGE}" "${rbase}" "${rlive}" --retract "${TMP}/rcontra.json" >/dev/null 2>&1
+if [[ $? -eq 2 ]]; then
+    record_pass "merge-settings: baseline/retract contradiction exits 2"
+else
+    record_fail "merge-settings: contradiction did not exit 2"
+fi
+
+# Check 11: malformed, wrong-shape, and missing retract files exit 2
+printf 'not json' > "${TMP}/rbad.json"
+printf '{"allow":"Bash(x)"}' > "${TMP}/rshape.json"
+rc_ok=1
+for f in "${TMP}/rbad.json" "${TMP}/rshape.json" "${TMP}/does-not-exist.json"; do
+    python3 "${MERGE}" "${rbase}" "${rlive}" --retract "${f}" >/dev/null 2>&1
+    [[ $? -eq 2 ]] || rc_ok=0
+done
+if [[ "${rc_ok}" -eq 1 ]]; then
+    record_pass "merge-settings: malformed / wrong-shape / missing retract file exits 2"
+else
+    record_fail "merge-settings: a bad retract file did not exit 2"
+fi
+
+# Check 12: --dry-run with --retract prints the retracted result, writes nothing
+printf '{"permissions":{"allow":["Bash(bash *)"]}}' > "${rlive}"
+before="$(cat "${rlive}")"
+out="$(python3 "${MERGE}" "${rbase}" "${rlive}" --retract "${rret}" --dry-run 2>/dev/null)"
+if [[ "$(cat "${rlive}")" == "${before}" ]] && ! echo "${out}" | grep -q 'Bash(bash \*)'; then
+    record_pass "merge-settings: --dry-run --retract prints result, writes nothing"
+else
+    record_fail "merge-settings: --dry-run --retract wrong"
+fi
+
+# Check 13: the baseline and retract files are never written
+rbase_before="$(cat "${rbase}")"; rret_before="$(cat "${rret}")"
+python3 "${MERGE}" "${rbase}" "${rlive}" --retract "${rret}" >/dev/null 2>&1
+if [[ "$(cat "${rbase}")" == "${rbase_before}" && "$(cat "${rret}")" == "${rret_before}" ]]; then
+    record_pass "merge-settings: baseline and retract files are never written"
+else
+    record_fail "merge-settings: a tracked input file was modified"
+fi
+
 exit $(( FAIL_COUNT > 0 ? 1 : 0 ))

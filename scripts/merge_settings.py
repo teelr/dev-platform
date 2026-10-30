@@ -15,18 +15,23 @@ Merge rules (baseline = settings/settings.json, live = ~/.claude/settings.json):
     (dev-platform-managed config overwrites the live value).
   - live missing/empty → result is the baseline verbatim (first-install seed).
 
-KNOWN LIMITATION: a union-merge can ADD but not REMOVE a permission — once an
-entry is in the live file it stays. To retract a permission, edit the live file
-directly or add a `deny` rule. (Documented in settings/README.md.)
+RETRACTING a permission: a plain union can ADD but not REMOVE, so deleting an
+entry from the baseline leaves it in the live file. Pass `--retract <file>` (a
+JSON object `{"allow": [...]}`) and every listed string is removed from the live
+`permissions.allow` after the union. Matching is EXACT string equality — a
+retract of `Bash(bash *)` leaves `Bash(bash ~/x/*)` alone. Retract only touches
+`allow`, and an entry that is in both the baseline allow list and the retract
+list is a contradiction (exit 2). See settings/README.md.
 
 Writes the merged JSON to <live_path> only. NEVER writes <baseline_path>.
 
 Usage:
-    merge_settings.py <baseline_path> <live_path> [--dry-run]
+    merge_settings.py <baseline_path> <live_path> [--retract <path>] [--dry-run]
 
 Exit code:
     0 — merged (or dry-run printed)
-    2 — malformed JSON in baseline or live
+    2 — malformed JSON in baseline, live or retract file; missing retract file;
+        or a baseline allow entry that is also retracted
 """
 from __future__ import annotations
 
@@ -53,6 +58,38 @@ def load_json(path: Path, label: str) -> dict:
         sys.stderr.write(f"ERROR: {label} ({path}) must be a JSON object\n")
         sys.exit(2)
     return data
+
+
+def load_retract(path: Path) -> list[str]:
+    """Load the retract list. Unlike load_json, a missing file is an error: the
+    caller named it explicitly, so silently skipping it would skip the tightening."""
+    if not path.exists():
+        sys.stderr.write(f"ERROR: retract file ({path}) does not exist\n")
+        sys.exit(2)
+    data = load_json(path, "retract")
+    entries = data.get("allow", [])
+    if not isinstance(entries, list) or not all(isinstance(e, str) for e in entries):
+        sys.stderr.write(f"ERROR: retract file ({path}) 'allow' must be a list of strings\n")
+        sys.exit(2)
+    return entries
+
+
+def apply_retract(merged: dict, baseline: dict, retract: list[str]) -> dict:
+    """Remove exact-match retract entries from merged permissions.allow."""
+    contradictions = sorted(
+        set(retract) & set((baseline.get("permissions", {}) or {}).get("allow", []) or [])
+    )
+    if contradictions:
+        sys.stderr.write(
+            "ERROR: entries are in both the baseline allow list and the retract list: "
+            + ", ".join(contradictions) + "\n"
+        )
+        sys.exit(2)
+    perms = merged.get("permissions")
+    if isinstance(perms, dict) and isinstance(perms.get("allow"), list):
+        drop = set(retract)
+        perms["allow"] = [e for e in perms["allow"] if e not in drop]
+    return merged
 
 
 def merge(baseline: dict, live: dict) -> dict:
@@ -91,6 +128,10 @@ def main() -> int:
     parser.add_argument("baseline_path", help="Tracked baseline (read-only input)")
     parser.add_argument("live_path", help="Live local file (written; never the baseline)")
     parser.add_argument(
+        "--retract", metavar="PATH",
+        help="JSON file {\"allow\": [...]}: exact entries to remove from the live allow list",
+    )
+    parser.add_argument(
         "--dry-run", action="store_true",
         help="Print the merged result to stdout; write nothing",
     )
@@ -102,6 +143,8 @@ def main() -> int:
     baseline = load_json(baseline_path, "baseline")
     live = load_json(live_path, "live")
     merged = merge(baseline, live)
+    if args.retract:
+        merged = apply_retract(merged, baseline, load_retract(Path(args.retract)))
     rendered = json.dumps(merged, indent=2) + "\n"
 
     if args.dry_run:

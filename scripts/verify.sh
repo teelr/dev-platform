@@ -90,6 +90,23 @@ sys.exit(0 if b.issubset(l) else 1)
         echo "  ! drift: ${deployed} is missing baseline allow entries (run install.sh)"
         ERRORS=$((ERRORS + 1))
     fi
+    # v1.39: entries the tracked retract list removes must be gone from the live file.
+    local retract="${3:-}"
+    if [[ -n "${retract}" && -f "${retract}" ]]; then
+        local left
+        left="$(python3 -c "
+import json
+r = set(json.load(open('${retract}')).get('allow', []))
+l = set(json.load(open('${deployed}')).get('permissions', {}).get('allow', []))
+print(len(r & l))
+" 2>/dev/null)"
+        if [[ "${left}" == "0" ]]; then
+            echo "  OK ${deployed} (no retracted permissions remain)"
+        else
+            echo "  ! drift: ${deployed} still holds ${left} retracted permission(s) (run install.sh settings)"
+            ERRORS=$((ERRORS + 1))
+        fi
+    fi
 }
 
 # v1.6: settings.local.json is a purely local file (seed-once). It must never be
@@ -129,7 +146,8 @@ done
 
 echo "Verifying settings..."
 # settings.json is a real merge-deployed local file (v1.6), not a symlink.
-check_local_settings "${REPO}/settings/settings.json" "${HOME_CLAUDE}/settings.json"
+check_local_settings "${REPO}/settings/settings.json" "${HOME_CLAUDE}/settings.json" \
+    "${REPO}/settings/permissions-retract.json"
 # claude-global.md + keybindings.json stay symlinked (not runtime-writable).
 check_symlink "${REPO}/settings/claude-global.md" "${HOME_CLAUDE}/CLAUDE.md"
 if [[ -f "${REPO}/settings/keybindings.json" ]]; then
