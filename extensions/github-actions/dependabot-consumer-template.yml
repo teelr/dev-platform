@@ -12,9 +12,11 @@
 #   4. Commit. Dependabot runs on GitHub's schedule and opens version-bump PRs.
 #
 # Notes:
-#   - This is a TEMPLATE. dev-platform itself does not run it — it lives under
-#     extensions/github-actions/ next to dev-platform-gate.yml, not at
-#     .github/dependabot.yml.
+#   - This is a TEMPLATE. It lives under extensions/github-actions/ next to
+#     dev-platform-gate.yml, not at .github/dependabot.yml. dev-platform runs its own,
+#     smaller config at .github/dependabot.yml (github-actions only, v1.42), which
+#     keeps its SHA-pinned actions current; this file is the copy-paste source for
+#     consumer repos.
 #   - Dependabot tracks dependencies declared in your manifest (requirements.txt,
 #     pyproject.toml, package.json, go.mod, the `uses:` pins in your workflows).
 #     A dependency pinned by a Git tag/branch is bumped when you reference it as

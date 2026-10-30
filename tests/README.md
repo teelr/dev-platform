@@ -34,6 +34,8 @@ tests/
 │   └── run.sh                      install → verify → uninstall round-trip
 ├── scaffold/
 │   └── run.sh                      new-project.sh smoke
+├── actions-pinning/
+│   └── run.sh                      workflows: SHA-pinned actions, Dependabot config, no expressions in run:, permissions (each check also run on a violating fixture)
 ├── git-hooks/
 │   └── run.sh                      shell/git-hooks/pre-commit: gate + v1.41 secret scan; scripts/check-secret-hook.sh
 ├── merge-settings/
