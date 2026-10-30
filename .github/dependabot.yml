@@ -1,0 +1,24 @@
+# Dependabot for dev-platform itself (v1.42).
+#
+# WHY: every GitHub Action this repo uses is pinned to a commit SHA with a version
+# comment (e.g. `# v4.4.0`). A SHA pin never updates by itself; this is what opens a PR
+# when a new release of one of those actions ships. Dependabot reads the version comment
+# and rewrites both the SHA and the comment (assumption: unverified until its first run).
+#
+# A Dependabot PR still needs merging: it opens the PR and nothing merges it.
+#
+# This covers dev-platform's OWN workflows. The copy-paste file for consumer repos is
+# extensions/github-actions/dependabot-consumer-template.yml.
+#
+# No `labels:` on purpose: a label that does not exist on the repo can make Dependabot
+# log an error.
+
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"

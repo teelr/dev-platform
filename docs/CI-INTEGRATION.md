@@ -102,6 +102,8 @@ Of Rich's consumers, `kermit-pa`, `keystone` and `kermit-v3` have it. `kermit-ha
 
 **A Dependabot PR still needs merging.** It opens the PR; nothing merges it. A repo can sit stale with the bump already waiting.
 
+**dev-platform pins its own actions to commit SHAs.** Since v1.42 every third-party action in this repo's workflows (`actions/checkout`, the Pages actions) is pinned to a 40-character commit SHA with a version comment (`# v4.4.0`), so a moved or hijacked tag cannot change what runs. A SHA pin never updates by itself, so `.github/dependabot.yml` (the `github-actions` ecosystem) opens the bump PR. A consumer that wants the same does the same: pin by SHA, keep the `# vX.Y.Z` comment, and keep the `github-actions` block above. The `teelr/dev-platform/...@vX.Y` pin is different: it is a release tag this repo cuts, so it stays a tag.
+
 **Dependabot can only move you to a tag that exists.** This is why every consumer stalled at `@v1.12`/`@v1.13` for twelve phases — tagging had stopped at v1.13, so there was nothing newer to bump to. Fixed in v1.26 by making the tag cut a mechanical post-merge step with `scripts/check-phase-tags.sh` as the backstop.
 
 **Bumping by hand** is the one-line `uses:` edit above, committed on a branch with a PR — see `kermit-harness` PR #380 for the shape.

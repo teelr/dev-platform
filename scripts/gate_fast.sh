@@ -172,6 +172,7 @@ if python3 -c "import yaml" 2>/dev/null; then
         fi
     done < <(find \
         "${REPO}/.github/workflows" \
+        "${REPO}/.github/dependabot.yml" \
         "${REPO}/extensions/github-actions" \
         -type f \( -name "*.yml" -o -name "*.yaml" \) -print0 2>/dev/null)
     if [[ ${yaml_fail} -eq 0 ]]; then
