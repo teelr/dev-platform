@@ -34,6 +34,8 @@ tests/
 │   └── run.sh                      install → verify → uninstall round-trip
 ├── scaffold/
 │   └── run.sh                      new-project.sh smoke
+├── git-hooks/
+│   └── run.sh                      shell/git-hooks/pre-commit: gate + v1.41 secret scan; scripts/check-secret-hook.sh
 ├── merge-settings/
 │   └── run.sh                      merge_settings.py union + --retract fixtures
 ├── settings-baseline/

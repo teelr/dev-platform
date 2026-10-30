@@ -46,7 +46,10 @@ import json
 deny = set(json.load(open('${BASE}'))['permissions']['deny'])
 required = ['Bash(git push --force*)', 'Bash(git push -f *)', 'Bash(curl * | *)',
             'Read(//home/rich/.ssh/**)', 'Read(**/.env)', 'Read(**/.env.*)',
-            'Bash(rm -rf /)', 'Bash(chmod 777*)']
+            'Bash(rm -rf /)', 'Bash(chmod 777*)',
+            'Bash(git commit --no-verify*)', 'Bash(git commit * --no-verify*)',
+            'Bash(git commit -n*)', 'Bash(git commit * -n)',
+            'Bash(git push --no-verify*)', 'Bash(git push * --no-verify*)']
 print(' '.join(r for r in required if r not in deny))
 ")"
 if [[ -z "${missing}" ]]; then

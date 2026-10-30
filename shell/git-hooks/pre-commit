@@ -1,21 +1,147 @@
 #!/usr/bin/env bash
-# shell/git-hooks/pre-commit — refuses commits when scripts/gate_fast.sh
-# fails. Universal across all teelr/dev-* repos: looks for gate_fast.sh
-# at the repo root; if absent, exits 0 (no-op). Bypass with SKIP_GATE_FAST=1
-# for WIP commits on private branches.
+# shell/git-hooks/pre-commit — two checks, in this order:
+#
+#   1. Secret scan (v1.41). Refuses a commit that ADDS a key-shaped string, a
+#      tracked .env file, or a private-key file. Runs in every repo, whether or
+#      not it has scripts/gate_fast.sh. Prints the pattern NAME and the path,
+#      never the matched text. Bypass: SKIP_SECRET_SCAN=1. Skip a path with a
+#      glob in <repo>/.secret-scan-allow, or a line with the marker
+#      "secret-scan:allow".
+#   2. Gate. Refuses the commit when scripts/gate_fast.sh fails; a no-op when the
+#      repo has none. Bypass: SKIP_GATE_FAST=1, or turn the whole gate part off
+#      for one repo with:  git config devplatform.precommitGate false
+#
+# SKIP_GATE_FAST=1 does NOT skip the secret scan; each bypass skips only its own
+# part.
 #
 # Install: scripts/install.sh git-hooks
-# Activate per-repo: git config core.hooksPath ~/.claude/git-hooks
+# Activate per repo (do NOT use core.hooksPath — it disables the repo's other
+# hooks, e.g. pre-push):
+#   ln -s ~/.claude/git-hooks/pre-commit <repo>/.git/hooks/pre-commit
 
 set -uo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+[[ -z "${REPO_ROOT}" ]] && exit 0
+
+MAX_FINDINGS=20
+
+# name|regex pairs for added lines. The regexes are written so that none of them
+# matches its own source text (each is followed by a bracket class, not the
+# literal characters), so this file can be committed in a repo that has the hook.
+CONTENT_NAMES=(github-token github-token anthropic-key openai-key openai-key aws-access-key-id google-api-key slack-token huggingface-token private-key-block)
+CONTENT_REGEXES=(
+    '(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{30,}'
+    'github_pat_[A-Za-z0-9_]{20,}'
+    'sk-ant-[A-Za-z0-9_-]{20,}'
+    'sk-(proj|svcacct|admin)-[A-Za-z0-9_-]{40,}'
+    'sk-[A-Za-z0-9]{40,}'
+    'AKIA[0-9A-Z]{16}'
+    'AIza[0-9A-Za-z_-]{35}'
+    'xox[baprs]-[0-9A-Za-z-]{10,}'
+    'hf_[A-Za-z0-9]{30,}'
+    '-----BEGIN [A-Z ]*PRIVATE KEY-----'
+)
+
+# True when a path is vendored or listed in the repo's allowlist.
+skip_path() {
+    local path="$1" glob
+    case "${path}" in
+        venv/*|*/venv/*|*_env/*|*/*_env/*|node_modules/*|*/node_modules/*|*site-packages/*|.git/*) return 0 ;;
+    esac
+    local allow="${REPO_ROOT}/.secret-scan-allow"
+    if [[ -f "${allow}" ]]; then
+        while IFS= read -r glob || [[ -n "${glob}" ]]; do
+            [[ -z "${glob}" || "${glob}" == \#* ]] && continue
+            # shellcheck disable=SC2053  # unquoted on purpose: glob match
+            [[ "${path}" == ${glob} ]] && return 0
+        done < "${allow}"
+    fi
+    return 1
+}
+
+FINDINGS=()
+add_finding() { FINDINGS+=("$1"); }
+
+scan_paths() {
+    local path lower base
+    while IFS= read -r -d '' path; do
+        skip_path "${path}" && continue
+        lower="${path,,}"
+        base="${lower##*/}"
+        if [[ "${base}" =~ ^\.env(\..+)?$ ]] && ! [[ "${base}" =~ \.(example|sample|template|dist)$ ]]; then
+            add_finding "path-env-file in ${path}"
+        elif [[ "${base}" =~ \.(pem|p12|pfx)$ || "${base}" =~ ^id_(rsa|ed25519) ]]; then
+            add_finding "path-key-file in ${path}"
+        fi
+    done < <(git -c core.quotepath=off diff --cached --name-only --diff-filter=ACMR -z 2>/dev/null)
+}
+
+scan_content() {
+    # Fast path: one grep over the added lines. Most commits have none, and the
+    # per-line loop below is slow on a large diff.
+    # Count with grep -c, never grep -q: -q exits at the first match, which kills the
+    # upstream grep with SIGPIPE, and under pipefail that reads as "no match" — a
+    # large commit with a secret in it would then skip the scan.
+    local combined="" re hits
+    for re in "${CONTENT_REGEXES[@]}"; do combined+="${combined:+|}${re}"; done
+    hits="$(git -c core.quotepath=off diff --cached --diff-filter=ACMR -U0 --no-color --no-ext-diff 2>/dev/null \
+        | grep -E '^\+' | grep -cE -- "${combined}")"
+    [[ "${hits:-0}" -gt 0 ]] || return 0
+
+    local line file="" lineno=0 i
+    while IFS= read -r line; do
+        case "${line}" in
+            '+++ b/'*)  file="${line#+++ b/}"; continue ;;
+            '+++ "b/'*) file="${line#+++ \"b/}"; file="${file%\"}"; continue ;;   # git-quoted name
+            '+++ '*)    file=""; continue ;;                                       # /dev/null (deleted)
+            '@@ '*)
+                lineno="${line#*+}"; lineno="${lineno%%[, ]*}"
+                lineno=$(( lineno - 1 ))
+                continue ;;
+            '+'*)  lineno=$(( lineno + 1 )) ;;
+            *)     continue ;;
+        esac
+        [[ -z "${file}" ]] && continue
+        skip_path "${file}" && continue
+        [[ "${line}" == *"secret-scan:allow"* ]] && continue
+        for i in "${!CONTENT_REGEXES[@]}"; do
+            if [[ "${line}" =~ ${CONTENT_REGEXES[$i]} ]]; then
+                add_finding "${CONTENT_NAMES[$i]} in ${file}:${lineno}"
+                break
+            fi
+        done
+    done < <(git -c core.quotepath=off diff --cached --diff-filter=ACMR -U0 --no-color --no-ext-diff 2>/dev/null)
+}
+
+if [[ "${SKIP_SECRET_SCAN:-0}" == "1" ]]; then
+    echo "[pre-commit] SKIP_SECRET_SCAN=1 — bypassing secret scan" >&2
+else
+    scan_paths
+    scan_content
+    if (( ${#FINDINGS[@]} > 0 )); then
+        shown=0
+        for f in "${FINDINGS[@]}"; do
+            (( shown >= MAX_FINDINGS )) && break
+            echo "[pre-commit] SECRET? ${f}" >&2
+            shown=$(( shown + 1 ))
+        done
+        if (( ${#FINDINGS[@]} > MAX_FINDINGS )); then
+            echo "[pre-commit] ... and $(( ${#FINDINGS[@]} - MAX_FINDINGS )) more suppressed" >&2
+        fi
+        echo "[pre-commit] secret scan: commit refused. Remove the secret, or add the path to .secret-scan-allow, or set SKIP_SECRET_SCAN=1 for a one-off." >&2
+        exit 1
+    fi
+fi
+
+if [[ "$(git config --bool --get devplatform.precommitGate 2>/dev/null)" == "false" ]]; then
+    exit 0
+fi
 
 if [[ "${SKIP_GATE_FAST:-0}" == "1" ]]; then
     echo "[pre-commit] SKIP_GATE_FAST=1 — bypassing gate" >&2
     exit 0
 fi
-
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
-[[ -z "${REPO_ROOT}" ]] && exit 0
 
 GATE="${REPO_ROOT}/scripts/gate_fast.sh"
 [[ ! -x "${GATE}" ]] && exit 0
