@@ -5,6 +5,11 @@
 # The job name `gate-fast` is the context name the branch protection
 # rule pins — renaming requires a matching update to the protection
 # config.
+#
+# workflow_dispatch lets the gate be run by hand. It was added when GitHub's
+# API reported this workflow as state "deleted" (updated 2026-10-29) although
+# the file was intact on main: nothing had triggered, so no required check
+# ever reported on a PR. Editing the file is what asks GitHub to re-index it.
 
 name: gate-fast
 
@@ -13,6 +18,10 @@ on:
     branches: [main]
   push:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   gate-fast:
