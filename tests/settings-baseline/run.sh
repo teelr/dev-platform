@@ -31,7 +31,8 @@ import json
 allow = set(json.load(open('${BASE}'))['permissions']['allow'])
 banned = ['Bash(bash *)', 'Bash(sh *)', 'Bash(curl *)', 'Bash(ssh *)', 'Bash(scp *)',
           'Bash(kill *)', 'Bash(pkill *)', 'Bash(source *)', 'Bash(xargs *)', 'Bash(apt *)',
-          'Bash(systemctl *)', 'Bash(env *)', 'Bash(export *)', 'Bash(tee *)', 'Bash(/tmp/*)']
+          'Bash(systemctl *)', 'Bash(env *)', 'Bash(export *)', 'Bash(tee *)', 'Bash(/tmp/*)',
+          'Bash(docker *)', 'Bash(docker-compose *)', 'Bash(fuser *)']
 print(' '.join(b for b in banned if b in allow))
 ")"
 if [[ -z "${bad}" ]]; then
@@ -88,12 +89,48 @@ fi
 ask_bad="$(python3 -c "
 import json
 ask = set(json.load(open('${BASE}'))['permissions'].get('ask', []))
-print(' '.join(a for a in ['Bash(bash *)', 'Bash(rm *)', 'Bash(kill *)', 'Bash(curl *)'] if a in ask))
+print(' '.join(a for a in ['Bash(bash *)', 'Bash(rm *)', 'Bash(kill *)', 'Bash(curl *)',
+                           'Bash(docker exec *)', 'Bash(docker build *)', 'Bash(docker compose *)']
+                if a in ask))
 ")"
 if [[ -z "${ask_bad}" ]]; then
     record_pass "settings-baseline: ask list holds no pattern that overrides workflow allows"
 else
     record_fail "settings-baseline: ask holds ${ask_bad} (ask outranks allow)"
+fi
+
+# Check 7 (v1.44): docker run / cp prompt. docker run can mount the host root or run
+# privileged, which is root on the host; compose's run is the same thing. docker build
+# stays allowed, but -o / --output makes BuildKit write the result into a host directory,
+# which sidesteps the Edit/Write denies on ~/.ssh and shell profiles.
+ask_missing="$(python3 -c "
+import json
+ask = set(json.load(open('${BASE}'))['permissions'].get('ask', []))
+required = ['Bash(docker run *)', 'Bash(docker cp *)', 'Bash(docker compose run *)',
+            'Bash(docker compose * run *)',
+            'Bash(docker build -o*)', 'Bash(docker build --output*)',
+            'Bash(docker build * -o*)', 'Bash(docker build * --output*)']
+print(' '.join(r for r in required if r not in ask))
+")"
+if [[ -z "${ask_missing}" ]]; then
+    record_pass "settings-baseline: docker run / cp / compose run / build --output prompt"
+else
+    record_fail "settings-baseline: ask entries missing: ${ask_missing}"
+fi
+
+# Check 8 (v1.44): the docker verbs the workflows use stay allowed. docker exec is allowed
+# on purpose (629 uses in past sessions); dropping it would prompt on every container check.
+allow_missing="$(python3 -c "
+import json
+allow = set(json.load(open('${BASE}'))['permissions']['allow'])
+required = ['Bash(docker exec *)', 'Bash(docker ps*)', 'Bash(docker logs *)',
+            'Bash(docker build *)', 'Bash(docker compose *)']
+print(' '.join(r for r in required if r not in allow))
+")"
+if [[ -z "${allow_missing}" ]]; then
+    record_pass "settings-baseline: docker verbs the workflows use stay allowed"
+else
+    record_fail "settings-baseline: allow entries missing: ${allow_missing}"
 fi
 
 exit $(( FAIL_COUNT > 0 ? 1 : 0 ))

@@ -4,8 +4,9 @@
       "Bash(go *)",
       "Bash(gofmt *)",
       "Bash(./scripts/*)",
-      "Bash(docker *)",
-      "Bash(docker-compose *)",
+      "Bash(docker compose *)",
+      "Bash(docker ps*)",
+      "Bash(docker logs *)",
       "Bash(curl *)"
     ]
   }
