@@ -143,6 +143,7 @@ git checkout main && git pull --ff-only
            [[ "$(readlink "${_cwd_link}" 2>/dev/null)" == "${WT}"* ]] || continue
            _pid="$(basename "$(dirname "${_cwd_link}")")"
            echo "Stopping PID ${_pid} — its cwd is inside the worktree being removed"
+           # A permission prompt on this kill is expected: Bash(kill *) was retracted in v1.39 and a PID-specific allow cannot be written ahead of time.
            kill "${_pid}" 2>/dev/null || true
        done
        sleep 1   # let any stopped process release the worktree before removal

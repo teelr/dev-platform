@@ -49,7 +49,14 @@ It stops the common unprompted routes: shell wrappers (`bash`, `sh`, `source`, `
 
 ## Hygiene
 
-Runtime "always allow" grants now accumulate in the **live** `~/.claude/settings.json` (a real local file), NOT in this tracked baseline — so the repo no longer collects one-off prompt-acceptance junk on its own. Prune the *live* file periodically (`Bash(done)`, `Bash(sudo kill 4011)`, etc.); the `fewer-permission-prompts` skill helps, but do not let it re-add anything listed in `permissions-retract.json` (the next install removes it again). The tracked baseline only changes when you edit it here on purpose.
+Runtime "always allow" grants now accumulate in the **live** `~/.claude/settings.json` (a real local file), NOT in this tracked baseline — so the repo no longer collects one-off prompt-acceptance junk on its own. Prune the *live* file periodically with `scripts/prune_live_grants.py` (v1.43). It lists every live allow entry that is not in the baseline, with a class: `pid-kill`, `sudo`, `scratch-path` (a `/tmp/claude-` path), `inline-token` (`GH_TOKEN=`), or `unclassified`. Review first, then remove:
+
+```bash
+python3 scripts/prune_live_grants.py settings/settings.json ~/.claude/settings.json
+python3 scripts/prune_live_grants.py settings/settings.json ~/.claude/settings.json --apply
+```
+
+`--apply` writes a `settings.json.bak-<UTC stamp>` backup (mode 600) and removes only the first four classes; `unclassified` grants are listed and never removed. Do not use `permissions-retract.json` for one-offs: it is tracked in a public repo, so a retract entry publishes the grant's text. The `fewer-permission-prompts` skill helps, but do not let it re-add anything listed in `permissions-retract.json` (the next install removes it again). The tracked baseline only changes when you edit it here on purpose.
 
 ## Deployment model (v1.6 Local Settings Isolation)
 
