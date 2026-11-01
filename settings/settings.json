@@ -177,11 +177,8 @@
       "Read(**/.env)",
       "Read(**/.env.*)",
       "Edit(//home/rich/.ssh/**)",
-      "Write(//home/rich/.ssh/**)",
       "Edit(//home/rich/.bashrc)",
-      "Write(//home/rich/.bashrc)",
-      "Edit(//home/rich/.profile)",
-      "Write(//home/rich/.profile)"
+      "Edit(//home/rich/.profile)"
     ],
     "additionalDirectories": [
       "/tmp",

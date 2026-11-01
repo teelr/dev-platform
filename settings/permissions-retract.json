@@ -39,5 +39,10 @@
     "Read(//home/rich/dev/**)",
     "Read(//home/rich/dev/projects/kermit/**)",
     "Read(//home/rich/dev/projects/kermit/uploads/**)"
+  ],
+  "deny": [
+    "Write(//home/rich/.bashrc)",
+    "Write(//home/rich/.profile)",
+    "Write(//home/rich/.ssh/**)"
   ]
 }
