@@ -188,13 +188,15 @@ For small bug fixes or behavior changes too small for a spec, skip `/plan` — b
 2. `/review` → `/gate fast`
 3. Commit → push → `/pr` → CI → `/merge`
 
-## Workflow: Trivial Edit (No Chain)
+## Workflow: Trivial Edit (No Plan, No Review)
 
-For a single-line or few-line addition to a registry, table, or doc — zero effect on code behavior, not read programmatically by any script or test (e.g. a new Port Allocation Registry row, a typo fix, a broken link) — skip the chain entirely:
+For a single-line or few-line addition to a registry, table, or doc — zero effect on code behavior, not read programmatically by any script or test (e.g. a new Port Allocation Registry row, a typo fix, a broken link) — skip `/plan` and `/review`, but not the PR:
 
-1. Make the edit directly
+1. Cut a branch and make the edit
 2. `./scripts/gate_fast.sh` (or the project's equivalent)
-3. Commit straight to `main` — no branch, no `/review`, no PR, no CI wait
+3. Commit → push → `/pr` → CI → `/merge`
+
+A protected `main` (dev-platform's requires a PR and a green `gate-fast`) rejects a direct push with GH006, so committing straight to `main` is only possible on a repo with no branch protection.
 
 NOT trivial — use Quick Fix instead — if the edit touches `commands/`, `skills/`, `hooks/`, `scripts/`, or any file a script/test parses; changes a rule that alters behavior (workflow chain, taxonomy, gate contract); or spans more than ~5 lines. When in doubt, treat it as a quick fix, not a trivial edit.
 
