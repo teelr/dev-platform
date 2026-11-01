@@ -9,9 +9,9 @@
 # human remembers to run /dev; this fires automatically for every session.
 #
 # Advisory only — never blocks. SessionStart cannot refuse a session anyway,
-# and a hard block would also catch the legitimate case: CLAUDE.md's
-# Trivial-Edit / Quick-fix carve-out commits straight to `main` in the shared
-# checkout with no branch at all, and must never warn. Only "worktree mode is
+# and a hard block would also catch the legitimate case: a session sitting on
+# `main` in the shared checkout (before /plan, after a merge sync, or doing
+# read-only orientation), which must never warn. Only "worktree mode is
 # ON, this is NOT a worktree, and the branch is NOT the default branch"
 # warrants a flag.
 #
