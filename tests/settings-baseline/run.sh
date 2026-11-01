@@ -133,4 +133,36 @@ else
     record_fail "settings-baseline: allow entries missing: ${allow_missing}"
 fi
 
+# Check 9 (v1.45): the baseline holds no Write(...) rule. Claude Code never matches a
+# Write rule (only Edit(path) rules apply, and they cover every file-editing tool), and it
+# prints a warning for each one at startup. The Edit rule is the protection, so all three
+# must stay.
+deny_bad="$(python3 -c "
+import json
+deny = set(json.load(open('${BASE}'))['permissions']['deny'])
+writes = sorted(d for d in deny if d.startswith('Write('))
+edits = ['Edit(//home/rich/.ssh/**)', 'Edit(//home/rich/.bashrc)', 'Edit(//home/rich/.profile)']
+print(' '.join(writes + ['MISSING:' + e for e in edits if e not in deny]))
+")"
+if [[ -z "${deny_bad}" ]]; then
+    record_pass "settings-baseline: no Write() deny rules; Edit() rules for ssh, bashrc, profile present"
+else
+    record_fail "settings-baseline: ${deny_bad}"
+fi
+
+# Check 10 (v1.45): the retract deny list is well-formed and does not contradict the
+# baseline deny list (merge_settings.py exits 2 on the latter).
+retract_deny_bad="$(python3 -c "
+import json
+deny = set(json.load(open('${BASE}'))['permissions']['deny'])
+r = json.load(open('${RETRACT}')).get('deny', [])
+bad = [e for e in r if not (isinstance(e, str) and e.startswith('Write(') and e.endswith(')'))]
+print(' '.join(bad + sorted(set(r) & deny)))
+")"
+if [[ -z "${retract_deny_bad}" ]]; then
+    record_pass "settings-baseline: retract deny list is well-formed and not in the baseline deny list"
+else
+    record_fail "settings-baseline: bad retract deny entries: ${retract_deny_bad}"
+fi
+
 exit $(( FAIL_COUNT > 0 ? 1 : 0 ))

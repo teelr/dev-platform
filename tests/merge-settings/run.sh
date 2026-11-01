@@ -161,4 +161,58 @@ else
     record_fail "merge-settings: a tracked input file was modified"
 fi
 
+# --- v1.45 deny retract -----------------------------------------------------
+
+dbase="${TMP}/dbase.json"; dlive="${TMP}/dlive.json"; dret="${TMP}/dret.json"
+printf '{"permissions":{"allow":["Bash(keep)"],"deny":["Edit(/x)"]}}' > "${dbase}"
+printf '{"permissions":{"allow":["Write(/x)","Bash(a)"],"deny":["Write(/x)","Write(/y)","Bash(z)"]}}' > "${dlive}"
+printf '{"deny":["Write(/x)","Write(/y)"]}' > "${dret}"
+
+# Check 14: deny retract removes exactly the listed deny entries; other deny entries,
+# the baseline deny entry, and a same-string entry in allow all survive
+python3 "${MERGE}" "${dbase}" "${dlive}" --retract "${dret}" >/dev/null 2>&1
+if python3 -c "
+import json,sys
+d=json.load(open('${dlive}'))['permissions']
+ok = (set(d['deny'])=={'Bash(z)','Edit(/x)'}
+      and set(d['allow'])=={'Write(/x)','Bash(a)','Bash(keep)'})
+sys.exit(0 if ok else 1)
+"; then
+    record_pass "merge-settings: deny retract removes exact deny entries only, allow untouched"
+else
+    record_fail "merge-settings: deny retract result wrong"
+fi
+
+# Check 15: a baseline deny entry that is also retracted from deny exits 2
+printf '{"deny":["Edit(/x)"]}' > "${TMP}/dcontra.json"
+python3 "${MERGE}" "${dbase}" "${dlive}" --retract "${TMP}/dcontra.json" >/dev/null 2>&1
+if [[ $? -eq 2 ]]; then
+    record_pass "merge-settings: baseline/retract deny contradiction exits 2"
+else
+    record_fail "merge-settings: deny contradiction did not exit 2"
+fi
+
+# Check 16: a deny value that is not a list of strings exits 2
+printf '{"deny":"Write(/x)"}' > "${TMP}/dshape.json"
+python3 "${MERGE}" "${dbase}" "${dlive}" --retract "${TMP}/dshape.json" >/dev/null 2>&1
+if [[ $? -eq 2 ]]; then
+    record_pass "merge-settings: non-list retract deny exits 2"
+else
+    record_fail "merge-settings: non-list retract deny did not exit 2"
+fi
+
+# Check 17: an allow-only retract file leaves deny untouched (pre-v1.45 files still work)
+printf '{"permissions":{"allow":["Bash(a)"],"deny":["Write(/x)"]}}' > "${dlive}"
+printf '{"allow":["Bash(a)"]}' > "${TMP}/donly.json"
+python3 "${MERGE}" "${dbase}" "${dlive}" --retract "${TMP}/donly.json" >/dev/null 2>&1
+if python3 -c "
+import json,sys
+d=json.load(open('${dlive}'))['permissions']
+sys.exit(0 if 'Write(/x)' in d['deny'] and 'Bash(a)' not in d['allow'] else 1)
+"; then
+    record_pass "merge-settings: allow-only retract file leaves deny untouched"
+else
+    record_fail "merge-settings: allow-only retract file changed deny"
+fi
+
 exit $(( FAIL_COUNT > 0 ? 1 : 0 ))

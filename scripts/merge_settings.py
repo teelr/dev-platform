@@ -17,11 +17,14 @@ Merge rules (baseline = settings/settings.json, live = ~/.claude/settings.json):
 
 RETRACTING a permission: a plain union can ADD but not REMOVE, so deleting an
 entry from the baseline leaves it in the live file. Pass `--retract <file>` (a
-JSON object `{"allow": [...]}`) and every listed string is removed from the live
-`permissions.allow` after the union. Matching is EXACT string equality — a
-retract of `Bash(bash *)` leaves `Bash(bash ~/x/*)` alone. Retract only touches
-`allow`, and an entry that is in both the baseline allow list and the retract
-list is a contradiction (exit 2). See settings/README.md.
+JSON object `{"allow": [...], "deny": [...]}`, each key optional) and every
+listed string is removed from the matching live `permissions` list after the
+union. Matching is EXACT string equality — a retract of `Bash(bash *)` leaves
+`Bash(bash ~/x/*)` alone, and an `allow` retract never touches `deny` or the
+reverse. An entry that is in both a baseline list and the same retract list is a
+contradiction (exit 2). The `deny` list is for redundant or broken rules (v1.45:
+`Write(...)` rules, which are never matched), not for loosening protection.
+See settings/README.md.
 
 Writes the merged JSON to <live_path> only. NEVER writes <baseline_path>.
 
@@ -31,7 +34,7 @@ Usage:
 Exit code:
     0 — merged (or dry-run printed)
     2 — malformed JSON in baseline, live or retract file; missing retract file;
-        or a baseline allow entry that is also retracted
+        or a baseline allow/deny entry that is also retracted from the same list
 """
 from __future__ import annotations
 
@@ -60,35 +63,45 @@ def load_json(path: Path, label: str) -> dict:
     return data
 
 
-def load_retract(path: Path) -> list[str]:
-    """Load the retract list. Unlike load_json, a missing file is an error: the
-    caller named it explicitly, so silently skipping it would skip the tightening."""
+RETRACT_KEYS = ("allow", "deny")
+
+
+def load_retract(path: Path) -> dict[str, list[str]]:
+    """Load the retract lists ({"allow": [...], "deny": [...]}, each optional).
+    Unlike load_json, a missing file is an error: the caller named it explicitly,
+    so silently skipping it would skip the tightening."""
     if not path.exists():
         sys.stderr.write(f"ERROR: retract file ({path}) does not exist\n")
         sys.exit(2)
     data = load_json(path, "retract")
-    entries = data.get("allow", [])
-    if not isinstance(entries, list) or not all(isinstance(e, str) for e in entries):
-        sys.stderr.write(f"ERROR: retract file ({path}) 'allow' must be a list of strings\n")
-        sys.exit(2)
-    return entries
+    lists: dict[str, list[str]] = {}
+    for key in RETRACT_KEYS:
+        entries = data.get(key, [])
+        if not isinstance(entries, list) or not all(isinstance(e, str) for e in entries):
+            sys.stderr.write(f"ERROR: retract file ({path}) '{key}' must be a list of strings\n")
+            sys.exit(2)
+        lists[key] = entries
+    return lists
 
 
-def apply_retract(merged: dict, baseline: dict, retract: list[str]) -> dict:
-    """Remove exact-match retract entries from merged permissions.allow."""
-    contradictions = sorted(
-        set(retract) & set((baseline.get("permissions", {}) or {}).get("allow", []) or [])
-    )
-    if contradictions:
-        sys.stderr.write(
-            "ERROR: entries are in both the baseline allow list and the retract list: "
-            + ", ".join(contradictions) + "\n"
-        )
-        sys.exit(2)
+def apply_retract(merged: dict, baseline: dict, retract: dict[str, list[str]]) -> dict:
+    """Remove exact-match retract entries from merged permissions.allow / .deny.
+    An entry is only ever removed from the list it is retracted under."""
+    base_perms = baseline.get("permissions", {}) or {}
+    for key in RETRACT_KEYS:
+        contradictions = sorted(set(retract[key]) & set(base_perms.get(key, []) or []))
+        if contradictions:
+            sys.stderr.write(
+                f"ERROR: entries are in both the baseline {key} list and the retract "
+                f"{key} list: " + ", ".join(contradictions) + "\n"
+            )
+            sys.exit(2)
     perms = merged.get("permissions")
-    if isinstance(perms, dict) and isinstance(perms.get("allow"), list):
-        drop = set(retract)
-        perms["allow"] = [e for e in perms["allow"] if e not in drop]
+    if isinstance(perms, dict):
+        for key in RETRACT_KEYS:
+            if isinstance(perms.get(key), list):
+                drop = set(retract[key])
+                perms[key] = [e for e in perms[key] if e not in drop]
     return merged
 
 
@@ -129,7 +142,7 @@ def main() -> int:
     parser.add_argument("live_path", help="Live local file (written; never the baseline)")
     parser.add_argument(
         "--retract", metavar="PATH",
-        help="JSON file {\"allow\": [...]}: exact entries to remove from the live allow list",
+        help="JSON file {\"allow\": [...], \"deny\": [...]}: exact entries to remove from the live allow / deny lists",
     )
     parser.add_argument(
         "--dry-run", action="store_true",

@@ -96,9 +96,9 @@ sys.exit(0 if b.issubset(l) else 1)
         local left
         left="$(python3 -c "
 import json
-r = set(json.load(open('${retract}')).get('allow', []))
-l = set(json.load(open('${deployed}')).get('permissions', {}).get('allow', []))
-print(len(r & l))
+r = json.load(open('${retract}'))
+l = json.load(open('${deployed}')).get('permissions', {})
+print(sum(len(set(r.get(k, [])) & set(l.get(k, []))) for k in ('allow', 'deny')))
 " 2>/dev/null)"
         if [[ "${left}" == "0" ]]; then
             echo "  OK ${deployed} (no retracted permissions remain)"
