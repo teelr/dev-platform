@@ -317,6 +317,201 @@ else
     record_skip "worktree: gate_lock_acquire/release contention tests (flock not installed)"
 fi
 
+# --- Test 6p: gate_lock_holder_alive — the read-only "is a gate running" probe
+# (v1.47, issue #140). Notes are written by hand in the exact format
+# _gate_lock_stamp writes. Every call runs from / with the repo passed as an
+# argument, the way a cron job or systemd unit would call it. tmp6p is removed
+# explicitly at the end of the block (a later trap replaces this one — see the
+# tmp6b note above).
+tmp6p="$(mktemp -d)"
+git init -q "${tmp6p}/repo"
+git -C "${tmp6p}/repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+P_HOLDER="${tmp6p}/repo/.git/gate.lock.holder"
+P_LOCK="${tmp6p}/repo/.git/gate.lock"
+sleep 120 &
+P_LIVE=$!
+
+# A `date` shim that answers `date -d ""` with NOW. Real `date -d ""` is midnight
+# today, which is "recent" only between 00:00 and 02:00 — so without the shim the
+# empty-started check would pass or fail depending on the time of day.
+mkdir -p "${tmp6p}/shim"
+cat > "${tmp6p}/shim/date" <<'SHIM'
+#!/usr/bin/env bash
+if [[ "${1:-}" == "-d" && -z "${2:-}" ]]; then exec /bin/date +%s; fi
+exec /bin/date "$@"
+SHIM
+chmod +x "${tmp6p}/shim/date"
+
+_p_note() { printf 'pid=%s started=%s label=%s\n' "$1" "$2" "$3" > "${P_HOLDER}"; }
+_p_ts()   { date -d "$1" '+%Y-%m-%dT%H:%M:%S'; }
+# _p_probe <args...> -> sets POUT (stdout), PERR (stderr), PRC
+_p_probe() {
+    local errf="${tmp6p}/err"
+    POUT="$( cd / && PATH="${tmp6p}/shim:${PATH}" bash -c 'source "$1"; shift; gate_lock_holder_alive "$@"' _ "${GATE_LOCK}" "$@" 2>"${errf}" )"
+    PRC=$?
+    PERR="$(cat "${errf}")"
+}
+
+# 6j. Live pid, recent note, label with a space -> exit 0 and the exact line.
+TS_NOW="$(_p_ts 'now')"
+_p_note "${P_LIVE}" "${TS_NOW}" "gate fast"
+_p_probe "${tmp6p}/repo"
+if [[ ${PRC} -eq 0 && "${POUT}" == "pid=${P_LIVE} label=gate fast started=${TS_NOW}" ]]; then
+    record_pass "worktree: gate_lock_holder_alive reports a live recent holder (exit 0, exact line)"
+else
+    record_fail "worktree: gate_lock_holder_alive live holder — rc=${PRC}, out=${POUT}"
+fi
+
+# 6k. Dead pid -> exit 1, no output (a killed gate leaves its note behind).
+_p_note 999999 "${TS_NOW}" "gate fast"
+_p_probe "${tmp6p}/repo"
+if [[ ${PRC} -eq 1 && -z "${POUT}" ]]; then
+    record_pass "worktree: gate_lock_holder_alive ignores a dead pid"
+else
+    record_fail "worktree: gate_lock_holder_alive dead pid — rc=${PRC}, out=${POUT}"
+fi
+
+# 6l. Missing note -> exit 1.
+rm -f "${P_HOLDER}"
+_p_probe "${tmp6p}/repo"
+if [[ ${PRC} -eq 1 && -z "${POUT}" ]]; then
+    record_pass "worktree: gate_lock_holder_alive returns 1 with no holder note"
+else
+    record_fail "worktree: gate_lock_holder_alive no note — rc=${PRC}, out=${POUT}"
+fi
+
+# 6m. Empty started= -> exit 1 (clock-independent via the date shim).
+_p_note "${P_LIVE}" "" "x"
+_p_probe "${tmp6p}/repo"
+if [[ ${PRC} -eq 1 && -z "${POUT}" ]]; then
+    record_pass "worktree: gate_lock_holder_alive ignores an empty started= (not treated as recent)"
+else
+    record_fail "worktree: gate_lock_holder_alive empty started — rc=${PRC}, out=${POUT}"
+fi
+
+# 6n. Unparseable started= -> exit 1.
+_p_note "${P_LIVE}" "garbage" "x"
+_p_probe "${tmp6p}/repo"
+if [[ ${PRC} -eq 1 && -z "${POUT}" ]]; then
+    record_pass "worktree: gate_lock_holder_alive ignores an unparseable started="
+else
+    record_fail "worktree: gate_lock_holder_alive garbage started — rc=${PRC}, out=${POUT}"
+fi
+
+# 6o. Older than the limit -> exit 1; a bigger limit accepts the same note.
+TS_OLD="$(_p_ts '3 hours ago')"
+_p_note "${P_LIVE}" "${TS_OLD}" "hung"
+_p_probe "${tmp6p}/repo"
+old_rc=${PRC}
+_p_probe "${tmp6p}/repo" 240
+if [[ ${old_rc} -eq 1 && ${PRC} -eq 0 ]]; then
+    record_pass "worktree: gate_lock_holder_alive honours the age limit (default 120, overridable)"
+else
+    record_fail "worktree: gate_lock_holder_alive age limit — default rc=${old_rc}, 240 rc=${PRC}"
+fi
+
+# 6p. A note stamped in the future (clock change) is not older than the limit.
+_p_note "${P_LIVE}" "$(_p_ts '1 hour')" "skew"
+_p_probe "${tmp6p}/repo"
+if [[ ${PRC} -eq 0 ]]; then
+    record_pass "worktree: gate_lock_holder_alive accepts a future-stamped note"
+else
+    record_fail "worktree: gate_lock_holder_alive future note — rc=${PRC}, out=${POUT}"
+fi
+
+# 6q. Bad max-age-minutes -> exit 2 with a message; "08" is decimal, not octal.
+_p_note "${P_LIVE}" "${TS_NOW}" "x"
+bad_ok=1
+for bad in abc -5 1.5; do
+    _p_probe "${tmp6p}/repo" "${bad}"
+    [[ ${PRC} -eq 2 && -z "${POUT}" && -n "${PERR}" ]] || bad_ok=0
+done
+_p_probe "${tmp6p}/repo" 08
+if [[ ${bad_ok} -eq 1 && ${PRC} -eq 0 ]]; then
+    record_pass "worktree: gate_lock_holder_alive rejects a bad limit (exit 2); 08 is read as decimal"
+else
+    record_fail "worktree: gate_lock_holder_alive limit handling — bad_ok=${bad_ok}, 08 rc=${PRC} (${PERR})"
+fi
+
+# 6r. Works from a linked worktree via repo-dir (shared git common dir) ...
+git -C "${tmp6p}/repo" worktree add -q "${tmp6p}/wt" -b probe-wt
+_p_note "${P_LIVE}" "${TS_NOW}" "gate fast"
+_p_probe "${tmp6p}/wt"
+wt_rc=${PRC}; wt_out="${POUT}"
+# ... and with no argument from inside the repo.
+POUT="$( cd "${tmp6p}/repo" && bash -c 'source "$1"; gate_lock_holder_alive' _ "${GATE_LOCK}" 2>/dev/null )"
+noarg_rc=$?
+if [[ ${wt_rc} -eq 0 && "${wt_out}" == "pid=${P_LIVE} label=gate fast started=${TS_NOW}" \
+      && ${noarg_rc} -eq 0 && "${POUT}" == "${wt_out}" ]]; then
+    record_pass "worktree: gate_lock_holder_alive works from a linked worktree and with no argument"
+else
+    record_fail "worktree: gate_lock_holder_alive worktree/no-arg — wt rc=${wt_rc} (${wt_out}), noarg rc=${noarg_rc} (${POUT})"
+fi
+
+# 6s. A directory that is not a git repo -> exit 1, and nothing is created in it.
+mkdir "${tmp6p}/nongit"
+if [[ -e /tmp/gate.lock.holder ]]; then
+    record_skip "worktree: gate_lock_holder_alive non-git dir (a real /tmp/gate.lock.holder exists)"
+else
+    _p_probe "${tmp6p}/nongit"
+    if [[ ${PRC} -eq 1 && -z "$(ls -A "${tmp6p}/nongit")" ]]; then
+        record_pass "worktree: gate_lock_holder_alive on a non-git dir returns 1 and creates nothing"
+    else
+        record_fail "worktree: gate_lock_holder_alive non-git dir — rc=${PRC}, contents=$(ls -A "${tmp6p}/nongit")"
+    fi
+fi
+
+# 6t. Never touches gate.lock: a successful probe does not create it ...
+rm -f "${P_LOCK}"
+_p_note "${P_LIVE}" "${TS_NOW}" "x"
+_p_probe "${tmp6p}/repo"
+if [[ ${PRC} -eq 0 && ! -e "${P_LOCK}" ]]; then
+    record_pass "worktree: gate_lock_holder_alive does not create gate.lock"
+else
+    record_fail "worktree: gate_lock_holder_alive created/needed gate.lock — rc=${PRC}, lock exists: $([[ -e "${P_LOCK}" ]] && echo yes || echo no)"
+fi
+
+# 6u. ... and while a real gate HOLDS the lock it answers at once, names the
+# holder, and leaves the lock held.
+if command -v flock >/dev/null 2>&1; then
+    ( cd "${tmp6p}/repo" && source "${GATE_LOCK}" && gate_lock_acquire held \
+        && sleep 4 && gate_lock_release ) >/dev/null 2>&1 &
+    held_job=$!
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+        grep -q 'label=held' "${P_HOLDER}" 2>/dev/null && break
+        sleep 0.3
+    done
+    SECONDS=0
+    _p_probe "${tmp6p}/repo"
+    probe_secs=${SECONDS}
+    ( flock -n 9 ) 9>>"${P_LOCK}" 2>/dev/null; still_held=$?
+    if [[ ${PRC} -eq 0 && "${POUT}" == *"label=held"* && ${probe_secs} -lt 2 && ${still_held} -ne 0 ]]; then
+        record_pass "worktree: gate_lock_holder_alive answers at once while a gate holds the lock, and does not take it"
+    else
+        record_fail "worktree: gate_lock_holder_alive under a held lock — rc=${PRC}, out=${POUT}, secs=${probe_secs}, lock_still_held_rc=${still_held}"
+    fi
+    wait "${held_job}" 2>/dev/null || true
+else
+    record_skip "worktree: gate_lock_holder_alive under a held lock (flock not installed)"
+fi
+
+# 6v. Regression: _gate_lock_describe_holder (now reading through the shared
+# field parser) still says "pid N (since S)" for a live holder, "another session"
+# for a dead one.
+_p_note "${P_LIVE}" "${TS_NOW}" "x"
+desc_live="$( cd "${tmp6p}/repo" && bash -c 'source "$1"; _gate_lock_describe_holder' _ "${GATE_LOCK}" )"
+_p_note 999999 "${TS_NOW}" "x"
+desc_dead="$( cd "${tmp6p}/repo" && bash -c 'source "$1"; _gate_lock_describe_holder' _ "${GATE_LOCK}" )"
+if [[ "${desc_live}" == "pid ${P_LIVE} (since ${TS_NOW})" && "${desc_dead}" == "another session" ]]; then
+    record_pass "worktree: _gate_lock_describe_holder unchanged after the parser extraction"
+else
+    record_fail "worktree: _gate_lock_describe_holder — live='${desc_live}', dead='${desc_dead}'"
+fi
+
+kill "${P_LIVE}" 2>/dev/null || true
+wait "${P_LIVE}" 2>/dev/null || true
+rm -rf "${tmp6p}"
+
 # --- Test 7: install integration (tmpdir HOME) ---
 tmp7="$(mktemp -d)"; trap 'rm -rf "${tmp1}" "${tmp2}" "${tmp3}" "${tmp4}" "${tmp5}" "${tmp6:-}" "${tmp7}"' EXIT
 HOME="${tmp7}" bash "${REPO}/scripts/install.sh" worktree >/dev/null 2>&1

@@ -64,6 +64,17 @@ gate_lock_release
 
 The lockfile lives in the repo's shared git directory, so all of the project's worktrees contend on the same lock. `flock` waits its turn; it does not fail fast.
 
+A monitor or cron job that must not alert while a gate has the backend stopped asks instead of waiting. It has no git working directory, so it passes the repo:
+
+```bash
+source ~/.claude/worktree/gate-lock.sh
+if holder="$(gate_lock_holder_alive /path/to/repo 120)"; then
+    echo "skipping: a gate holds the lock (${holder})"; exit 0
+fi
+```
+
+`gate_lock_holder_alive` only reads the holder note, so it returns at once whether or not a gate is running and never delays one. It ignores a note whose pid is dead, whose start time is empty or unreadable, or that is older than the limit (the second argument, in minutes; default 120), so a hung gate cannot silence the monitor forever.
+
 **A gate that stops the backend must hold the lock across the whole test run.** That looks like over-locking and it isn't: the gate frees the port so its own tests can bind it, so the port is exclusive from the stop until the restart. Shrinking the lock to just the stop/restart lets two test runs bind the same port, which fails far more confusingly than waiting does. Don't optimise it away.
 
 The way to spend less time waiting is ordering, not scope: run the parts that need nothing shared — syntax, taxonomy, offline fixture suites — *before* acquiring, so concurrent sessions overlap on those and only queue for the part that truly needs the port. Genuinely parallel gates would need per-session ports and databases, which stays out of scope (see The honest limit above).

@@ -40,13 +40,16 @@ frontend/.next
 - **`link-deps.sh`** — with no arguments (the form `/plan`, `/code` and `/merge` use) it derives the worktree from `git rev-parse --show-toplevel` and the main checkout from the parent of `git rev-parse --git-common-dir`, matching the rest of the worktree tooling. `link-deps.sh <main-checkout-dir> <worktree-dir>` still works for explicit use and fixtures. Either way it reads `<main>/.claude/worktree-deps` and symlinks each listed path into the worktree. It **refuses when both paths resolve to the same directory** (exit 2) — that is what running the no-argument form from the main checkout looks like, and without the guard it would replace real files with symlinks to themselves.
 - **`gate-lock.sh`** — sourceable take-turns lock. A project's `scripts/gate_fast.sh` does `source ~/.claude/worktree/gate-lock.sh`, then takes the lock. The lockfile lives in the shared git common dir, so all worktrees of one repo contend on the same lock. `flock` blocks (waits its turn); it does not fail fast.
 
-  Three public functions:
+  Four public functions:
 
   | Function | Use |
   | -------- | --- |
   | `with_gate_lock <cmd> [args...]` | Wrap a single command. Runs in a subshell. |
   | `gate_lock_acquire [label]` | Hold across a region — what a gate that stops a backend and runs tests against its ports needs. |
   | `gate_lock_release` | Release. Safe to call without a prior acquire, and safe to repeat. |
+  | `gate_lock_holder_alive [repo-dir] [max-age-minutes]` | Read-only "is a gate running right now" for a health check, cron job or systemd unit. Prints `pid=N label=L started=S` and returns 0 for a live, recent holder; returns 1 otherwise; returns 2 if `max-age-minutes` is not a whole number. `repo-dir` defaults to the current directory, the limit to 120 minutes. |
+
+  `gate_lock_holder_alive` reads `gate.lock.holder` and nothing else: it never opens, creates or waits on `gate.lock`, so it can neither delay a gate nor be delayed by one. It ignores a note whose pid is dead, whose `started=` is empty or unparseable, or that is older than the limit. The pid check is still a hint: a pid reused by an unrelated process after a gate died reads as alive until the limit passes, and a gate owned by another user reads as "no gate" because `kill -0` fails for it.
 
   **`fd 9` is reserved by this helper** — `gate_lock_acquire` uses `exec 9>` so the descriptor outlives the function, which is why it can't be a subshell like `with_gate_lock`. Callers must not use fd 9 for anything else.
 
