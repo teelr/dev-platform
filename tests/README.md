@@ -45,6 +45,8 @@ tests/
 ├── phase-milestones/
 │   ├── run.sh                      check-phase-milestones.sh detector (offline mock-gh)
 │   └── fixtures/mock-bin/gh        mock gh CLI for canned milestone responses
+├── dep-install-notice/
+│   └── run.sh                      check-dep-install-needed.sh: notice when a merge changes dependency files beside a linked node_modules (fixture git repos, parity with link-deps.sh)
 └── version-collision/
     ├── run.sh                      claim_roadmap_version.py + check_version_collision.py (offline mock-gh + real local git fixture)
     └── fixtures/mock-bin/gh        mock gh CLI for canned milestone responses + create-race injection

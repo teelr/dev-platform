@@ -175,6 +175,13 @@ Print:
 - The merge commit SHA (`git rev-parse HEAD`)
 - The PR URL (for reference)
 - In worktree mode: that the worktree was removed and the session is back in the main checkout.
+- Whether the shared `node_modules` is now stale. Run this plain command from the project's checkout (no arguments):
+
+  ```bash
+  bash /home/rich/dev/scripts/check-dep-install-needed.sh
+  ```
+
+  If it prints anything, include that output verbatim in the report. If it prints nothing, say nothing about it. It only reports: it never installs and never restarts a server, so relay its lines and do not run the install yourself. It looks at this merge's commit only, so a `git pull` that brought in several commits is not scanned further back. (In a worktree-mode project every worktree links `node_modules` from the main checkout, so a merged dependency change is installed nowhere until someone runs the install there; see `docs/CONCURRENT-DEV.md`.)
 
 **Every `#<number>` in this report carries a type word — `PR #384`, `issue #383` — and an issue in another repo is cited as `<owner>/<repo>#<n>`, the exempt form.** A bare cross-repo number is the worst case: it names an object in a repo the reader is not looking at, in a number space shared with PRs. See "Which Identifier To Cite" in `CLAUDE.md`.
 

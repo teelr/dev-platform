@@ -88,6 +88,18 @@ Waiting is announced. A gate queued behind another prints who it's waiting for a
 
 An uncontended run says nothing.
 
+**Dependencies are shared too.** If the manifest links a `node_modules`, every worktree uses the main checkout's copy, so a dependency change that merges to `main` is installed nowhere until someone runs the install there. Nothing else tells you. `/merge` now runs `scripts/check-dep-install-needed.sh` as part of its report and, when the merge changed `package.json` or a lock file beside a linked `node_modules`, prints:
+
+```text
+[dep-notice] This merge changed dependency files beside a linked node_modules:
+[dep-notice]   frontend/: package.json, package-lock.json
+[dep-notice] Worktrees share the main checkout's node_modules, so nothing is installed until you run, in the main checkout:
+[dep-notice]   npm --prefix /home/rich/dev/projects/<project>/frontend install
+[dep-notice] Then restart the dev server. Installing under a running server swaps packages beneath it (...)
+```
+
+It only reports. It does not install and does not restart anything, because an install under a running dev server is what broke kermit-v3's frontend (dev-platform issue #151), and a restart command differs per project. It looks at the merge's own commit, so it does not catch a dependency change that arrived some other way. A project that wants a hard failure when its lock file is newer than its `node_modules` adds that check to its own `gate_fast.sh`; dev-platform does not ship one.
+
 ### 4. Check it works
 
 Open two chats, run `/code` in each, and confirm you get two separate `.claude/worktrees/...` directories and that the app runs in each.
