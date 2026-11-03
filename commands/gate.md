@@ -107,6 +107,13 @@ Work directory: `/home/rich/dev/projects/kermit`
 Counts grow with the suite — see actual `make check` / `make test-quiet`
 / `make smoke-fast` output for current totals.
 
+Before step 1, run `make test-infra-status` (kermit-harness v4.205.0). It lists all seven
+`kermit-test-*` containers, marks any that are stopped or not healthy yet, prints the
+`docker start` line in dependency order, and exits 1 when one is down or not healthy yet (2 if the docker CLI is unavailable). Tests that need
+Milvus (or another backend) skip when it is unreachable, so a gate can pass with a
+container down; `make test-quiet` also ends with a `WARNING:` block when something is down.
+If a container is down, report which one before treating the result as clean.
+
 1. `make check` — constitutional checks (AST + pytest tiers)
 2. `make test-quiet` — full unit/integration suite
 3. `make smoke-fast` — in-process production-gate smoke tier
@@ -114,7 +121,7 @@ Counts grow with the suite — see actual `make check` / `make test-quiet`
 ### full (~12-15 min cold, ~6-8 min warm; requires test infra + Ollama + service binaries)
 
 All fast steps, plus:
-4. `make test-infra-up` — start Docker DATA containers (PG/Mongo/Milvus/Redis/NATS)
+4. `make test-infra-up` — start the seven Docker test containers from `docker-compose.dev.yml` (`kermit-test-` postgres, mongodb, etcd, milvus, nats, redis, clamav). Milvus needs etcd running first: if `kermit-test-etcd` is stopped, Milvus exits ~10s after start with `failed to create etcd client`. Check with `make test-infra-status`.
 5. `make services-up` — start Go wiki-service (8022) + Rust wiki-processor (8023) binaries (R13-0; first run ~3-5 min cold for Rust release build)
 6. `make smoke-full` — full smoke tier (real backends + Ollama + service binaries)
 7. `make load-l1-smoke` — 50 agents single process (~3 min) — load-tier per L15 promotion in `/home/rich/dev/CLAUDE.md` "Workflow Discipline / Pre-commit Gate Coverage"
