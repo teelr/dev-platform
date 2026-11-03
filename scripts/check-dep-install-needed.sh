@@ -34,11 +34,10 @@
 # is gate-discovered. Called from commands/merge.md Step 6.
 #
 # The manifest parsing below is a deliberate inline copy of
-# shell/worktree/link-deps.sh (strip from `#`, trim, skip blanks). It does NOT
-# drop a trailing `/`, because link-deps.sh does not either: an entry written
-# `frontend/node_modules/` fails to link there (ln cannot create the link), so
-# naming it here would report a directory that was never linked. The two stay
-# separate copies because link-deps.sh runs from the deployed
+# shell/worktree/link-deps.sh (strip from `#`, trim, strip trailing `/`, skip
+# blanks). The slash stripping matters: `frontend/node_modules/` links as
+# `frontend/node_modules` (v1.49, issue #154), so it must be named here too. The
+# two stay separate copies because link-deps.sh runs from the deployed
 # ~/.claude/worktree/ path, where scripts/lib/ does not exist, so it cannot
 # share. link-deps.sh is the source of truth, and tests/dep-install-notice/
 # runs both over one manifest so they cannot drift.
@@ -100,6 +99,7 @@ while IFS= read -r raw || [[ -n "${raw}" ]]; do
     line="${raw%%#*}"                          # strip trailing comment
     line="${line#"${line%%[![:space:]]*}"}"    # trim leading whitespace
     line="${line%"${line##*[![:space:]]}"}"    # trim trailing whitespace
+    while [[ "${line}" == */ ]]; do line="${line%/}"; done   # as link-deps.sh does
     [[ -z "${line}" ]] && continue
     case "${line}" in
         node_modules)   dir="." ;;

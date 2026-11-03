@@ -2,6 +2,8 @@
 # shell/worktree/link-deps.sh — symlink a project's heavy git-ignored paths
 # from the main checkout into a fresh worktree, per the project's
 # .claude/worktree-deps manifest. Link, never copy. Missing source = warn.
+# Trailing slashes on an entry are ignored; a link that fails is reported and
+# makes the script exit 1 (it never prints "linked" for one that did not happen).
 #
 # Usage:
 #   link-deps.sh                                    # from inside the worktree
@@ -39,9 +41,12 @@ link-deps.sh — symlink a project's heavy git-ignored paths into a worktree
   link-deps.sh --help                             this text
 
 Reads <main>/.claude/worktree-deps. Links, never copies. A listed path that does
-not exist yet is a warning, not an error.
+not exist yet is a warning, not an error. Trailing slashes on an entry are
+ignored. An entry that cannot be linked prints a WARN, is counted as failed, and
+the rest are still tried.
 
-Exit: 0 linked (or nothing to link), 2 usage/derivation error
+Exit: 0 linked (or nothing to link), 1 one or more links failed,
+      2 usage/derivation error
 USAGE
 }
 
@@ -94,11 +99,22 @@ MANIFEST="${MAIN}/.claude/worktree-deps"
 
 linked=0
 missing=0
+failed=0
 while IFS= read -r raw || [[ -n "${raw}" ]]; do
     line="${raw%%#*}"                          # strip trailing comment
     line="${line#"${line%%[![:space:]]*}"}"    # trim leading whitespace
     line="${line%"${line##*[![:space:]]}"}"    # trim trailing whitespace
     [[ -z "${line}" ]] && continue
+    # Trailing slashes are ignored: `ln` cannot create a link at a path ending in
+    # `/` when nothing exists there yet (issue #154). scripts/check-dep-install-
+    # needed.sh keeps an inline copy of this parsing and must strip the same way.
+    entry="${line}"
+    while [[ "${line}" == */ ]]; do line="${line%/}"; done
+    if [[ -z "${line}" ]]; then
+        echo "[link-deps] WARN invalid entry (no path): ${entry}" >&2
+        failed=$((failed + 1))
+        continue
+    fi
     src="${MAIN}/${line}"
     dst="${WT}/${line}"
     if [[ ! -e "${src}" ]]; then
@@ -106,11 +122,20 @@ while IFS= read -r raw || [[ -n "${raw}" ]]; do
         missing=$((missing + 1))
         continue
     fi
-    mkdir -p "$(dirname "${dst}")"
-    ln -sfn "${src}" "${dst}"
-    echo "[link-deps] linked ${line}"
-    linked=$((linked + 1))
+    # No `set -e` on purpose: a failed entry must not hide the ones after it. The
+    # tools' own error text stays visible; it is the diagnosis.
+    if mkdir -p "$(dirname "${dst}")" && ln -sfn "${src}" "${dst}"; then
+        echo "[link-deps] linked ${line}"
+        linked=$((linked + 1))
+    else
+        echo "[link-deps] WARN could not link: ${line}" >&2
+        failed=$((failed + 1))
+    fi
 done < "${MANIFEST}"
 
+if [[ "${failed}" -gt 0 ]]; then
+    echo "[link-deps] ${linked} linked, ${missing} missing, ${failed} failed"
+    exit 1
+fi
 echo "[link-deps] ${linked} linked, ${missing} missing"
 exit 0

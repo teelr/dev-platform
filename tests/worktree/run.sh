@@ -82,6 +82,67 @@ else
     record_fail "worktree: link-deps no-manifest (rc=${rc}, out: ${out})"
 fi
 
+# --- Tests 4a-1..4a-4: trailing slashes and failed links (v1.49, issue #154) ---
+# Before v1.49 an entry like `a/node_modules/` made `ln` fail while the script
+# still printed "linked", counted it and exited 0.
+tmp4a="$(mktemp -d)"; trap 'rm -rf "${tmp1}" "${tmp2}" "${tmp3}" "${tmp4}" "${tmp4a}"' EXIT
+
+# 4a-1: single and double trailing slashes link as if absent.
+mkdir -p "${tmp4a}/m1/.claude" "${tmp4a}/m1/a/node_modules" "${tmp4a}/m1/b/node_modules" "${tmp4a}/w1"
+printf 'a/node_modules/\nb/node_modules//\n' > "${tmp4a}/m1/.claude/worktree-deps"
+out="$(bash "${LINK_DEPS}" "${tmp4a}/m1" "${tmp4a}/w1" 2>&1)"; rc=$?
+if [[ ${rc} -eq 0 ]] && grep -q "2 linked, 0 missing$" <<<"${out}" \
+   && [[ "$(readlink "${tmp4a}/w1/a/node_modules")" == "${tmp4a}/m1/a/node_modules" ]] \
+   && [[ "$(readlink "${tmp4a}/w1/b/node_modules")" == "${tmp4a}/m1/b/node_modules" ]] \
+   && grep -q "linked a/node_modules$" <<<"${out}"; then
+    record_pass "worktree: link-deps links entries written with one or two trailing slashes"
+else
+    record_fail "worktree: link-deps trailing slash (rc=${rc}, out: ${out})"
+fi
+
+# 4a-2: a bare root `node_modules/` links as <wt>/node_modules.
+mkdir -p "${tmp4a}/m2/.claude" "${tmp4a}/m2/node_modules" "${tmp4a}/w2"
+printf 'node_modules/\n' > "${tmp4a}/m2/.claude/worktree-deps"
+out="$(bash "${LINK_DEPS}" "${tmp4a}/m2" "${tmp4a}/w2" 2>&1)"; rc=$?
+if [[ ${rc} -eq 0 && -L "${tmp4a}/w2/node_modules" ]] && grep -q "1 linked, 0 missing$" <<<"${out}"; then
+    record_pass "worktree: link-deps links a root node_modules/ entry"
+else
+    record_fail "worktree: link-deps root slash entry (rc=${rc}, out: ${out})"
+fi
+
+# 4a-3: a link that cannot be made is reported, not called "linked", exits 1, and
+# does not stop the entries after it. <wt>/a is a regular file, so `mkdir -p` for
+# a/node_modules fails; that does not depend on file permissions, so it also
+# holds when the gate runs as root.
+mkdir -p "${tmp4a}/m3/.claude" "${tmp4a}/m3/a/node_modules" "${tmp4a}/w3"
+printf 'a/node_modules\n.env\n' > "${tmp4a}/m3/.claude/worktree-deps"
+echo "SECRET=1" > "${tmp4a}/m3/.env"
+: > "${tmp4a}/w3/a"
+out="$(bash "${LINK_DEPS}" "${tmp4a}/m3" "${tmp4a}/w3" 2>&1)"; rc=$?
+if [[ ${rc} -eq 1 ]] \
+   && grep -q "WARN could not link: a/node_modules" <<<"${out}" \
+   && grep -q "1 linked, 0 missing, 1 failed$" <<<"${out}" \
+   && ! grep -q "linked a/node_modules" <<<"${out}" \
+   && [[ -L "${tmp4a}/w3/.env" ]]; then
+    record_pass "worktree: link-deps reports a failed link, exits 1, and still links the other entries"
+else
+    record_fail "worktree: link-deps failed-link reporting (rc=${rc}, out: ${out})"
+fi
+
+# 4a-4: an entry that is only slashes is rejected, not linked.
+mkdir -p "${tmp4a}/m4/.claude" "${tmp4a}/w4"
+printf '/\n' > "${tmp4a}/m4/.claude/worktree-deps"
+out="$(bash "${LINK_DEPS}" "${tmp4a}/m4" "${tmp4a}/w4" 2>&1)"; rc=$?
+if [[ ${rc} -eq 1 ]] && grep -q "WARN invalid entry" <<<"${out}" \
+   && ! grep -q "linked /" <<<"${out}" && [[ -z "$(ls -A "${tmp4a}/w4")" ]]; then
+    record_pass "worktree: link-deps rejects a slash-only entry and links nothing"
+else
+    record_fail "worktree: link-deps slash-only entry (rc=${rc}, out: ${out})"
+fi
+# Later tests reset the EXIT trap to their own lists, so clean up here rather
+# than rely on the trap above surviving.
+rm -rf "${tmp4a}"
+
 # --- Tests 4b-4g: link-deps derives its own paths (no-argument form) ---
 # /plan and /code invoke link-deps.sh with NO arguments, because a
 # worktree-isolated session's command guard refuses any command containing a
