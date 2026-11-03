@@ -103,6 +103,18 @@ printf 'v0.3: Something Else\n' > "${v03_titles}"
 v02_diff_title="${TMP}/v02-diff-title.txt"
 printf 'v0.2: Different Title\n' > "${v02_diff_title}"
 
+v01_renamed_title="${TMP}/v01-renamed-title.txt"
+printf 'v0.1: Something Else\n' > "${v01_renamed_title}"
+
+v01_old_title="${TMP}/v01-old-title.txt"
+printf 'v0.1: Foundation\n' > "${v01_old_title}"
+
+v01_third_title="${TMP}/v01-third-title.txt"
+printf 'v0.1: Third Name\n' > "${v01_third_title}"
+
+v01_renamed_v02_other="${TMP}/v01-renamed-v02-other.txt"
+printf 'v0.1: Something Else\nv0.2: Not Widgets\n' > "${v01_renamed_v02_other}"
+
 # --- Helpers -------------------------------------------------------------------
 
 run_check() {
@@ -263,6 +275,87 @@ if [[ ${RC} -eq 0 ]] && echo "${OUT}" | grep -q "Claimed v0.2"; then
     record_pass "claim-roadmap-version: heading-form origin/main still detected (dual-form regression guard)"
 else
     record_fail "claim-roadmap-version: heading-form regressed — rc=${RC}, out=${OUT:0:200}"
+fi
+
+# --- Rename support (v1.46, issue #147) ------------------------------------------
+# A version already on origin/main under a different title is a rename, not a
+# collision, only when the GitHub milestone already carries this branch's title.
+
+RENAMED_ROADMAP='- **v0.1: Something Else** *(complete — 2026-01-01)* — renamed.
+'
+RENAMED_PLUS_NEW='- **v0.1: Something Else** *(complete — 2026-01-01)* — renamed.
+- **v0.2: Widgets** *(complete — 2026-01-02)* — new phase.
+'
+
+# Check 15: renamed, milestone already has the new title -> OK, exit 0
+run_check "${RENAMED_ROADMAP}" "${WORK}" VERSION_GUARD_REPO_SLUG=owner/repo MOCK_MILESTONES_FILE="${v01_renamed_title}"
+if [[ ${RC} -eq 0 ]] && echo "${OUT}" | grep -q "renamed from 'Foundation' to 'Something Else'" \
+        && echo "${OUT}" | grep -q "1 renamed version header(s) confirmed" && ! echo "${OUT}" | grep -q "COLLISION"; then
+    record_pass "version-collision: rename confirmed by milestone -> OK (exit 0)"
+else
+    record_fail "version-collision: confirmed rename not accepted — rc=${RC}, out=${OUT:0:300}"
+fi
+
+# Check 16: renamed, milestone still has the old title -> COLLISION + hint
+run_check "${RENAMED_ROADMAP}" "${WORK}" VERSION_GUARD_REPO_SLUG=owner/repo MOCK_MILESTONES_FILE="${v01_old_title}"
+if [[ ${RC} -eq 1 ]] && echo "${OUT}" | grep -q "COLLISION" && echo "${OUT}" | grep -q "rename the GitHub milestone"; then
+    record_pass "version-collision: rename, milestone still old title -> COLLISION (exit 1) with hint"
+else
+    record_fail "version-collision: old-title milestone case wrong — rc=${RC}, out=${OUT:0:300}"
+fi
+
+# Check 17: renamed, milestone has a third title -> COLLISION
+run_check "${RENAMED_ROADMAP}" "${WORK}" VERSION_GUARD_REPO_SLUG=owner/repo MOCK_MILESTONES_FILE="${v01_third_title}"
+if [[ ${RC} -eq 1 ]] && echo "${OUT}" | grep -q "COLLISION"; then
+    record_pass "version-collision: rename, milestone has a different title -> COLLISION (exit 1)"
+else
+    record_fail "version-collision: third-title milestone case wrong — rc=${RC}, out=${OUT:0:300}"
+fi
+
+# Check 18: renamed, no milestone for the version -> COLLISION
+run_check "${RENAMED_ROADMAP}" "${WORK}" VERSION_GUARD_REPO_SLUG=owner/repo MOCK_MILESTONES_FILE="${empty_titles}"
+if [[ ${RC} -eq 1 ]] && echo "${OUT}" | grep -q "COLLISION"; then
+    record_pass "version-collision: rename, no milestone -> COLLISION (exit 1)"
+else
+    record_fail "version-collision: missing-milestone case wrong — rc=${RC}, out=${OUT:0:300}"
+fi
+
+# Check 19: renamed, gh api fails -> exit 1 (not 2, not 0), says why
+run_check "${RENAMED_ROADMAP}" "${WORK}" VERSION_GUARD_REPO_SLUG=owner/repo MOCK_MILESTONES_FILE="${v01_renamed_title}" MOCK_FAIL=1
+if [[ ${RC} -eq 1 ]] && echo "${OUT}" | grep -q "COLLISION" && echo "${OUT}" | grep -q "rename cannot be confirmed"; then
+    record_pass "version-collision: rename, lookup fails -> COLLISION (exit 1, never passes unchecked)"
+else
+    record_fail "version-collision: lookup-failure rename case wrong — rc=${RC}, out=${OUT:0:300}"
+fi
+
+# Check 20: renamed, repo slug unresolvable -> exit 1, not 0
+_saved_origin="$(git -C "${WORK}" remote get-url origin)"
+git -C "${WORK}" remote set-url origin ../origin.git
+run_check "${RENAMED_ROADMAP}" "${WORK}" MOCK_MILESTONES_FILE="${v01_renamed_title}"
+if [[ ${RC} -eq 1 ]] && echo "${OUT}" | grep -q "rename cannot be confirmed"; then
+    record_pass "version-collision: rename, slug unresolvable -> COLLISION (exit 1)"
+else
+    record_fail "version-collision: unresolvable-slug rename case wrong — rc=${RC}, out=${OUT:0:300}"
+fi
+git -C "${WORK}" remote set-url origin "${_saved_origin}"
+
+# Check 21: confirmed rename + clean new v0.2 -> exit 0; same with lookup down -> exit 1
+run_check "${RENAMED_PLUS_NEW}" "${WORK}" VERSION_GUARD_REPO_SLUG=owner/repo MOCK_MILESTONES_FILE="${v01_renamed_title}"
+mixed_ok_rc=${RC}; mixed_ok_out="${OUT}"
+run_check "${RENAMED_PLUS_NEW}" "${WORK}" VERSION_GUARD_REPO_SLUG=owner/repo MOCK_MILESTONES_FILE="${v01_renamed_title}" MOCK_FAIL=1
+if [[ ${mixed_ok_rc} -eq 0 ]] && echo "${mixed_ok_out}" | grep -q "1 new version header(s), no collision detected" \
+        && [[ ${RC} -eq 1 ]] && echo "${OUT}" | grep -q "COLLISION: v0.1"; then
+    record_pass "version-collision: rename + new version -> exit 0; lookup down -> exit 1 (collision beats SKIP)"
+else
+    record_fail "version-collision: mixed case wrong — ok_rc=${mixed_ok_rc}, rc=${RC}, out=${OUT:0:300}"
+fi
+
+# Check 22: confirmed rename + new v0.2 whose milestone has another title -> exit 1 naming only v0.2
+run_check "${RENAMED_PLUS_NEW}" "${WORK}" VERSION_GUARD_REPO_SLUG=owner/repo MOCK_MILESTONES_FILE="${v01_renamed_v02_other}"
+if [[ ${RC} -eq 1 ]] && echo "${OUT}" | grep -q "COLLISION: v0.2" && ! echo "${OUT}" | grep -q "COLLISION: v0.1"; then
+    record_pass "version-collision: confirmed rename does not mask a new-version collision"
+else
+    record_fail "version-collision: rename-plus-new-collision case wrong — rc=${RC}, out=${OUT:0:300}"
 fi
 
 # --- ROADMAP_PATH coverage (v1.13) -----------------------------------------------
