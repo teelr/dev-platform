@@ -196,8 +196,8 @@ r9="$(mkrepo r9 "${MESSY_MANIFEST}" "${MESSY_FILES[@]}")"
 change "${r9}" frontend/package.json server/package.json dispatch/package.json package.json
 run_notice "${r9}"
 if has "frontend/: package.json" && has "server/: package.json" && has "(repo root): package.json" \
-        && ! has "dispatch/"; then
-    record_pass "dep-install-notice: messy manifest parsed (comments, whitespace, blanks); trailing-slash entry not recognised"
+        && has "dispatch/: package.json"; then
+    record_pass "dep-install-notice: messy manifest parsed (comments, whitespace, blanks, trailing slash)"
 else
     record_fail "dep-install-notice: messy manifest wrong — out=${OUT:0:500}"
 fi
