@@ -139,6 +139,71 @@ if [[ ${rc} -eq 1 ]] && grep -q "WARN invalid entry" <<<"${out}" \
 else
     record_fail "worktree: link-deps slash-only entry (rc=${rc}, out: ${out})"
 fi
+
+# --- Tests 4a-5..4a-8: a destination that already exists (v1.50, issue #156) ---
+# Before v1.50 a real directory at the destination got the link created INSIDE it
+# and a real file was overwritten; both printed "linked" and exited 0.
+REFUSE_MSG="(destination exists and is not a symlink)"
+
+# 4a-5: real directories (one with a file, one empty) are refused and untouched.
+mkdir -p "${tmp4a}/m5/.claude" "${tmp4a}/m5/a/node_modules" "${tmp4a}/m5/b/node_modules" \
+         "${tmp4a}/w5/a/node_modules" "${tmp4a}/w5/b/node_modules"
+printf 'a/node_modules\nb/node_modules\n.env\n' > "${tmp4a}/m5/.claude/worktree-deps"
+echo "SECRET=1" > "${tmp4a}/m5/.env"
+echo keep > "${tmp4a}/w5/a/node_modules/tracked.txt"
+out="$(bash "${LINK_DEPS}" "${tmp4a}/m5" "${tmp4a}/w5" 2>&1)"; rc=$?
+if [[ ${rc} -eq 1 ]] \
+   && grep -qF "WARN could not link: a/node_modules ${REFUSE_MSG}" <<<"${out}" \
+   && grep -qF "WARN could not link: b/node_modules ${REFUSE_MSG}" <<<"${out}" \
+   && grep -q "1 linked, 0 missing, 2 failed$" <<<"${out}" \
+   && ! grep -q "linked a/node_modules" <<<"${out}" \
+   && ! grep -q "linked b/node_modules" <<<"${out}" \
+   && [[ -f "${tmp4a}/w5/a/node_modules/tracked.txt" ]] \
+   && [[ ! -e "${tmp4a}/w5/a/node_modules/node_modules" && ! -e "${tmp4a}/w5/b/node_modules/node_modules" ]] \
+   && [[ -L "${tmp4a}/w5/.env" ]]; then
+    record_pass "worktree: link-deps refuses a real directory (empty or not), leaves it untouched, still links the rest"
+else
+    record_fail "worktree: link-deps real-directory destination (rc=${rc}, out: ${out})"
+fi
+
+# 4a-6: a real file is refused and its content survives.
+mkdir -p "${tmp4a}/m6/.claude" "${tmp4a}/w6"
+printf '.env\n' > "${tmp4a}/m6/.claude/worktree-deps"
+echo "MAIN=1" > "${tmp4a}/m6/.env"
+echo "WORKTREE-LOCAL=1" > "${tmp4a}/w6/.env"
+out="$(bash "${LINK_DEPS}" "${tmp4a}/m6" "${tmp4a}/w6" 2>&1)"; rc=$?
+if [[ ${rc} -eq 1 ]] \
+   && grep -qF "WARN could not link: .env ${REFUSE_MSG}" <<<"${out}" \
+   && [[ ! -L "${tmp4a}/w6/.env" && "$(cat "${tmp4a}/w6/.env")" == "WORKTREE-LOCAL=1" ]]; then
+    record_pass "worktree: link-deps refuses a real file and keeps its content"
+else
+    record_fail "worktree: link-deps real-file destination (rc=${rc}, out: ${out})"
+fi
+
+# 4a-7: running the script twice is safe (a symlink at the destination is replaced).
+mkdir -p "${tmp4a}/m7/.claude" "${tmp4a}/m7/a/node_modules" "${tmp4a}/w7"
+printf 'a/node_modules\n' > "${tmp4a}/m7/.claude/worktree-deps"
+bash "${LINK_DEPS}" "${tmp4a}/m7" "${tmp4a}/w7" >/dev/null 2>&1
+out="$(bash "${LINK_DEPS}" "${tmp4a}/m7" "${tmp4a}/w7" 2>&1)"; rc=$?
+if [[ ${rc} -eq 0 ]] && grep -q "1 linked, 0 missing$" <<<"${out}" \
+   && [[ "$(readlink "${tmp4a}/w7/a/node_modules")" == "${tmp4a}/m7/a/node_modules" ]] \
+   && [[ ! -e "${tmp4a}/m7/a/node_modules/node_modules" ]]; then
+    record_pass "worktree: link-deps second run is idempotent (symlink replaced, no nested link)"
+else
+    record_fail "worktree: link-deps second run (rc=${rc}, out: ${out})"
+fi
+
+# 4a-8: a broken symlink at the destination is replaced.
+mkdir -p "${tmp4a}/m8/.claude" "${tmp4a}/m8/a/node_modules" "${tmp4a}/w8/a"
+printf 'a/node_modules\n' > "${tmp4a}/m8/.claude/worktree-deps"
+ln -s /nonexistent-link-deps-target "${tmp4a}/w8/a/node_modules"
+out="$(bash "${LINK_DEPS}" "${tmp4a}/m8" "${tmp4a}/w8" 2>&1)"; rc=$?
+if [[ ${rc} -eq 0 ]] && grep -q "1 linked, 0 missing$" <<<"${out}" \
+   && [[ "$(readlink "${tmp4a}/w8/a/node_modules")" == "${tmp4a}/m8/a/node_modules" ]]; then
+    record_pass "worktree: link-deps replaces a broken symlink at the destination"
+else
+    record_fail "worktree: link-deps broken-symlink destination (rc=${rc}, out: ${out})"
+fi
 # Later tests reset the EXIT trap to their own lists, so clean up here rather
 # than rely on the trap above surviving.
 rm -rf "${tmp4a}"
@@ -161,6 +226,10 @@ git -C "${PROJ}" config user.name t
 printf '.env\nnode_modules\n' > "${PROJ}/.claude/worktree-deps"
 printf 'SECRET=1\n' > "${PROJ}/.env"
 : > "${PROJ}/README.md"
+# .env is git-ignored, as in a real project. If it were committed, the fresh
+# worktree would already hold a real .env and link-deps.sh would now refuse to
+# link over it (v1.50, issue #156).
+printf '.env\n' > "${PROJ}/.gitignore"
 git -C "${PROJ}" add -A >/dev/null 2>&1
 git -C "${PROJ}" commit -qm init >/dev/null 2>&1
 

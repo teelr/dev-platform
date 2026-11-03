@@ -4,6 +4,7 @@
 # .claude/worktree-deps manifest. Link, never copy. Missing source = warn.
 # Trailing slashes on an entry are ignored; a link that fails is reported and
 # makes the script exit 1 (it never prints "linked" for one that did not happen).
+# A real file or directory already at the destination is refused, not replaced.
 #
 # Usage:
 #   link-deps.sh                                    # from inside the worktree
@@ -43,7 +44,8 @@ link-deps.sh — symlink a project's heavy git-ignored paths into a worktree
 Reads <main>/.claude/worktree-deps. Links, never copies. A listed path that does
 not exist yet is a warning, not an error. Trailing slashes on an entry are
 ignored. An entry that cannot be linked prints a WARN, is counted as failed, and
-the rest are still tried.
+the rest are still tried. An entry whose destination already exists as a real
+file or directory is refused (nothing is deleted); a symlink there is replaced.
 
 Exit: 0 linked (or nothing to link), 1 one or more links failed,
       2 usage/derivation error
@@ -120,6 +122,16 @@ while IFS= read -r raw || [[ -n "${raw}" ]]; do
     if [[ ! -e "${src}" ]]; then
         echo "[link-deps] WARN source missing, skipped: ${line}" >&2
         missing=$((missing + 1))
+        continue
+    fi
+    # A real file or directory already at the destination is refused, never
+    # replaced or linked into (issue #156): `ln -sfn` would create the link INSIDE
+    # a real directory, or overwrite a real file, and either way this script would
+    # print "linked". A symlink there (valid or broken) is fine: it is replaced,
+    # which is what makes running this script twice safe.
+    if [[ -e "${dst}" && ! -L "${dst}" ]]; then
+        echo "[link-deps] WARN could not link: ${line} (destination exists and is not a symlink)" >&2
+        failed=$((failed + 1))
         continue
     fi
     # No `set -e` on purpose: a failed entry must not hide the ones after it. The
