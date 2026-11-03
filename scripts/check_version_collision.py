@@ -10,8 +10,13 @@ Two-layer check:
      check_spec_taxonomy.sh's own dual-form pattern — present in the WORKING
      TREE's ROADMAP.md but absent from origin/main's ROADMAP.md is a "new"
      version this branch is introducing. If origin/main's ROADMAP.md ALSO has
-     that exact v<N>.<M> under a DIFFERENT title, that's a real collision —
-     the number shipped as something else while this branch was in flight.
+     that exact v<N>.<M> under a DIFFERENT title, that's a collision — the
+     number shipped as something else while this branch was in flight — UNLESS
+     the GitHub milestone for that version already carries this branch's
+     title. Renaming the milestone first is the deliberate step that marks a
+     rename as intentional (v1.46, issue #147). If the milestone has the old
+     or another title, has no entry, or the lookup cannot run, it stays a
+     collision: a change is never passed through on a check that did not run.
   2. GitHub milestone cross-check (best-effort — SKIPs, does not FAIL, if `gh`
      is unavailable/unauthenticated): for each "new" version from step 1,
      check every open+closed milestone titled `v<N>.<M>: ...`. A match with a
@@ -96,6 +101,28 @@ def _repo_slug() -> str | None:
     return parse_repo_slug(url)
 
 
+def _milestone_titles() -> tuple[dict[str, str] | None, str]:
+    """version token -> milestone title for every open+closed GitHub milestone.
+    Returns (None, <SKIP message>) when the lookup cannot run."""
+    if not _gh_available():
+        return None, "SKIP: gh CLI unavailable/unauthenticated — milestone cross-check unavailable"
+    repo_slug = _repo_slug()
+    if repo_slug is None:
+        return None, "SKIP: could not determine owner/repo from origin remote"
+    raw = _run([
+        "gh", "api", "--paginate", f"repos/{repo_slug}/milestones?state=all",
+        "--jq", ".[].title",
+    ], timeout=20)
+    if raw is None:
+        return None, "SKIP: gh api call failed — milestone cross-check unavailable"
+    titles: dict[str, str] = {}
+    for line in raw.splitlines():
+        m = _MILESTONE_TITLE_RE.match(line.strip())
+        if m:
+            titles[m.group(1)] = m.group(4).strip()
+    return titles, ""
+
+
 def main(project_root: Path) -> int:
     roadmap_path = _roadmap_path()
     roadmap = project_root / roadmap_path
@@ -130,49 +157,53 @@ def main(project_root: Path) -> int:
         return 0
 
     collisions: list[str] = []
+    renames: list[str] = []
+    reused_collision = False
     degraded = False
 
+    # GitHub milestones, best-effort, fetched once for both layers below. A
+    # failed fetch degrades NEW versions to SKIP (exit 2) rather than silently
+    # reporting a confident PASS on a partial check. It never rescues a REUSED
+    # version: without a milestone to confirm the rename, that stays a
+    # collision.
+    milestone_titles: dict[str, str] | None = None
+    if new_versions or reused_versions:
+        milestone_titles, skip_reason = _milestone_titles()
+        if milestone_titles is None:
+            print(skip_reason)
+
     # Layer 1: version token already used by origin/main under a different
-    # title. Always a real collision — flag every one unconditionally.
+    # title. A collision unless the GitHub milestone already carries this
+    # branch's title: renaming the milestone first is the deliberate step that
+    # marks a rename as intentional (issue #147).
     for version, local_title in reused_versions.items():
+        if milestone_titles is not None and milestone_titles.get(version) == local_title:
+            renames.append(
+                f"{version} renamed from {main_versions[version]!r} to {local_title!r} "
+                "— GitHub milestone already carries the new title"
+            )
+            continue
+        suffix = (
+            "" if milestone_titles is not None
+            else " (milestone lookup unavailable, so a rename cannot be confirmed)"
+        )
+        reused_collision = True
         collisions.append(
             f"{version}: this branch claims {local_title!r}, but origin/main's "
-            f"{roadmap_path} already titles it {main_versions[version]!r}"
+            f"{roadmap_path} already titles it {main_versions[version]!r}{suffix}"
         )
 
-    # Layer 2: GitHub milestones, best-effort. Any branch that can't complete
-    # this layer for a "new" version means that version's milestone-collision
-    # coverage is incomplete — degrade to SKIP (exit 2) rather than silently
-    # reporting a confident PASS on a partial check.
+    # Layer 2: new versions against the milestone list.
     if new_versions:
-        if _gh_available():
-            repo_slug = _repo_slug()
-            if repo_slug is not None:
-                raw = _run([
-                    "gh", "api", "--paginate", f"repos/{repo_slug}/milestones?state=all",
-                    "--jq", ".[].title",
-                ], timeout=20)
-                if raw is not None:
-                    milestone_titles: dict[str, str] = {}
-                    for line in raw.splitlines():
-                        m = _MILESTONE_TITLE_RE.match(line.strip())
-                        if m:
-                            milestone_titles[m.group(1)] = m.group(4).strip()
-                    for version, local_title in new_versions.items():
-                        existing_title = milestone_titles.get(version)
-                        if existing_title is not None and existing_title != local_title:
-                            collisions.append(
-                                f"{version}: this branch claims {local_title!r}, "
-                                f"but a GitHub milestone already titles it {existing_title!r}"
-                            )
-                else:
-                    print("SKIP: gh api call failed — milestone cross-check unavailable")
-                    degraded = True
-            else:
-                print("SKIP: could not determine owner/repo from origin remote")
-                degraded = True
+        if milestone_titles is not None:
+            for version, local_title in new_versions.items():
+                existing_title = milestone_titles.get(version)
+                if existing_title is not None and existing_title != local_title:
+                    collisions.append(
+                        f"{version}: this branch claims {local_title!r}, "
+                        f"but a GitHub milestone already titles it {existing_title!r}"
+                    )
         else:
-            print("SKIP: gh CLI unavailable/unauthenticated — milestone cross-check unavailable")
             degraded = True
 
     if collisions:
@@ -182,6 +213,11 @@ def main(project_root: Path) -> int:
             "Renumber this branch's ROADMAP.md/planning.md/milestone to a free version "
             "before committing."
         )
+        if reused_collision:
+            print(
+                "If this is a deliberate rename, rename the GitHub milestone to the "
+                "new title first, then re-run."
+            )
         return 1
 
     if degraded:
@@ -191,7 +227,12 @@ def main(project_root: Path) -> int:
         )
         return 2
 
-    print(f"OK: {len(new_versions)} new version header(s), no collision detected")
+    for r in renames:
+        print(f"OK: {r}")
+    if new_versions:
+        print(f"OK: {len(new_versions)} new version header(s), no collision detected")
+    else:
+        print(f"OK: {len(renames)} renamed version header(s) confirmed by GitHub milestone")
     return 0
 
 
